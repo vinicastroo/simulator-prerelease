@@ -11,6 +11,10 @@ const config: Config = {
       colors: {
         background: "var(--background)",
         foreground: "var(--foreground)",
+        // Strixhaven palette
+        "bg-void": "#050505",
+        "gold-accent": "#c5a059",
+        "silverquill-ink": "#3a3a3a",
       },
     },
   },

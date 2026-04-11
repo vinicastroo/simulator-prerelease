@@ -1,0 +1,72 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+  output          = "../src/generated/client"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Rarity {
+  COMMON
+  UNCOMMON
+  RARE
+  MYTHIC
+}
+
+enum CardSet {
+  SOS
+  SOA
+  SPG
+}
+
+enum College {
+  LOREHOLD
+  PRISMARI
+  QUANDRIX
+  SILVERQUILL
+  WITHERBLOOM
+}
+
+model Card {
+  id              String          @id @default(cuid())
+  name            String
+  scryfallId      String          @unique
+  rarity          Rarity
+  set             String
+  colors          Json
+  cmc             Int
+  typeLine        String
+  imagePath       String
+  collectorNumber String
+  placedCards     PlacedCard[]
+  promoInKits     PrereleaseKit[] @relation("PromoCard")
+}
+
+model PrereleaseKit {
+  id          String       @id @default(cuid())
+  college     College
+  createdAt   DateTime     @default(now())
+  promoCardId String?
+  promoCard   Card?        @relation("PromoCard", fields: [promoCardId], references: [id])
+  placedCards PlacedCard[]
+}
+
+model PlacedCard {
+  id         String        @id @default(cuid())
+  card       Card          @relation(fields: [cardId], references: [id])
+  cardId     String
+  kit        PrereleaseKit @relation(fields: [kitId], references: [id])
+  kitId      String
+  posX       Float         @default(0)
+  posY       Float         @default(0)
+  zIndex     Int           @default(0)
+  isMainDeck Boolean       @default(false)
+  isFoil     Boolean       @default(false)
+}
