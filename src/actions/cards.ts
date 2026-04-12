@@ -1,9 +1,25 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { auth } from "@/auth";
+import { requireSessionUserId } from "@/lib/auth-session";
 import { prisma } from "@/lib/prisma";
 
 type BasicLandName = "Plains" | "Island" | "Swamp" | "Mountain" | "Forest";
+
+async function assertKitOwnership(kitId: string, userId: string) {
+  const kit = await prisma.prereleaseKit.findFirst({
+    where: {
+      id: kitId,
+      userId,
+    },
+    select: { id: true },
+  });
+
+  if (!kit) {
+    throw new Error("Kit not found");
+  }
+}
 
 /**
  * Persists position + zIndex after a drag gesture.
@@ -17,10 +33,17 @@ export async function updateCardPosition(
   zIndex: number,
   kitId: string,
 ) {
-  await prisma.placedCard.update({
-    where: { id: placedCardId },
+  const userId = await requireSessionUserId();
+  await assertKitOwnership(kitId, userId);
+
+  const result = await prisma.placedCard.updateMany({
+    where: { id: placedCardId, kitId },
     data: { posX, posY, zIndex },
   });
+
+  if (result.count === 0) {
+    throw new Error("Placed card not found");
+  }
 
   revalidatePath(`/simulator/${kitId}`);
 }
@@ -29,10 +52,13 @@ export async function updateMultiplePositions(
   updates: { id: string; posX: number; posY: number; zIndex: number }[],
   kitId: string,
 ) {
+  const userId = await requireSessionUserId();
+  await assertKitOwnership(kitId, userId);
+
   await prisma.$transaction(
     updates.map(({ id, posX, posY, zIndex }) =>
-      prisma.placedCard.update({
-        where: { id },
+      prisma.placedCard.updateMany({
+        where: { id, kitId },
         data: { posX, posY, zIndex },
       }),
     ),
@@ -51,10 +77,13 @@ export async function setDeckZone(
   zone: boolean | null,
   kitId: string,
 ) {
+  const userId = await requireSessionUserId();
+  await assertKitOwnership(kitId, userId);
+
   await prisma.$transaction(
     ids.map((id) =>
-      prisma.placedCard.update({
-        where: { id },
+      prisma.placedCard.updateMany({
+        where: { id, kitId },
         data: { isMainDeck: { set: zone } },
       }),
     ),
@@ -63,8 +92,17 @@ export async function setDeckZone(
 }
 
 export async function getKitWithCards(kitId: string) {
-  return prisma.prereleaseKit.findUnique({
-    where: { id: kitId },
+  const session = await auth();
+
+  if (!session?.user?.id) {
+    return null;
+  }
+
+  return prisma.prereleaseKit.findFirst({
+    where: {
+      id: kitId,
+      userId: session.user.id,
+    },
     include: {
       placedCards: {
         include: { card: true },
@@ -75,6 +113,7 @@ export async function getKitWithCards(kitId: string) {
 }
 
 export async function createKit(college: string) {
+  const userId = await requireSessionUserId();
   const validColleges = [
     "LOREHOLD",
     "PRISMARI",
@@ -86,7 +125,7 @@ export async function createKit(college: string) {
     throw new Error("Invalid college");
   }
   return prisma.prereleaseKit.create({
-    data: { college: college as (typeof validColleges)[number] },
+    data: { college: college as (typeof validColleges)[number], userId },
   });
 }
 
@@ -96,6 +135,9 @@ export async function addBasicLandsToKit(
   quantity: number,
   zone: boolean | null = true,
 ) {
+  const userId = await requireSessionUserId();
+  await assertKitOwnership(kitId, userId);
+
   const normalizedQuantity = Math.max(1, Math.min(20, Math.floor(quantity)));
 
   const landCard = await prisma.card.findFirst({

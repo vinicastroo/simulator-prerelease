@@ -463,7 +463,10 @@ function layoutAll(
  * @returns The ID of the newly created `PrereleaseKit`.
  * @throws  When the card pool is empty (run the seed script first).
  */
-export async function generateFullKit(college: College): Promise<string> {
+export async function generateFullKit(
+  college: College,
+  userId: string,
+): Promise<string> {
   const allCards: Card[] = await prisma.card.findMany();
 
   if (allCards.length === 0) {
@@ -499,7 +502,7 @@ export async function generateFullKit(college: College): Promise<string> {
   // ── Single transaction ──────────────────────────────────────────────────────
   const kit = await prisma.$transaction(async (tx) => {
     const created = await tx.prereleaseKit.create({
-      data: { college, promoCardId: promo.cardId || null },
+      data: { college, promoCardId: promo.cardId || null, userId },
     });
 
     await tx.placedCard.createMany({

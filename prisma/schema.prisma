@@ -32,6 +32,16 @@ enum College {
   WITHERBLOOM
 }
 
+model User {
+  id           String          @id @default(cuid())
+  name         String
+  email        String          @unique
+  passwordHash String
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  kits         PrereleaseKit[]
+}
+
 model Card {
   id              String          @id @default(cuid())
   name            String
@@ -59,11 +69,13 @@ model Card {
 
 model PrereleaseKit {
   id          String       @id @default(cuid())
+  userId      String?
+  user        User?        @relation(fields: [userId], references: [id], onDelete: Cascade)
   college     College
   createdAt   DateTime     @default(now())
   promoCardId String?
-  promoCard   Card?        @relation("PromoCard", fields: [promoCardId], references: [id])
-  placedCards PlacedCard[]
+   promoCard   Card?        @relation("PromoCard", fields: [promoCardId], references: [id])
+   placedCards PlacedCard[]
 }
 
 model PlacedCard {

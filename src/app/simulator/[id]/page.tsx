@@ -7,6 +7,7 @@ import {
   type PlacedCardState,
   PrereleaseProvider,
 } from "@/context/PrereleaseContext";
+import { requireSessionUser } from "@/lib/auth-session";
 import { DndCanvas } from "./DndCanvas";
 
 type Props = { params: { id: string } };
@@ -22,6 +23,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function SimulatorPage({ params }: Props) {
+  await requireSessionUser();
   const kit = await getKitWithCards(params.id);
   if (!kit) notFound();
 

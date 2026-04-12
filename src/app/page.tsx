@@ -1,12 +1,17 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { CollegeGrid } from "@/components/CollegeGrid";
+import { SignOutButton } from "@/components/SignOutButton";
+import { requireSessionUser } from "@/lib/auth-session";
 
 export const metadata: Metadata = {
   title: "Strixhaven Drafter — Choose Your College",
   description: "Open a Strixhaven prerelease kit and build your sealed deck.",
 };
 
-export default function Home() {
+export default async function Home() {
+  await requireSessionUser();
+
   return (
     <main className="relative w-screen h-screen overflow-hidden bg-bg-void flex flex-col">
       <div className="fixed inset-0 z-0">
@@ -29,22 +34,39 @@ export default function Home() {
       </div>
 
       <div className="relative z-20 flex flex-col h-full w-full max-w-6xl mx-auto px-6">
-        <header className="flex flex-col items-center gap-2 text-center pt-12 pb-8 shrink-0">
-          <div className="flex items-center gap-3 mb-1">
-            <div className="h-[1px] w-8 bg-gold-accent/40" />
-            <p className="text-gold-accent text-[10px] uppercase tracking-[0.4em] font-semibold">
-              The Biblioplex
-            </p>
-            <div className="h-[1px] w-8 bg-gold-accent/40" />
+        <header className="flex flex-col gap-6 pt-8 pb-8 shrink-0">
+          <div className="flex items-center justify-between gap-4">
+            <div />
+
+            <div className="flex items-center gap-3">
+              <Link
+                href="/decks"
+                className="rounded-full border border-white/10 bg-white/[0.05] px-4 py-2 text-[11px] font-bold uppercase tracking-[0.2em] text-white/75 transition hover:bg-white/[0.1]"
+              >
+                Meus decks
+              </Link>
+              <SignOutButton />
+            </div>
           </div>
 
-          <h1 className="text-4xl sm:text-5xl font-black text-white tracking-tighter uppercase">
-            Choose Your <span className="text-gold-accent">College</span>
-          </h1>
+          <div className="flex flex-col items-center gap-2 text-center">
+            <div className="flex items-center gap-3 mb-1">
+              <div className="h-[1px] w-8 bg-gold-accent/40" />
+              <p className="text-gold-accent text-[10px] uppercase tracking-[0.4em] font-semibold">
+                The Biblioplex
+              </p>
+              <div className="h-[1px] w-8 bg-gold-accent/40" />
+            </div>
 
-          <p className="max-w-2xl text-sm text-white/45 leading-relaxed">
-            Role pela lista das faculdades e escolha a que vai guiar o seu kit.
-          </p>
+            <h1 className="text-4xl sm:text-5xl font-black text-white tracking-tighter uppercase">
+              Choose Your <span className="text-gold-accent">College</span>
+            </h1>
+
+            <p className="max-w-2xl text-sm text-white/45 leading-relaxed">
+              Role pela lista das faculdades e escolha a que vai guiar o seu
+              kit.
+            </p>
+          </div>
         </header>
 
         <div className="relative flex-1 overflow-hidden mb-4">

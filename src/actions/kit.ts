@@ -2,6 +2,7 @@
 
 import type { College } from "@prisma/client";
 import { redirect } from "next/navigation";
+import { requireSessionUserId } from "@/lib/auth-session";
 import { generateFullKit } from "@/lib/mtg/engine";
 
 const VALID_COLLEGES = new Set<string>([
@@ -24,7 +25,8 @@ export async function createPrereleaseKit(college: string): Promise<void> {
     throw new Error(`Invalid college: "${college}"`);
   }
 
-  const kitId = await generateFullKit(college as College);
+  const userId = await requireSessionUserId();
+  const kitId = await generateFullKit(college as College, userId);
 
   // redirect() throws NEXT_REDIRECT — must not be inside try/catch.
   redirect(`/simulator/${kitId}`);
