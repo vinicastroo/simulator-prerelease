@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
+import Image from "next/image";
 import { COLLEGES, type CollegeDef } from "@/lib/mtg/colleges";
 import { createPrereleaseKit } from "@/actions/kit";
 
@@ -15,8 +16,8 @@ export function CollegeGrid() {
 
   return (
     <ul
-      className="grid gap-5 w-full max-w-6xl
-        grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5"
+      className="flex h-full w-full flex-col gap-5 overflow-y-auto overflow-x-hidden px-2 pb-6 pt-1 [scrollbar-color:rgba(77,99,147,0.65)_transparent] [scrollbar-width:thin]"
+      style={{ scrollbarGutter: "stable both-edges" }}
       aria-label="Select your Strixhaven college"
     >
       {COLLEGES.map((college) => (
@@ -31,156 +32,140 @@ export function CollegeGrid() {
   );
 }
 
-// ─── College Card ─────────────────────────────────────────────────────────────
-
-type CardProps = {
-  college:   CollegeDef;
+function CollegeCard({
+  college,
+  isPending,
+  onSelect,
+}: {
+  college: CollegeDef;
   isPending: boolean;
-  onSelect:  (id: string) => void;
-};
-
-function CollegeCard({ college, isPending, onSelect }: CardProps) {
+  onSelect: (id: string) => void;
+}) {
   const { theme } = college;
 
   return (
-    <li>
+    <li className="w-full">
       <button
         type="button"
         disabled={isPending}
         onClick={() => onSelect(college.id)}
-        aria-label={`Open a ${college.name} prerelease kit`}
-        className={[
-          "group relative w-full text-left rounded-2xl overflow-hidden",
-          "border transition-all duration-300 outline-none",
-          "focus-visible:ring-2 focus-visible:ring-gold-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-void",
-          // Disabled while any action is running
-          isPending
-            ? "opacity-50 cursor-wait scale-[0.98]"
-            : "hover:scale-[1.03] hover:-translate-y-1 active:scale-[0.99] cursor-pointer",
-          // College-specific ring on hover
-          `hover:${theme.ringClass}`,
-          theme.borderClass,
-        ]
-          .filter(Boolean)
-          .join(" ")}
-        style={
-          isPending
-            ? undefined
-            : {
-                // Glow appears on hover via CSS variable trick
-                ["--glow" as string]: theme.glowColor,
-              }
-        }
+        className={`
+          group relative flex min-h-[24rem] w-full flex-col items-center overflow-hidden rounded-[28px]
+          border border-white/8 bg-[#0f0f0f]/90 text-left shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-md
+          transition-all duration-500 md:min-h-[26rem]
+          ${isPending ? "cursor-wait opacity-50 scale-[0.985]" : "hover:-translate-y-1 hover:shadow-[0_24px_70px_rgba(0,0,0,0.42)]"}
+        `}
       >
-        {/* ── Background gradient ── */}
         <div
-          className="absolute inset-0"
+          className="absolute inset-0 z-0 transition-opacity duration-500 opacity-10 group-hover:opacity-25"
           style={{
-            background: `linear-gradient(160deg, ${theme.gradientFrom} 0%, ${theme.gradientTo} 100%)`,
+            background: `linear-gradient(135deg, ${theme.gradientFrom} 0%, transparent 44%, rgba(0,0,0,0.18) 100%)`,
           }}
         />
 
-        {/* ── Hover glow overlay ── */}
-        <div
-          aria-hidden
-          className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-2xl"
-          style={{
-            boxShadow: `inset 0 0 40px 0 ${theme.glowColor}`,
-          }}
-        />
+        <div className="absolute inset-x-0 top-0 z-0 h-32 bg-gradient-to-b from-white/[0.045] to-transparent" />
 
-        {/* ── Subtle moving shine ── */}
-        <div aria-hidden className="absolute inset-0 college-shine opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+        <div className="absolute -right-6 top-10 z-10 flex items-center justify-center opacity-[0.04] transition-all duration-1000 group-hover:opacity-[0.08] group-hover:scale-110">
+          <Image
+            src={college.logoPath}
+            alt=""
+            width={260}
+            height={260}
+            className="grayscale brightness-200 object-contain"
+          />
+        </div>
 
-        {/* ── Content ── */}
-        <div className="relative z-10 flex flex-col gap-3 p-5 min-h-[320px]">
+        <div className="relative z-20 flex h-full w-full flex-col justify-between px-6 py-6 md:px-8 md:py-8">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="relative h-20 w-20 shrink-0 drop-shadow-[0_5px_15px_rgba(0,0,0,0.5)] transition-transform duration-700 group-hover:scale-110">
+                <Image
+                  src={college.logoPath}
+                  alt={`${college.name} Logo`}
+                  fill
+                  className="object-contain"
+                  priority
+                />
+              </div>
 
-          {/* Color pips + school */}
-          <div className="flex items-center justify-between">
-            <div className="flex gap-1.5">
-              {college.colors.map((c) => (
+              <div>
+                <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.35em] text-white/25">
+                  {college.school}
+                </p>
+                <div className="flex items-center gap-3">
+                  <h2 className={`text-3xl font-black tracking-tighter uppercase drop-shadow-sm md:text-4xl ${theme.accentClass}`}>
+                    {college.name}
+                  </h2>
+                  <div className="flex gap-1">
+                    {college.colors.map((color) => (
+                      <div key={color.code} className="relative h-5 w-5 drop-shadow-md md:h-6 md:w-6">
+                        <Image
+                          src={color.svgPath}
+                          alt={color.label}
+                          fill
+                          className="object-contain"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div
+              className={`
+                hidden rounded-full border border-white/10 px-4 py-2 text-[10px] font-black uppercase tracking-[0.28em]
+                text-white/55 md:block
+              `}
+            >
+              Strixhaven
+            </div>
+          </div>
+
+          <div className="mt-8 grid flex-1 gap-6 lg:grid-cols-[1.2fr_0.9fr]">
+            <p className="max-w-xl text-sm leading-7 text-white/65 md:text-[15px]">
+              {college.tagline}
+            </p>
+
+            <div className="flex flex-wrap content-start gap-2">
+              {college.keywords.map((kw) => (
                 <span
-                  key={c.code}
-                  title={c.label}
-                  className={`
-                    w-6 h-6 rounded-full flex items-center justify-center
-                    text-[10px] font-bold shadow-md ${c.pip}
-                  `}
+                  key={kw}
+                  className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.22em] text-white/45"
                 >
-                  {c.code}
+                  {kw}
                 </span>
               ))}
             </div>
-            <span className="text-white/30 text-[10px] uppercase tracking-widest">
-              {college.school}
-            </span>
           </div>
 
-          {/* Name */}
-          <div className="mt-1">
-            <h2 className={`text-2xl font-bold tracking-tight ${theme.accentClass}`}>
-              {college.name}
-            </h2>
-            <p className="text-white/50 text-xs italic mt-0.5">{college.tagline}</p>
-          </div>
+          <div className="mt-6 flex items-end justify-between gap-4 border-t border-white/8 pt-5">
+            <div className="text-[11px] uppercase tracking-[0.28em] text-white/25">
+              Choose your path
+            </div>
 
-          {/* Strategy */}
-          <p className="text-white/70 text-sm leading-relaxed flex-1">
-            {college.strategy}
-          </p>
-
-          {/* Keyword chips */}
-          <div className="flex flex-wrap gap-1.5">
-            {college.keywords.map((kw) => (
-              <span
-                key={kw}
-                className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-white/8 border border-white/10 text-white/60"
-              >
-                {kw}
+            <div
+              className={`
+                flex items-center justify-center rounded-2xl border border-white/8 bg-white/[0.06]
+                px-5 py-3 transition-all duration-300 group-hover:bg-white/[0.1] group-hover:${theme.ringClass}
+              `}
+            >
+              <span className={`text-[10px] font-black uppercase tracking-[0.24em] ${theme.accentClass}`}>
+                Enroll Now
               </span>
-            ))}
-          </div>
-
-          {/* CTA */}
-          <div
-            className={`
-              mt-1 flex items-center justify-between
-              border-t border-white/10 pt-3
-            `}
-          >
-            <span className={`text-sm font-semibold ${theme.accentClass} transition-opacity`}>
-              Open Kit
-            </span>
-            <Arrow className={`w-4 h-4 ${theme.accentClass} transition-transform group-hover:translate-x-1`} />
+            </div>
           </div>
         </div>
 
-        {/* ── Spinner overlay when this kit is being generated ── */}
         {isPending && (
-          <div className="absolute inset-0 z-20 flex items-center justify-center bg-bg-void/60 rounded-2xl">
-            <Spinner className={`w-6 h-6 ${theme.accentClass}`} />
+          <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/80 backdrop-blur-md">
+            <div
+              className="w-8 h-8 border-4 border-t-transparent animate-spin rounded-full"
+              style={{ borderColor: theme.gradientFrom, borderTopColor: 'transparent' }}
+            />
           </div>
         )}
       </button>
     </li>
-  );
-}
-
-// ─── Icons ────────────────────────────────────────────────────────────────────
-
-function Arrow({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 16 16" fill="none" strokeWidth={2} stroke="currentColor" className={className}>
-      <path d="M3 8h10M9 4l4 4-4 4" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function Spinner({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className={`animate-spin ${className}`}>
-      <circle cx="12" cy="12" r="10" strokeOpacity={0.2} />
-      <path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round" />
-    </svg>
   );
 }

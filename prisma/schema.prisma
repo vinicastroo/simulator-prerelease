@@ -4,9 +4,7 @@
 // Get a free hosted Postgres database in seconds: `npx create-db`
 
 generator client {
-  provider        = "prisma-client-js"
-  previewFeatures = ["driverAdapters"]
-  output          = "../src/generated/client"
+  provider = "prisma-client-js"
 }
 
 datasource db {
@@ -40,11 +38,21 @@ model Card {
   scryfallId      String          @unique
   rarity          Rarity
   set             String
+  setName         String?
   colors          Json
+  manaCost        String?
   cmc             Int
   typeLine        String
+  oracleText      String?
+  flavorText      String?
+  power           String?
+  toughness       String?
+  loyalty         String?
+  artist          String?
+  releasedAt      String?
   imagePath       String
   collectorNumber String
+  rawData         Json?
   placedCards     PlacedCard[]
   promoInKits     PrereleaseKit[] @relation("PromoCard")
 }

@@ -17,15 +17,11 @@ export const WORLD_W = 3000;
 export const WORLD_H = 3000;
 export const CARD_W = 130;
 export const CARD_H = 182;
-const GRID_SIZE = 32;
+const CANVAS_PAD = 200000;
 
 const EPOCH_2024_S = 1_704_067_200;
 function timeBasedZ(): number {
   return Math.floor(Date.now() / 1000) - EPOCH_2024_S;
-}
-
-function snapToGrid(value: number, grid: number): number {
-  return Math.round(value / grid) * grid;
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -50,7 +46,7 @@ declare global {
 
 // ─── Card registry ────────────────────────────────────────────────────────────
 
-type CardEntry    = { x: MotionValue<number>; y: MotionValue<number> };
+type CardEntry = { x: MotionValue<number>; y: MotionValue<number> };
 type CardRegistry = Map<string, CardEntry>;
 
 // ─── Lasso helpers ────────────────────────────────────────────────────────────
@@ -60,23 +56,26 @@ interface LassoRect { x: number; y: number; w: number; h: number }
 function rectsIntersect(lasso: LassoRect, card: PlacedCardState): boolean {
   return !(
     lasso.x + lasso.w < card.posX ||
-    lasso.x           > card.posX + CARD_W ||
+    lasso.x > card.posX + CARD_W ||
     lasso.y + lasso.h < card.posY ||
-    lasso.y           > card.posY + CARD_H
+    lasso.y > card.posY + CARD_H
   );
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type ToolMode = "select" | "hand";
+type CanvasSortMode = "cmc" | "color" | "rarity";
+type ViewMode = "canvas" | "gallery";
 
 interface ZoomProps {
   scale: number;
   setScale: (s: number) => void;
-  snapEnabled: boolean;
-  setSnapEnabled: (s: boolean) => void;
   toolMode: ToolMode;
   setToolMode: (m: ToolMode) => void;
+  viewMode: ViewMode;
+  setViewMode: (mode: ViewMode) => void;
+  onSort: (mode: CanvasSortMode) => void;
 }
 
 interface DndCardProps {
@@ -84,7 +83,7 @@ interface DndCardProps {
   priority: boolean;
   isSelected: boolean;
   selectedIds: ReadonlySet<string>;
-  snapEnabled: boolean;
+  scale: number;
   registry: React.MutableRefObject<CardRegistry>;
   onSelect: (id: string, multi: boolean) => void;
   onOpenOverview: (placed: PlacedCardState) => void;
@@ -98,49 +97,97 @@ interface DndCardProps {
 // ─── Toolbar ─────────────────────────────────────────────────────────────────
 
 function ZoomControls({
-  scale, setScale, snapEnabled, setSnapEnabled, toolMode, setToolMode,
+  scale, setScale, toolMode, setToolMode, viewMode, setViewMode, onSort,
 }: ZoomProps) {
+  const isCanvasView = viewMode === "canvas";
+
   return (
-    <div className="fixed bottom-6 right-80 z-[150000000] flex flex-col gap-2 bg-bg-void/80 p-2 rounded-xl border border-gold-accent/20 backdrop-blur-md shadow-2xl">
+    <div className="fixed bottom-6 left-6 z-[150000000] flex flex-col gap-2 rounded-xl border border-[#30476f]/55 bg-[#0d1015]/88 p-2 backdrop-blur-md shadow-2xl">
       <button
+        title="Visualização canvas"
+        onClick={() => setViewMode("canvas")}
+        className={`w-10 h-10 flex items-center justify-center rounded-lg transition-colors ${
+          viewMode === "canvas"
+            ? "bg-[#233455]/55 text-[#d8e4ff]"
+            : "text-[#6f84b4] hover:bg-[#233455]/45 hover:text-[#b8c6e6]"
+        }`}
+      >
+        <CanvasIcon className="h-4 w-4" />
+      </button>
+      <button
+        title="Visualização grade"
+        onClick={() => setViewMode("gallery")}
+        className={`w-10 h-10 flex items-center justify-center rounded-lg transition-colors ${
+          viewMode === "gallery"
+            ? "bg-[#233455]/55 text-[#d8e4ff]"
+            : "text-[#6f84b4] hover:bg-[#233455]/45 hover:text-[#b8c6e6]"
+        }`}
+      >
+        <GridIcon className="h-4 w-4" />
+      </button>
+      <div className="mx-2 h-[1px] bg-[#30476f]/45" />
+      <button
+        disabled={!isCanvasView}
         onClick={() => setScale(Math.min(scale + 0.2, 2.5))}
-        className="w-10 h-10 flex items-center justify-center text-gold-accent hover:bg-gold-accent/10 rounded-lg transition-colors font-bold text-xl"
+        className={`w-10 h-10 flex items-center justify-center rounded-lg text-xl font-bold transition-colors ${
+          isCanvasView
+            ? "text-[#8ea4d6] hover:bg-[#233455]/45 hover:text-[#b8c6e6]"
+            : "text-white/20 cursor-not-allowed"
+        }`}
       >
         +
       </button>
-      <div className="h-[1px] bg-gold-accent/20 mx-2" />
+      <div className="mx-2 h-[1px] bg-[#30476f]/45" />
       <button
+        disabled={!isCanvasView}
         onClick={() => setScale(Math.max(scale - 0.2, 0.4))}
-        className="w-10 h-10 flex items-center justify-center text-gold-accent hover:bg-gold-accent/10 rounded-lg transition-colors font-bold text-xl"
+        className={`w-10 h-10 flex items-center justify-center rounded-lg text-xl font-bold transition-colors ${
+          isCanvasView
+            ? "text-[#8ea4d6] hover:bg-[#233455]/45 hover:text-[#b8c6e6]"
+            : "text-white/20 cursor-not-allowed"
+        }`}
       >
         −
       </button>
-      <div className="text-[10px] text-gold-accent/60 text-center mt-1 font-mono">
-        {Math.round(scale * 100)}%
+      <div className="mt-1 text-center font-mono text-[10px] text-[#7f95c9]">
+        {isCanvasView ? `${Math.round(scale * 100)}%` : "GRID"}
       </div>
-      <div className="h-[1px] bg-gold-accent/20 mx-2" />
+      <div className="mx-2 h-[1px] bg-[#30476f]/45" />
       <button
         title="Mover canvas (H)"
+        disabled={!isCanvasView}
         onClick={() => setToolMode(toolMode === "hand" ? "select" : "hand")}
         className={`w-10 h-10 flex items-center justify-center rounded-lg transition-colors text-base ${
-          toolMode === "hand"
-            ? "bg-gold-accent/20 text-gold-accent"
-            : "text-gold-accent/40 hover:bg-gold-accent/10"
+          !isCanvasView
+            ? "text-white/20 cursor-not-allowed"
+            : toolMode === "hand"
+            ? "bg-[#233455]/55 text-[#b8c6e6]"
+            : "text-[#6f84b4] hover:bg-[#233455]/45 hover:text-[#b8c6e6]"
         }`}
       >
         ✋
       </button>
-      <div className="h-[1px] bg-gold-accent/20 mx-2" />
+      <div className="mx-2 h-[1px] bg-[#30476f]/45" />
       <button
-        title={snapEnabled ? "Snap: ligado" : "Snap: desligado"}
-        onClick={() => setSnapEnabled(!snapEnabled)}
-        className={`w-10 h-10 flex items-center justify-center rounded-lg transition-colors text-xs font-bold ${
-          snapEnabled
-            ? "bg-gold-accent/20 text-gold-accent"
-            : "text-gold-accent/40 hover:bg-gold-accent/10"
-        }`}
+        title="Ordenar por custo"
+        onClick={() => onSort("cmc")}
+        className="w-10 h-10 flex items-center justify-center rounded-lg text-[10px] font-black uppercase tracking-wide text-[#7f95c9] transition-colors hover:bg-[#233455]/45 hover:text-[#b8c6e6]"
       >
-        ⊞
+        CMC
+      </button>
+      <button
+        title="Ordenar por cor"
+        onClick={() => onSort("color")}
+        className="w-10 h-10 flex items-center justify-center rounded-lg text-[10px] font-black uppercase tracking-wide text-[#7f95c9] transition-colors hover:bg-[#233455]/45 hover:text-[#b8c6e6]"
+      >
+        Cor
+      </button>
+      <button
+        title="Ordenar por raridade"
+        onClick={() => onSort("rarity")}
+        className="w-10 h-10 flex items-center justify-center rounded-lg text-[9px] font-black uppercase tracking-wide text-[#7f95c9] transition-colors hover:bg-[#233455]/45 hover:text-[#b8c6e6]"
+      >
+        Rar
       </button>
     </div>
   );
@@ -149,12 +196,14 @@ function ZoomControls({
 // ─── Canvas ───────────────────────────────────────────────────────────────────
 
 export function DndCanvas() {
-  const { cards, moveCards } = usePrerelease();
+  const { cards, moveCard, moveCards } = usePrerelease();
   const { setDeckZone, setDraggingCard } = usePrerelease();
+  const canvasCards = cards.filter((card) => card.isMainDeck === null);
 
-  const [scale, setScale]             = useState(1);
-  const [snapEnabled, setSnapEnabled] = useState(false);
-  const [toolMode, setToolMode]       = useState<ToolMode>("select");
+  const [scale, setScale] = useState(1);
+  const [toolMode, setToolMode] = useState<ToolMode>("select");
+  const [viewMode, setViewMode] = useState<ViewMode>("canvas");
+  const [gallerySortMode, setGallerySortMode] = useState<CanvasSortMode>("cmc");
   const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(new Set());
   const [viewingCard, setViewingCard] = useState<PlacedCardState | null>(null);
 
@@ -163,29 +212,27 @@ export function DndCanvas() {
   const worldY = useMotionValue(0);
 
   const viewportRef = useRef<HTMLDivElement>(null);
-  const worldRef    = useRef<HTMLDivElement>(null);
-  const registry    = useRef<CardRegistry>(new Map());
+  const worldRef = useRef<HTMLDivElement>(null);
+  const registry = useRef<CardRegistry>(new Map());
 
   // Stable refs for callbacks
-  const scaleRef       = useRef(scale);
-  const snapRef        = useRef(snapEnabled);
+  const scaleRef = useRef(scale);
   const selectedIdsRef = useRef(selectedIds);
-  const toolModeRef    = useRef(toolMode);
-  const spaceHeld      = useRef(false);
-  useEffect(() => { scaleRef.current       = scale;       }, [scale]);
-  useEffect(() => { snapRef.current        = snapEnabled; }, [snapEnabled]);
+  const toolModeRef = useRef(toolMode);
+  const spaceHeld = useRef(false);
+  useEffect(() => { scaleRef.current = scale; }, [scale]);
   useEffect(() => { selectedIdsRef.current = selectedIds; }, [selectedIds]);
-  useEffect(() => { toolModeRef.current    = toolMode;    }, [toolMode]);
+  useEffect(() => { toolModeRef.current = toolMode; }, [toolMode]);
 
   // Lasso state — all in refs, zero re-renders during mouse move
   const lassoActive = useRef(false);
-  const lassoStart  = useRef({ x: 0, y: 0 });
-  const lassoEl     = useRef<HTMLDivElement>(null);
-  const rAFId       = useRef(0);
+  const lassoStart = useRef({ x: 0, y: 0 });
+  const lassoEl = useRef<HTMLDivElement>(null);
+  const rAFId = useRef(0);
 
   // Pan state
-  const isPanning   = useRef(false);
-  const panStart    = useRef({ clientX: 0, clientY: 0, wx: 0, wy: 0 });
+  const isPanning = useRef(false);
+  const panStart = useRef({ clientX: 0, clientY: 0, wx: 0, wy: 0 });
 
   // ── Keyboard: Space = temporary hand tool ──
   useEffect(() => {
@@ -198,7 +245,10 @@ export function DndCanvas() {
     };
     window.addEventListener("keydown", down);
     window.addEventListener("keyup", up);
-    return () => { window.removeEventListener("keydown", down); window.removeEventListener("keyup", up); };
+    return () => {
+      window.removeEventListener("keydown", down);
+      window.removeEventListener("keyup", up);
+    };
   }, []);
 
   // ── Wheel: Ctrl/Cmd = zoom-to-cursor, else = pan ──
@@ -208,23 +258,22 @@ export function DndCanvas() {
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
       if ((e.ctrlKey || e.metaKey) && worldRef.current) {
-        const vpRect    = vp.getBoundingClientRect();
+        const vpRect = vp.getBoundingClientRect();
         const worldRect = worldRef.current.getBoundingClientRect();
         const currentScale = worldRect.width / WORLD_W;
-        const newScale     = clamp(currentScale - e.deltaY * 0.0015, 0.4, 2.5);
+        const newScale = clamp(currentScale - e.deltaY * 0.0015, 0.4, 2.5);
 
         // Zoom towards cursor: keep the world point under cursor fixed
-        const cursorVpX   = e.clientX - vpRect.left;
-        const cursorVpY   = e.clientY - vpRect.top;
-        const originX     = worldRect.left - vpRect.left; // = worldX.get()
-        const originY     = worldRect.top  - vpRect.top;
-        const wPointX     = (cursorVpX - originX) / currentScale;
-        const wPointY     = (cursorVpY - originY) / currentScale;
+        const cursorVpX = e.clientX - vpRect.left;
+        const cursorVpY = e.clientY - vpRect.top;
+        const originX = worldRect.left - vpRect.left;
+        const originY = worldRect.top - vpRect.top;
+        const wPointX = (cursorVpX - originX) / currentScale;
+        const wPointY = (cursorVpY - originY) / currentScale;
         worldX.set(cursorVpX - wPointX * newScale);
         worldY.set(cursorVpY - wPointY * newScale);
         setScale(newScale);
       } else {
-        // Two-finger scroll / trackpad → pan
         worldX.set(worldX.get() - e.deltaX);
         worldY.set(worldY.get() - e.deltaY);
       }
@@ -240,7 +289,7 @@ export function DndCanvas() {
     const actualScale = rect.width / WORLD_W;
     return {
       x: (clientX - rect.left) / actualScale,
-      y: (clientY - rect.top)  / actualScale,
+      y: (clientY - rect.top) / actualScale,
     };
   }, []);
 
@@ -251,17 +300,15 @@ export function DndCanvas() {
 
     if (isHandMode) {
       isPanning.current = true;
-      panStart.current  = { clientX: e.clientX, clientY: e.clientY, wx: worldX.get(), wy: worldY.get() };
+      panStart.current = { clientX: e.clientX, clientY: e.clientY, wx: worldX.get(), wy: worldY.get() };
       return;
     }
 
-    // Lasso
     const pos = toWorld(e.clientX, e.clientY);
     lassoActive.current = true;
-    lassoStart.current  = pos;
+    lassoStart.current = pos;
     if (lassoEl.current) {
-      lassoEl.current.style.cssText =
-        `display:block;left:${pos.x}px;top:${pos.y}px;width:0;height:0`;
+      lassoEl.current.style.cssText = `display:block;left:${pos.x * scaleRef.current}px;top:${pos.y * scaleRef.current}px;width:0;height:0`;
     }
   }, [toWorld, worldX, worldY]);
 
@@ -274,7 +321,8 @@ export function DndCanvas() {
     if (!lassoActive.current) return;
 
     cancelAnimationFrame(rAFId.current);
-    const cx = e.clientX, cy = e.clientY;
+    const cx = e.clientX;
+    const cy = e.clientY;
     rAFId.current = requestAnimationFrame(() => {
       const curr = toWorld(cx, cy);
       const x = Math.min(curr.x, lassoStart.current.x);
@@ -282,8 +330,8 @@ export function DndCanvas() {
       const w = Math.abs(curr.x - lassoStart.current.x);
       const h = Math.abs(curr.y - lassoStart.current.y);
       if (lassoEl.current) {
-        lassoEl.current.style.cssText =
-          `display:block;left:${x}px;top:${y}px;width:${w}px;height:${h}px`;
+        const scale = scaleRef.current;
+        lassoEl.current.style.cssText = `display:block;left:${x * scale}px;top:${y * scale}px;width:${w * scale}px;height:${h * scale}px`;
       }
     });
   }, [toWorld, worldX, worldY]);
@@ -299,7 +347,7 @@ export function DndCanvas() {
     lassoActive.current = false;
     if (lassoEl.current) lassoEl.current.style.display = "none";
 
-    const curr  = toWorld(e.clientX, e.clientY);
+    const curr = toWorld(e.clientX, e.clientY);
     const lasso: LassoRect = {
       x: Math.min(curr.x, lassoStart.current.x),
       y: Math.min(curr.y, lassoStart.current.y),
@@ -312,16 +360,20 @@ export function DndCanvas() {
       return;
     }
     setSelectedIds(
-      new Set(cards.filter((c) => rectsIntersect(lasso, c)).map((c) => c.id))
+      new Set(canvasCards.filter((c) => rectsIntersect(lasso, c)).map((c) => c.id))
     );
-  }, [cards, toWorld]);
+  }, [canvasCards, toWorld]);
 
   // ── Card selection ──
   const handleCardSelect = useCallback((id: string, multi: boolean) => {
     setSelectedIds((prev) => {
       if (multi) {
         const next = new Set(prev);
-        if (next.has(id)) { next.delete(id); } else { next.add(id); }
+        if (next.has(id)) {
+          next.delete(id);
+        } else {
+          next.add(id);
+        }
         return next;
       }
       return new Set([id]);
@@ -332,130 +384,186 @@ export function DndCanvas() {
     setViewingCard(placed);
   }, []);
 
-  // ── Group drag end ──
-  const handleGroupDragEnd = useCallback(
-    (
-      leaderId: string,
-      clientPos: { x: number; y: number },
-      startPos:  { x: number; y: number }
-    ) => {
+  const handleSortCanvas = useCallback((mode: CanvasSortMode) => {
+    const sorted = sortPlacedCards(canvasCards, mode);
+
+    const cols = 7;
+    const gapX = 22;
+    const gapY = 28;
+    const startX = 72;
+    const startY = 72;
+    const nextZ = timeBasedZ();
+
+    moveCards(
+      sorted.map((card, index) => {
+        const col = index % cols;
+        const row = Math.floor(index / cols);
+        return {
+          id: card.id,
+          posX: startX + col * (CARD_W + gapX),
+          posY: startY + row * (CARD_H + gapY),
+          zIndex: nextZ + index,
+        };
+      })
+    );
+  }, [canvasCards, moveCards]);
+
+  const handleSort = useCallback((mode: CanvasSortMode) => {
+    if (viewMode === "gallery") {
+      setGallerySortMode(mode);
+      return;
+    }
+
+    handleSortCanvas(mode);
+  }, [handleSortCanvas, viewMode]);
+
+  const galleryCards = sortPlacedCards(canvasCards, gallerySortMode);
+
+  const handleSidebarDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    const ids = getDraggedPlacedCardIds(e.dataTransfer);
+    if (ids.length === 0) return;
+
+    e.preventDefault();
+    const pos = toWorld(e.clientX, e.clientY);
+    const maxZ = cards.reduce((acc, card) => Math.max(acc, card.zIndex), 0) + 1;
+    const gapX = 22;
+
+    setDeckZone(ids, null);
+
+    if (ids.length === 1) {
+      const posX = pos.x - CARD_W / 2;
+      const posY = pos.y - CARD_H / 2;
+      moveCard(ids[0], posX, posY, maxZ);
+    } else {
+      moveCards(
+        ids.map((id, index) => ({
+          id,
+          posX: pos.x - CARD_W / 2 + index * gapX,
+          posY: pos.y - CARD_H / 2,
+          zIndex: maxZ + index,
+        }))
+      );
+    }
+
+    setDraggingCard(null);
+  }, [cards, moveCard, moveCards, setDeckZone, setDraggingCard, toWorld]);
+
+  const handleGroupDragEnd = useCallback((
+    leaderId: string,
+    clientPos: { x: number; y: number },
+    startPos: { x: number; y: number }
+  ) => {
+    const el = document.elementFromPoint(clientPos.x, clientPos.y);
+    const zone = el?.closest("[data-zone]")?.getAttribute("data-zone");
+
+    const ids = Array.from(selectedIdsRef.current);
+
+    if (zone === "main") {
+      setDeckZone(ids, true);
       setDraggingCard(null);
+      return;
+    }
+    if (zone === "side") {
+      setDeckZone(ids, false);
+      setDraggingCard(null);
+      return;
+    }
 
-      // Check if dropped over a deck zone in the Sidebar
-      const dropEl  = document.elementFromPoint(clientPos.x, clientPos.y);
-      const zoneEl  = dropEl?.closest("[data-zone]") as HTMLElement | null;
-
-      if (zoneEl) {
-        const zone     = zoneEl.dataset.zone === "main" ? true : false;
-        const sel      = selectedIdsRef.current;
-        const isGroup  = sel.has(leaderId) && sel.size > 1;
-        const ids      = isGroup ? Array.from(sel) : [leaderId];
-
-        // Restore leader position (card stays on canvas)
-        const entry = registry.current.get(leaderId);
-        if (entry) {
-          entry.x.set(startPos.x);
-          entry.y.set(startPos.y);
-        }
-        // Followers restore via cancel event (synchronous)
-        if (isGroup) {
-          window.dispatchEvent(
-            new CustomEvent("mass-drag-cancel", { detail: { leaderId } })
-          );
-        }
-
-        setDeckZone(ids, zone);
-        return;
+    const updates = ids.map((id) => {
+      const entry = registry.current.get(id);
+      if (!entry) {
+        return { id, posX: startPos.x, posY: startPos.y, zIndex: timeBasedZ() };
       }
+      return {
+        id,
+        posX: entry.x.get() / scaleRef.current,
+        posY: entry.y.get() / scaleRef.current,
+        zIndex: id === leaderId ? timeBasedZ() : timeBasedZ() - 1,
+      };
+    });
 
-      // Normal path: persist canvas positions
-      const sel    = selectedIdsRef.current;
-      const isGroup = sel.has(leaderId) && sel.size > 1;
-      const ids    = isGroup ? Array.from(sel) : [leaderId];
-      const snap   = snapRef.current;
-
-      const updates = ids
-        .filter((id) => registry.current.has(id))
-        .map((id) => {
-          const e    = registry.current.get(id)!;
-          const rawX = clamp(e.x.get(), 0, WORLD_W - CARD_W);
-          const rawY = clamp(e.y.get(), 0, WORLD_H - CARD_H);
-          return {
-            id,
-            posX:   snap ? snapToGrid(rawX, GRID_SIZE) : rawX,
-            posY:   snap ? snapToGrid(rawY, GRID_SIZE) : rawY,
-            zIndex: timeBasedZ(),
-          };
-        });
-
-      if (updates.length > 0) moveCards(updates);
-    },
-    [moveCards, setDeckZone, setDraggingCard] // selectedIdsRef + snapRef via ref
-  );
-
-  const cursorClass =
-    toolMode === "hand" ? "cursor-grab active:cursor-grabbing" : "cursor-default";
+    moveCards(updates);
+    setDraggingCard(null);
+  }, [moveCards, setDeckZone, setDraggingCard]);
 
   return (
-    <div
-      ref={viewportRef}
-      className={`h-full w-full overflow-hidden bg-bg-void outline-none relative ${cursorClass}`}
-      tabIndex={0}
-    >
-      <motion.div
-        ref={worldRef}
-        animate={{ scale }}
-        transition={{ type: "spring", stiffness: 300, damping: 30 }}
-        style={{ x: worldX, y: worldY, width: WORLD_W, height: WORLD_H, transformOrigin: "0 0" }}
-        className="relative select-none"
-        onPointerDown={onWorldPointerDown}
-        onPointerMove={onWorldPointerMove}
-        onPointerUp={onWorldPointerUp}
-      >
-        {/* Grid pattern */}
+    <div className="relative h-full w-full overflow-hidden bg-bg-void">
+      {viewMode === "canvas" ? (
         <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            backgroundImage:
-              "radial-gradient(circle, rgba(197,160,89,0.2) 1px, transparent 1px)",
-            backgroundSize: "32px 32px",
-          }}
-        />
+          ref={viewportRef}
+          className={`relative h-full w-full overflow-hidden ${toolMode === "hand" ? "cursor-grab active:cursor-grabbing" : "cursor-default"}`}
+        >
+          <motion.div
+            ref={worldRef}
+            style={{
+              x: worldX,
+              y: worldY,
+              width: WORLD_W * scale,
+              height: WORLD_H * scale,
+            }}
+            className="relative"
+            onPointerDown={onWorldPointerDown}
+            onPointerMove={onWorldPointerMove}
+            onPointerUp={onWorldPointerUp}
+            onDragOver={(e) => {
+              if (
+                e.dataTransfer.types.includes("application/x-placed-card-id") ||
+                e.dataTransfer.types.includes("application/x-placed-card-ids")
+              ) {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "move";
+              }
+            }}
+            onDrop={handleSidebarDrop}
+          >
+            <div
+              className="pointer-events-none absolute"
+              style={{
+                left: CANVAS_PAD * scale * -1,
+                top: CANVAS_PAD * scale * -1,
+                width: (WORLD_W + CANVAS_PAD * 4) * scale,
+                height: (WORLD_H + CANVAS_PAD * 4) * scale,
+                backgroundImage: `
+                  linear-gradient(to right, rgba(77,99,147,0.08) 1px, transparent 1px),
+                  linear-gradient(to bottom, rgba(77,99,147,0.08) 1px, transparent 1px)
+                `,
+                backgroundSize: `${32 * scale}px ${32 * scale}px`,
+              }}
+            />
 
-        {/* Lasso rect */}
-        <div
-          ref={lassoEl}
-          className="absolute pointer-events-none rounded-sm"
-          style={{
-            display:    "none",
-            border:     "1px solid rgba(197,160,89,0.8)",
-            background: "rgba(197,160,89,0.07)",
-          }}
-        />
+            {canvasCards.map((placed, i) => (
+              <DndCard
+                key={placed.id}
+                placed={placed}
+                priority={i < 24}
+                isSelected={selectedIds.has(placed.id)}
+                selectedIds={selectedIds}
+                scale={scale}
+                registry={registry}
+                onSelect={handleCardSelect}
+                onOpenOverview={handleOpenOverview}
+                onGroupDragEnd={handleGroupDragEnd}
+              />
+            ))}
 
-        {cards.map((placed, i) => (
-          <DndCard
-            key={placed.id}
-            placed={placed}
-            priority={i < 20}
-            isSelected={selectedIds.has(placed.id)}
-            selectedIds={selectedIds}
-            snapEnabled={snapEnabled}
-            registry={registry}
-            onSelect={handleCardSelect}
-            onOpenOverview={handleOpenOverview}
-            onGroupDragEnd={handleGroupDragEnd}
-          />
-        ))}
-      </motion.div>
+            <div
+              ref={lassoEl}
+              className="absolute hidden pointer-events-none rounded-sm border border-[#4d6393]/70 bg-[#4d6393]/12"
+            />
+          </motion.div>
+        </div>
+      ) : (
+        <GalleryView cards={galleryCards} onOpenOverview={handleOpenOverview} />
+      )}
 
       <ZoomControls
         scale={scale}
         setScale={setScale}
-        snapEnabled={snapEnabled}
-        setSnapEnabled={setSnapEnabled}
         toolMode={toolMode}
         setToolMode={setToolMode}
+        viewMode={viewMode}
+        setViewMode={setViewMode}
+        onSort={handleSort}
       />
 
       <AnimatePresence>
@@ -467,47 +575,159 @@ export function DndCanvas() {
   );
 }
 
-// ─── Draggable Card ───────────────────────────────────────────────────────────
+function getDraggedPlacedCardIds(dataTransfer: DataTransfer): string[] {
+  const rawIds = dataTransfer.getData("application/x-placed-card-ids");
+  if (rawIds) {
+    try {
+      const parsed = JSON.parse(rawIds);
+      if (Array.isArray(parsed)) {
+        return parsed.filter((value): value is string => typeof value === "string" && value.length > 0);
+      }
+    } catch {
+      // ignore and fallback
+    }
+  }
+
+  const id = dataTransfer.getData("application/x-placed-card-id");
+  return id ? [id] : [];
+}
+
+function sortPlacedCards(cards: PlacedCardState[], mode: CanvasSortMode) {
+  const rarityRank: Record<string, number> = {
+    MYTHIC: 0,
+    RARE: 1,
+    UNCOMMON: 2,
+    COMMON: 3,
+  };
+
+  return [...cards].sort((a, b) => {
+    if (mode === "cmc") {
+      return a.card.cmc - b.card.cmc || a.card.name.localeCompare(b.card.name);
+    }
+    if (mode === "color") {
+      const left = a.card.colors.join("") || "Z";
+      const right = b.card.colors.join("") || "Z";
+      return left.localeCompare(right) || a.card.cmc - b.card.cmc || a.card.name.localeCompare(b.card.name);
+    }
+    return (
+      (rarityRank[a.card.rarity] ?? 9) - (rarityRank[b.card.rarity] ?? 9) ||
+      a.card.cmc - b.card.cmc ||
+      a.card.name.localeCompare(b.card.name)
+    );
+  });
+}
+
+function GalleryView({
+  cards,
+  onOpenOverview,
+}: {
+  cards: PlacedCardState[];
+  onOpenOverview: (placed: PlacedCardState) => void;
+}) {
+  return (
+    <div className="h-full w-full overflow-y-auto px-20 py-8 [scrollbar-color:#31456f_transparent] [scrollbar-width:thin] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#31456f]/80 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar]:w-1.5">
+      <div className="mx-auto max-w-[1600px]">
+        <div className="mb-6 flex items-end justify-between gap-4">
+          <div>
+            <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-[#7f95c9]">
+              Card Gallery
+            </p>
+            <h2 className="mt-1 text-xl font-semibold tracking-[0.08em] text-[#d8e4ff]">
+              Cartas abertas
+            </h2>
+          </div>
+          <div className="rounded-full border border-[#30476f]/45 bg-[#11161d]/88 px-3 py-1.5 font-mono text-[11px] text-white/46">
+            {cards.length} cartas no canvas
+          </div>
+        </div>
+
+        {cards.length === 0 ? (
+          <div className="flex min-h-[320px] items-center justify-center rounded-[30px] border border-dashed border-[#30476f]/40 bg-[#10151b]/70 text-center">
+            <div>
+              <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-[#7f95c9]">
+                Sem cartas
+              </p>
+              <p className="mt-2 text-sm text-white/35">
+                Todas as cartas abertas ja estao no main deck ou sideboard.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
+            {cards.map((placed, index) => (
+              <button
+                key={placed.id}
+                type="button"
+                onClick={() => onOpenOverview(placed)}
+                className="group rounded-[24px] border border-[#22314d] bg-[#10151b]/88 p-2.5 text-left shadow-[0_14px_36px_rgba(0,0,0,0.22)] transition-all hover:-translate-y-0.5 hover:border-[#39517d] hover:bg-[#121922]"
+              >
+                <div className="relative overflow-hidden rounded-[18px] bg-[#0f1318] shadow-[0_0_0_1px_rgba(49,69,111,0.18)]">
+                  <div className="relative aspect-[2.5/3.5] w-full">
+                    <img
+                      src={placed.card.imagePath}
+                      alt={placed.card.name}
+                      loading={index < 10 ? "eager" : "lazy"}
+                      className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-[1.02]"
+                    />
+                    {placed.isFoil && <div className="absolute inset-0 foil-overlay pointer-events-none opacity-50" />}
+                    {placed.isPromo && <StarBadge />}
+                    {placed.card.set === "SOA" && <ArchiveBadge />}
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Card ─────────────────────────────────────────────────────────────────────
 
 const DndCard = memo(function DndCard({
-  placed, priority, isSelected, selectedIds, snapEnabled,
-  registry, onSelect, onOpenOverview, onGroupDragEnd,
+  placed,
+  priority,
+  isSelected,
+  selectedIds,
+  scale,
+  registry,
+  onSelect,
+  onOpenOverview,
+  onGroupDragEnd,
 }: DndCardProps) {
-  const { isPending, setDraggingCard } = usePrerelease();
-  const x = useMotionValue(placed.posX);
-  const y = useMotionValue(placed.posY);
+  const { setDraggingCard } = usePrerelease();
+  const x = useMotionValue(placed.posX * scale);
+  const y = useMotionValue(placed.posY * scale);
+  const { isPending } = usePrerelease();
   const [localZ, setLocalZ] = useState(placed.zIndex);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const isDragging = useRef(false);
+  const dragStartPos = useRef({ x: 0, y: 0 });
 
-  const cardRef       = useRef<HTMLDivElement>(null);
-  const isDragging    = useRef(false);
-  const dragStartPos  = useRef({ x: 0, y: 0 });
-
-  const isSelectedRef  = useRef(isSelected);
+  const isSelectedRef = useRef(isSelected);
   const selectedIdsRef = useRef(selectedIds);
-  const snapRef        = useRef(snapEnabled);
-  useEffect(() => { isSelectedRef.current  = isSelected;  }, [isSelected]);
+  useEffect(() => { isSelectedRef.current = isSelected; }, [isSelected]);
   useEffect(() => { selectedIdsRef.current = selectedIds; }, [selectedIds]);
-  useEffect(() => { snapRef.current        = snapEnabled; }, [snapEnabled]);
 
-  // Register in canvas registry
   useEffect(() => {
     const reg = registry.current;
     reg.set(placed.id, { x, y });
     return () => { reg.delete(placed.id); };
   }, [placed.id, x, y, registry]);
 
-  // Sync server state when idle
   useEffect(() => {
     if (!isDragging.current && !isPending) {
-      x.set(placed.posX);
-      y.set(placed.posY);
+      x.set(placed.posX * scale);
+      y.set(placed.posY * scale);
       setLocalZ(placed.zIndex);
     }
-  }, [placed.posX, placed.posY, placed.zIndex, x, y, isPending]);
+  }, [placed.posX, placed.posY, placed.zIndex, x, y, isPending, scale]);
 
   // ── Mass-drag follower ──
   useEffect(() => {
-    let startX = 0, startY = 0;
+    let startX = 0;
+    let startY = 0;
 
     function onStart(e: CustomEvent<MassDragStartPayload>) {
       if (e.detail.leaderId === placed.id || !isSelectedRef.current) return;
@@ -516,7 +736,7 @@ const DndCard = memo(function DndCard({
       setLocalZ(timeBasedZ() + 100_000);
       if (cardRef.current) {
         cardRef.current.style.opacity = "0.8";
-        cardRef.current.style.filter  = "brightness(1.15)";
+        cardRef.current.style.filter = "brightness(1.15)";
       }
     }
 
@@ -528,44 +748,43 @@ const DndCard = memo(function DndCard({
 
     function onEnd(e: CustomEvent<MassDragEndPayload>) {
       if (e.detail.leaderId === placed.id || !isSelectedRef.current) return;
-      const rawX = startX + e.detail.offsetX;
-      const rawY = startY + e.detail.offsetY;
-      const { snapGrid } = e.detail;
-      x.set(clamp(snapGrid ? snapToGrid(rawX, snapGrid) : rawX, 0, WORLD_W - CARD_W));
-      y.set(clamp(snapGrid ? snapToGrid(rawY, snapGrid) : rawY, 0, WORLD_H - CARD_H));
+      x.set(startX + e.detail.offsetX);
+      y.set(startY + e.detail.offsetY);
       if (cardRef.current) {
         cardRef.current.style.opacity = "";
-        cardRef.current.style.filter  = "";
+        cardRef.current.style.filter = "";
       }
     }
 
     function onCancel(e: CustomEvent<MassDragCancelPayload>) {
       if (e.detail.leaderId === placed.id || !isSelectedRef.current) return;
-      // Restore to position captured at drag-start
       x.set(startX);
       y.set(startY);
       if (cardRef.current) {
         cardRef.current.style.opacity = "";
-        cardRef.current.style.filter  = "";
+        cardRef.current.style.filter = "";
       }
     }
 
-    window.addEventListener("mass-drag-start",  onStart);
-    window.addEventListener("mass-drag-move",   onMove);
-    window.addEventListener("mass-drag-end",    onEnd);
-    window.addEventListener("mass-drag-cancel", onCancel);
-    return () => {
-      window.removeEventListener("mass-drag-start",  onStart);
-      window.removeEventListener("mass-drag-move",   onMove);
-      window.removeEventListener("mass-drag-end",    onEnd);
-      window.removeEventListener("mass-drag-cancel", onCancel);
-    };
-  }, [placed.id, x, y]);
+    const handleStart = onStart as EventListener;
+    const handleMove = onMove as EventListener;
+    const handleEnd = onEnd as EventListener;
+    const handleCancel = onCancel as EventListener;
 
-  // ── Drag handlers ──
+    window.addEventListener("mass-drag-start", handleStart);
+    window.addEventListener("mass-drag-move", handleMove);
+    window.addEventListener("mass-drag-end", handleEnd);
+    window.addEventListener("mass-drag-cancel", handleCancel);
+    return () => {
+      window.removeEventListener("mass-drag-start", handleStart);
+      window.removeEventListener("mass-drag-move", handleMove);
+      window.removeEventListener("mass-drag-end", handleEnd);
+      window.removeEventListener("mass-drag-cancel", handleCancel);
+    };
+  }, [placed.id, x, y, isSelected]);
 
   function handleDragStart() {
-    isDragging.current   = true;
+    isDragging.current = true;
     dragStartPos.current = { x: x.get(), y: y.get() };
     setLocalZ(timeBasedZ() + 100_000);
     setDraggingCard(placed.id);
@@ -578,45 +797,48 @@ const DndCard = memo(function DndCard({
   }
 
   function handleDrag(_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) {
+    const rawX = dragStartPos.current.x + info.offset.x;
+    const rawY = dragStartPos.current.y + info.offset.y;
+
+    x.set(rawX);
+    y.set(rawY);
+
     if (!isSelectedRef.current || selectedIdsRef.current.size <= 1) return;
+
     window.dispatchEvent(
       new CustomEvent("mass-drag-move", {
-        detail: { leaderId: placed.id, offsetX: info.offset.x, offsetY: info.offset.y },
+        detail: {
+          leaderId: placed.id,
+          offsetX: info.offset.x,
+          offsetY: info.offset.y,
+        },
       })
     );
   }
 
   function handleDragEnd(e: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) {
-    isDragging.current  = false;
-    const isGroup       = isSelectedRef.current && selectedIdsRef.current.size > 1;
-    const snapGrid      = snapRef.current ? GRID_SIZE : null;
+    isDragging.current = false;
+    const isGroup = isSelectedRef.current && selectedIdsRef.current.size > 1;
 
-    // Final client position for zone detection
-    const clientX = "clientX" in e ? e.clientX : (e as TouchEvent).changedTouches[0].clientX;
-    const clientY = "clientY" in e ? e.clientY : (e as TouchEvent).changedTouches[0].clientY;
+    const clientX = "clientX" in e ? e.clientX : e.changedTouches[0].clientX;
+    const clientY = "clientY" in e ? e.clientY : e.changedTouches[0].clientY;
 
     if (isGroup) {
-      const rawX = dragStartPos.current.x + info.offset.x;
-      const rawY = dragStartPos.current.y + info.offset.y;
-      x.set(clamp(snapGrid ? snapToGrid(rawX, snapGrid) : rawX, 0, WORLD_W - CARD_W));
-      y.set(clamp(snapGrid ? snapToGrid(rawY, snapGrid) : rawY, 0, WORLD_H - CARD_H));
+      x.set(dragStartPos.current.x + info.offset.x);
+      y.set(dragStartPos.current.y + info.offset.y);
       window.dispatchEvent(
         new CustomEvent("mass-drag-end", {
-          detail: { leaderId: placed.id, offsetX: info.offset.x, offsetY: info.offset.y, snapGrid },
+          detail: { leaderId: placed.id, offsetX: info.offset.x, offsetY: info.offset.y, snapGrid: null },
         })
       );
     } else {
-      const rawX = x.get();
-      const rawY = y.get();
-      x.set(clamp(snapGrid ? snapToGrid(rawX, snapGrid) : rawX, 0, WORLD_W - CARD_W));
-      y.set(clamp(snapGrid ? snapToGrid(rawY, snapGrid) : rawY, 0, WORLD_H - CARD_H));
       setLocalZ(timeBasedZ());
     }
 
     onGroupDragEnd(
       placed.id,
       { x: clientX, y: clientY },
-      dragStartPos.current
+      { x: dragStartPos.current.x / scale, y: dragStartPos.current.y / scale }
     );
   }
 
@@ -627,7 +849,7 @@ const DndCard = memo(function DndCard({
       drag
       dragMomentum={false}
       dragElastic={0}
-      style={{ x, y, zIndex: localZ, width: CARD_W, height: CARD_H }}
+      style={{ x, y, zIndex: localZ, width: CARD_W * scale, height: CARD_H * scale }}
       className="absolute left-0 top-0 touch-none will-change-transform cursor-grab active:cursor-grabbing"
       onPointerDown={(e) => {
         e.stopPropagation();
@@ -645,7 +867,7 @@ const DndCard = memo(function DndCard({
       <div
         className="absolute inset-0 rounded-[7px] pointer-events-none transition-opacity duration-75"
         style={{
-          boxShadow: "0 0 0 2px #C5A059, 0 0 14px 2px rgba(197,160,89,0.45)",
+          boxShadow: "0 0 0 2px #4d6393, 0 0 14px 2px rgba(77,99,147,0.45)",
           opacity: isSelected ? 1 : 0,
         }}
       />
@@ -662,18 +884,18 @@ function CardFrame({ placed, priority }: { placed: PlacedCardState; priority: bo
   return (
     <div
       className={`relative w-full h-full rounded-[7px] overflow-hidden bg-bg-void border border-white/5 shadow-2xl
-        ${isSoa         ? "outline outline-1 outline-gold-accent/70 shadow-[0_0_15px_rgba(197,160,89,0.3)]" : ""}
-        ${placed.isPromo ? "shadow-[0_0_20px_rgba(197,160,89,0.5)]" : ""}
+        ${isSoa ? "outline outline-1 outline-gold-accent/70 shadow-[0_0_15px_rgba(77,99,147,0.3)]" : ""}
+        ${placed.isPromo ? "shadow-[0_0_20px_rgba(77,99,147,0.5)]" : ""}
       `}
     >
       {placed.card.imagePath ? (
-        <Image
+        <img
           src={placed.card.imagePath}
           alt={placed.card.name}
-          fill priority={priority}
-          sizes="512px" quality={100}
-          className="object-cover pointer-events-none"
-          style={{ imageRendering: "-webkit-optimize-contrast" }}
+          draggable={false}
+          fetchPriority={priority ? "high" : "auto"}
+          loading={priority ? "eager" : "lazy"}
+          className="h-full w-full object-cover pointer-events-none select-none"
         />
       ) : (
         <div className="w-full h-full bg-silverquill-ink flex flex-col items-center justify-center p-2 text-center text-gold-accent text-[9px] font-semibold">
@@ -681,7 +903,7 @@ function CardFrame({ placed, priority }: { placed: PlacedCardState; priority: bo
           <span className="mt-1 line-clamp-2">{placed.card.name}</span>
         </div>
       )}
-      {placed.isFoil  && <div className="absolute inset-0 foil-overlay pointer-events-none opacity-50" />}
+      {placed.isFoil && <div className="absolute inset-0 foil-overlay pointer-events-none opacity-50" />}
       {placed.isPromo && <div className="promo-gloss-beam" />}
       <div className="absolute bottom-[5px] left-1/2 -translate-x-1/2 pointer-events-none">
         <RarityPip rarity={placed.card.rarity} />
@@ -693,19 +915,32 @@ function CardFrame({ placed, priority }: { placed: PlacedCardState; priority: bo
 function CardOverview({ placed, onClose }: { placed: PlacedCardState; onClose: () => void }) {
   return (
     <motion.div
-      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
       onClick={onClose}
       className="fixed inset-0 z-[200000000] flex items-center justify-center bg-bg-void/90 backdrop-blur-md p-4 cursor-zoom-out"
     >
       <motion.div
-        initial={{ scale: 0.8, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.8, y: 20 }}
+        initial={{ scale: 0.8, y: 20 }}
+        animate={{ scale: 1, y: 0 }}
+        exit={{ scale: 0.8, y: 20 }}
         onClick={(e) => e.stopPropagation()}
         className="relative w-[min(95vw,500px)] aspect-[2.5/3.5] rounded-2xl shadow-[0_0_50px_rgba(0,0,0,0.8)] overflow-hidden"
       >
-        <Image src={placed.card.imagePath} alt={placed.card.name}
-          fill quality={100} sizes="600px" className="object-contain" priority />
-        <button onClick={onClose}
-          className="absolute top-4 right-4 w-10 h-10 bg-black/50 text-white rounded-full flex items-center justify-center text-2xl hover:bg-black/80 transition-colors shadow-lg">
+        <Image
+          src={placed.card.imagePath}
+          alt={placed.card.name}
+          fill
+          quality={100}
+          sizes="600px"
+          className="object-contain"
+          priority
+        />
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 w-10 h-10 bg-black/50 text-white rounded-full flex items-center justify-center text-2xl hover:bg-black/80 transition-colors shadow-lg"
+        >
           ×
         </button>
       </motion.div>
@@ -735,12 +970,33 @@ function ArchiveBadge() {
   );
 }
 
+function CanvasIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className={className}>
+      <rect x="3" y="3" width="14" height="14" rx="2.2" />
+      <path d="M3 8.5h14" />
+      <path d="M8.5 3v14" />
+    </svg>
+  );
+}
+
+function GridIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 20 20" fill="currentColor" className={className}>
+      <rect x="3" y="3" width="5" height="5" rx="1.2" />
+      <rect x="12" y="3" width="5" height="5" rx="1.2" />
+      <rect x="3" y="12" width="5" height="5" rx="1.2" />
+      <rect x="12" y="12" width="5" height="5" rx="1.2" />
+    </svg>
+  );
+}
+
 function RarityPip({ rarity, size = "sm" }: { rarity: string; size?: "sm" | "lg" }) {
   const colors: Record<string, string> = {
-    COMMON:   "bg-white/40",
+    COMMON: "bg-white/40",
     UNCOMMON: "bg-slate-400",
-    RARE:     "bg-yellow-400",
-    MYTHIC:   "bg-orange-500",
+    RARE: "bg-yellow-400",
+    MYTHIC: "bg-orange-500",
   };
   const dim = size === "lg" ? "w-3 h-3" : "w-1.5 h-1.5";
   return <span className={`block rounded-full shadow-md ${dim} ${colors[rarity] ?? "bg-white/20"}`} />;

@@ -13,7 +13,7 @@ const config: Config = {
         foreground: "var(--foreground)",
         // Strixhaven palette
         "bg-void": "#050505",
-        "gold-accent": "#c5a059",
+        "gold-accent": "#4d6393",
         "silverquill-ink": "#3a3a3a",
       },
     },

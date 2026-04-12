@@ -67,6 +67,6 @@ model PlacedCard {
   posX       Float         @default(0)
   posY       Float         @default(0)
   zIndex     Int           @default(0)
-  isMainDeck Boolean       @default(false)
+  isMainDeck Boolean? // null = on canvas only, true = main deck, false = sideboard
   isFoil     Boolean       @default(false)
 }

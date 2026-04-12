@@ -28,8 +28,8 @@ export default function SimulatorLoading() {
           className="absolute inset-0 pointer-events-none opacity-[0.04]"
           style={{
             backgroundImage:
-              "linear-gradient(rgba(197,160,89,1) 1px, transparent 1px), " +
-              "linear-gradient(90deg, rgba(197,160,89,1) 1px, transparent 1px)",
+              "linear-gradient(rgba(77,99,147,1) 1px, transparent 1px), " +
+              "linear-gradient(90deg, rgba(77,99,147,1) 1px, transparent 1px)",
             backgroundSize: "40px 40px",
           }}
         />
@@ -52,10 +52,10 @@ export default function SimulatorLoading() {
                   animationDelay: `${delay}ms`,
                   // Seeded booster column is slightly brighter
                   filter: isSeeded ? "brightness(1.25)" : undefined,
-                  // Subtle gold ring on first row to hint at structure
+                  // Subtle blue ring on first row to hint at structure
                   boxShadow:
                     row === 0 && isSeeded
-                      ? "0 0 0 1px rgba(197,160,89,0.25)"
+                      ? "0 0 0 1px rgba(77,99,147,0.32)"
                       : undefined,
                 }}
               />
@@ -73,7 +73,7 @@ export default function SimulatorLoading() {
             left:      PROMO_X,
             top:       ORIGIN_Y,
             animationDelay: `${PACKS * CARDS_PER_COL * 18}ms`,
-            boxShadow: "0 0 0 1px rgba(197,160,89,0.35)",
+            boxShadow: "0 0 0 1px rgba(77,99,147,0.4)",
           }}
         />
 

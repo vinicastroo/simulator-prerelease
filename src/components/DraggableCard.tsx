@@ -81,8 +81,8 @@ export const DraggableCard = memo(function DraggableCard({
       <div
         className={[
           "relative w-full h-full rounded-[7px] overflow-hidden",
-          // SOA (Mystical Archive) — golden ring + warm glow
-          isSoa && "ring-1 ring-gold-accent shadow-[0_0_16px_4px_rgba(197,160,89,0.45)]",
+          // SOA (Mystical Archive) — blue ring + cool glow
+          isSoa && "ring-1 ring-gold-accent shadow-[0_0_16px_4px_rgba(77,99,147,0.45)]",
           // SPG (Special Guests) — subtle silver ring
           isSPG && !isSoa && "ring-1 ring-white/25 shadow-[0_0_10px_2px_rgba(255,255,255,0.12)]",
         ]
@@ -116,7 +116,7 @@ export const DraggableCard = memo(function DraggableCard({
         {isPromo && (
           <div
             aria-hidden
-            className="absolute inset-0 rounded-[7px] pointer-events-none ring-1 ring-gold-accent/70 shadow-[inset_0_0_12px_2px_rgba(197,160,89,0.3)] promo-glow"
+            className="absolute inset-0 rounded-[7px] pointer-events-none ring-1 ring-gold-accent/70 shadow-[inset_0_0_12px_2px_rgba(77,99,147,0.3)] promo-glow"
           />
         )}
 

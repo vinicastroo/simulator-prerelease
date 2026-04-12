@@ -3660,7 +3660,7 @@ export namespace Prisma {
     posX: number
     posY: number
     zIndex: number
-    isMainDeck: boolean
+    isMainDeck: boolean | null
     isFoil: boolean
     _count: PlacedCardCountAggregateOutputType | null
     _avg: PlacedCardAvgAggregateOutputType | null
@@ -3760,7 +3760,7 @@ export namespace Prisma {
       posX: number
       posY: number
       zIndex: number
-      isMainDeck: boolean
+      isMainDeck: boolean | null
       isFoil: boolean
     }, ExtArgs["result"]["placedCard"]>
     composites: {}
@@ -4969,7 +4969,7 @@ export namespace Prisma {
     posX?: FloatFilter<"PlacedCard"> | number
     posY?: FloatFilter<"PlacedCard"> | number
     zIndex?: IntFilter<"PlacedCard"> | number
-    isMainDeck?: BoolFilter<"PlacedCard"> | boolean
+    isMainDeck?: BoolNullableFilter<"PlacedCard"> | boolean | null
     isFoil?: BoolFilter<"PlacedCard"> | boolean
     card?: XOR<CardScalarRelationFilter, CardWhereInput>
     kit?: XOR<PrereleaseKitScalarRelationFilter, PrereleaseKitWhereInput>
@@ -4982,7 +4982,7 @@ export namespace Prisma {
     posX?: SortOrder
     posY?: SortOrder
     zIndex?: SortOrder
-    isMainDeck?: SortOrder
+    isMainDeck?: SortOrderInput | SortOrder
     isFoil?: SortOrder
     card?: CardOrderByWithRelationInput
     kit?: PrereleaseKitOrderByWithRelationInput
@@ -4998,7 +4998,7 @@ export namespace Prisma {
     posX?: FloatFilter<"PlacedCard"> | number
     posY?: FloatFilter<"PlacedCard"> | number
     zIndex?: IntFilter<"PlacedCard"> | number
-    isMainDeck?: BoolFilter<"PlacedCard"> | boolean
+    isMainDeck?: BoolNullableFilter<"PlacedCard"> | boolean | null
     isFoil?: BoolFilter<"PlacedCard"> | boolean
     card?: XOR<CardScalarRelationFilter, CardWhereInput>
     kit?: XOR<PrereleaseKitScalarRelationFilter, PrereleaseKitWhereInput>
@@ -5011,7 +5011,7 @@ export namespace Prisma {
     posX?: SortOrder
     posY?: SortOrder
     zIndex?: SortOrder
-    isMainDeck?: SortOrder
+    isMainDeck?: SortOrderInput | SortOrder
     isFoil?: SortOrder
     _count?: PlacedCardCountOrderByAggregateInput
     _avg?: PlacedCardAvgOrderByAggregateInput
@@ -5030,7 +5030,7 @@ export namespace Prisma {
     posX?: FloatWithAggregatesFilter<"PlacedCard"> | number
     posY?: FloatWithAggregatesFilter<"PlacedCard"> | number
     zIndex?: IntWithAggregatesFilter<"PlacedCard"> | number
-    isMainDeck?: BoolWithAggregatesFilter<"PlacedCard"> | boolean
+    isMainDeck?: BoolNullableWithAggregatesFilter<"PlacedCard"> | boolean | null
     isFoil?: BoolWithAggregatesFilter<"PlacedCard"> | boolean
   }
 
@@ -5190,7 +5190,7 @@ export namespace Prisma {
     posX?: number
     posY?: number
     zIndex?: number
-    isMainDeck?: boolean
+    isMainDeck?: boolean | null
     isFoil?: boolean
     card: CardCreateNestedOneWithoutPlacedCardsInput
     kit: PrereleaseKitCreateNestedOneWithoutPlacedCardsInput
@@ -5203,7 +5203,7 @@ export namespace Prisma {
     posX?: number
     posY?: number
     zIndex?: number
-    isMainDeck?: boolean
+    isMainDeck?: boolean | null
     isFoil?: boolean
   }
 
@@ -5212,7 +5212,7 @@ export namespace Prisma {
     posX?: FloatFieldUpdateOperationsInput | number
     posY?: FloatFieldUpdateOperationsInput | number
     zIndex?: IntFieldUpdateOperationsInput | number
-    isMainDeck?: BoolFieldUpdateOperationsInput | boolean
+    isMainDeck?: NullableBoolFieldUpdateOperationsInput | boolean | null
     isFoil?: BoolFieldUpdateOperationsInput | boolean
     card?: CardUpdateOneRequiredWithoutPlacedCardsNestedInput
     kit?: PrereleaseKitUpdateOneRequiredWithoutPlacedCardsNestedInput
@@ -5225,7 +5225,7 @@ export namespace Prisma {
     posX?: FloatFieldUpdateOperationsInput | number
     posY?: FloatFieldUpdateOperationsInput | number
     zIndex?: IntFieldUpdateOperationsInput | number
-    isMainDeck?: BoolFieldUpdateOperationsInput | boolean
+    isMainDeck?: NullableBoolFieldUpdateOperationsInput | boolean | null
     isFoil?: BoolFieldUpdateOperationsInput | boolean
   }
 
@@ -5236,7 +5236,7 @@ export namespace Prisma {
     posX?: number
     posY?: number
     zIndex?: number
-    isMainDeck?: boolean
+    isMainDeck?: boolean | null
     isFoil?: boolean
   }
 
@@ -5245,7 +5245,7 @@ export namespace Prisma {
     posX?: FloatFieldUpdateOperationsInput | number
     posY?: FloatFieldUpdateOperationsInput | number
     zIndex?: IntFieldUpdateOperationsInput | number
-    isMainDeck?: BoolFieldUpdateOperationsInput | boolean
+    isMainDeck?: NullableBoolFieldUpdateOperationsInput | boolean | null
     isFoil?: BoolFieldUpdateOperationsInput | boolean
   }
 
@@ -5256,7 +5256,7 @@ export namespace Prisma {
     posX?: FloatFieldUpdateOperationsInput | number
     posY?: FloatFieldUpdateOperationsInput | number
     zIndex?: IntFieldUpdateOperationsInput | number
-    isMainDeck?: BoolFieldUpdateOperationsInput | boolean
+    isMainDeck?: NullableBoolFieldUpdateOperationsInput | boolean | null
     isFoil?: BoolFieldUpdateOperationsInput | boolean
   }
 
@@ -5568,6 +5568,11 @@ export namespace Prisma {
     not?: NestedFloatFilter<$PrismaModel> | number
   }
 
+  export type BoolNullableFilter<$PrismaModel = never> = {
+    equals?: boolean | BooleanFieldRefInput<$PrismaModel> | null
+    not?: NestedBoolNullableFilter<$PrismaModel> | boolean | null
+  }
+
   export type BoolFilter<$PrismaModel = never> = {
     equals?: boolean | BooleanFieldRefInput<$PrismaModel>
     not?: NestedBoolFilter<$PrismaModel> | boolean
@@ -5642,6 +5647,14 @@ export namespace Prisma {
     _sum?: NestedFloatFilter<$PrismaModel>
     _min?: NestedFloatFilter<$PrismaModel>
     _max?: NestedFloatFilter<$PrismaModel>
+  }
+
+  export type BoolNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: boolean | BooleanFieldRefInput<$PrismaModel> | null
+    not?: NestedBoolNullableWithAggregatesFilter<$PrismaModel> | boolean | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _min?: NestedBoolNullableFilter<$PrismaModel>
+    _max?: NestedBoolNullableFilter<$PrismaModel>
   }
 
   export type BoolWithAggregatesFilter<$PrismaModel = never> = {
@@ -5840,6 +5853,10 @@ export namespace Prisma {
     decrement?: number
     multiply?: number
     divide?: number
+  }
+
+  export type NullableBoolFieldUpdateOperationsInput = {
+    set?: boolean | null
   }
 
   export type BoolFieldUpdateOperationsInput = {
@@ -6055,6 +6072,11 @@ export namespace Prisma {
     not?: NestedIntNullableFilter<$PrismaModel> | number | null
   }
 
+  export type NestedBoolNullableFilter<$PrismaModel = never> = {
+    equals?: boolean | BooleanFieldRefInput<$PrismaModel> | null
+    not?: NestedBoolNullableFilter<$PrismaModel> | boolean | null
+  }
+
   export type NestedBoolFilter<$PrismaModel = never> = {
     equals?: boolean | BooleanFieldRefInput<$PrismaModel>
     not?: NestedBoolFilter<$PrismaModel> | boolean
@@ -6076,6 +6098,14 @@ export namespace Prisma {
     _max?: NestedFloatFilter<$PrismaModel>
   }
 
+  export type NestedBoolNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: boolean | BooleanFieldRefInput<$PrismaModel> | null
+    not?: NestedBoolNullableWithAggregatesFilter<$PrismaModel> | boolean | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _min?: NestedBoolNullableFilter<$PrismaModel>
+    _max?: NestedBoolNullableFilter<$PrismaModel>
+  }
+
   export type NestedBoolWithAggregatesFilter<$PrismaModel = never> = {
     equals?: boolean | BooleanFieldRefInput<$PrismaModel>
     not?: NestedBoolWithAggregatesFilter<$PrismaModel> | boolean
@@ -6089,7 +6119,7 @@ export namespace Prisma {
     posX?: number
     posY?: number
     zIndex?: number
-    isMainDeck?: boolean
+    isMainDeck?: boolean | null
     isFoil?: boolean
     kit: PrereleaseKitCreateNestedOneWithoutPlacedCardsInput
   }
@@ -6100,7 +6130,7 @@ export namespace Prisma {
     posX?: number
     posY?: number
     zIndex?: number
-    isMainDeck?: boolean
+    isMainDeck?: boolean | null
     isFoil?: boolean
   }
 
@@ -6164,7 +6194,7 @@ export namespace Prisma {
     posX?: FloatFilter<"PlacedCard"> | number
     posY?: FloatFilter<"PlacedCard"> | number
     zIndex?: IntFilter<"PlacedCard"> | number
-    isMainDeck?: BoolFilter<"PlacedCard"> | boolean
+    isMainDeck?: BoolNullableFilter<"PlacedCard"> | boolean | null
     isFoil?: BoolFilter<"PlacedCard"> | boolean
   }
 
@@ -6232,7 +6262,7 @@ export namespace Prisma {
     posX?: number
     posY?: number
     zIndex?: number
-    isMainDeck?: boolean
+    isMainDeck?: boolean | null
     isFoil?: boolean
     card: CardCreateNestedOneWithoutPlacedCardsInput
   }
@@ -6243,7 +6273,7 @@ export namespace Prisma {
     posX?: number
     posY?: number
     zIndex?: number
-    isMainDeck?: boolean
+    isMainDeck?: boolean | null
     isFoil?: boolean
   }
 
@@ -6434,7 +6464,7 @@ export namespace Prisma {
     posX?: number
     posY?: number
     zIndex?: number
-    isMainDeck?: boolean
+    isMainDeck?: boolean | null
     isFoil?: boolean
   }
 
@@ -6449,7 +6479,7 @@ export namespace Prisma {
     posX?: FloatFieldUpdateOperationsInput | number
     posY?: FloatFieldUpdateOperationsInput | number
     zIndex?: IntFieldUpdateOperationsInput | number
-    isMainDeck?: BoolFieldUpdateOperationsInput | boolean
+    isMainDeck?: NullableBoolFieldUpdateOperationsInput | boolean | null
     isFoil?: BoolFieldUpdateOperationsInput | boolean
     kit?: PrereleaseKitUpdateOneRequiredWithoutPlacedCardsNestedInput
   }
@@ -6460,7 +6490,7 @@ export namespace Prisma {
     posX?: FloatFieldUpdateOperationsInput | number
     posY?: FloatFieldUpdateOperationsInput | number
     zIndex?: IntFieldUpdateOperationsInput | number
-    isMainDeck?: BoolFieldUpdateOperationsInput | boolean
+    isMainDeck?: NullableBoolFieldUpdateOperationsInput | boolean | null
     isFoil?: BoolFieldUpdateOperationsInput | boolean
   }
 
@@ -6470,7 +6500,7 @@ export namespace Prisma {
     posX?: FloatFieldUpdateOperationsInput | number
     posY?: FloatFieldUpdateOperationsInput | number
     zIndex?: IntFieldUpdateOperationsInput | number
-    isMainDeck?: BoolFieldUpdateOperationsInput | boolean
+    isMainDeck?: NullableBoolFieldUpdateOperationsInput | boolean | null
     isFoil?: BoolFieldUpdateOperationsInput | boolean
   }
 
@@ -6500,7 +6530,7 @@ export namespace Prisma {
     posX?: number
     posY?: number
     zIndex?: number
-    isMainDeck?: boolean
+    isMainDeck?: boolean | null
     isFoil?: boolean
   }
 
@@ -6509,7 +6539,7 @@ export namespace Prisma {
     posX?: FloatFieldUpdateOperationsInput | number
     posY?: FloatFieldUpdateOperationsInput | number
     zIndex?: IntFieldUpdateOperationsInput | number
-    isMainDeck?: BoolFieldUpdateOperationsInput | boolean
+    isMainDeck?: NullableBoolFieldUpdateOperationsInput | boolean | null
     isFoil?: BoolFieldUpdateOperationsInput | boolean
     card?: CardUpdateOneRequiredWithoutPlacedCardsNestedInput
   }
@@ -6520,7 +6550,7 @@ export namespace Prisma {
     posX?: FloatFieldUpdateOperationsInput | number
     posY?: FloatFieldUpdateOperationsInput | number
     zIndex?: IntFieldUpdateOperationsInput | number
-    isMainDeck?: BoolFieldUpdateOperationsInput | boolean
+    isMainDeck?: NullableBoolFieldUpdateOperationsInput | boolean | null
     isFoil?: BoolFieldUpdateOperationsInput | boolean
   }
 
@@ -6530,7 +6560,7 @@ export namespace Prisma {
     posX?: FloatFieldUpdateOperationsInput | number
     posY?: FloatFieldUpdateOperationsInput | number
     zIndex?: IntFieldUpdateOperationsInput | number
-    isMainDeck?: BoolFieldUpdateOperationsInput | boolean
+    isMainDeck?: NullableBoolFieldUpdateOperationsInput | boolean | null
     isFoil?: BoolFieldUpdateOperationsInput | boolean
   }
 

@@ -14,7 +14,7 @@
  */
 
 import { prisma } from "@/lib/prisma";
-import type { Card, College } from "../../../generated/prisma/client";
+import type { Card, College } from "@prisma/client";
 
 // ─── Probability constants ──────────────────────────────────────────────────────
 
@@ -477,7 +477,7 @@ export async function generateFullKit(college: College): Promise<string> {
           posY: p.posY,
           zIndex: p.zIndex,
           isFoil: p.isFoil,
-          // isMainDeck omitted → null (unassigned) after migration
+          isMainDeck: null,
         })),
     });
 

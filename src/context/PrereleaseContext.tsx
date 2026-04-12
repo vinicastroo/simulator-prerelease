@@ -10,7 +10,12 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { updateCardPosition, updateMultiplePositions, setDeckZone as serverSetDeckZone } from "@/actions/cards";
+import {
+  addBasicLandsToKit as serverAddBasicLandsToKit,
+  updateCardPosition,
+  updateMultiplePositions,
+  setDeckZone as serverSetDeckZone,
+} from "@/actions/cards";
 
 export type PlacedCardState = {
   id: string;
@@ -26,11 +31,21 @@ export type PlacedCardState = {
     name: string;
     rarity: string;
     set: string;
+    setName?: string | null;
     colors: string[];
+    manaCost?: string | null;
     cmc: number;
     typeLine: string;
+    oracleText?: string | null;
+    flavorText?: string | null;
+    power?: string | null;
+    toughness?: string | null;
+    loyalty?: string | null;
+    artist?: string | null;
+    releasedAt?: string | null;
     imagePath: string;
     collectorNumber: string;
+    rawData?: unknown;
   };
 };
 
@@ -62,7 +77,12 @@ type SetDeckZoneAction = {
   zone: boolean | null;
 };
 
-type OptimisticAction = MoveAction | MoveManyAction | SetDeckZoneAction;
+type AddCardsAction = {
+  type: "ADD_CARDS";
+  cards: PlacedCardState[];
+};
+
+type OptimisticAction = MoveAction | MoveManyAction | SetDeckZoneAction | AddCardsAction;
 
 function applyOptimistic(
   state: PlacedCardState[],
@@ -86,6 +106,9 @@ function applyOptimistic(
     const idSet = new Set(action.ids);
     return state.map((c) => (idSet.has(c.id) ? { ...c, isMainDeck: action.zone } : c));
   }
+  if (action.type === "ADD_CARDS") {
+    return [...state, ...action.cards];
+  }
   return state;
 }
 
@@ -95,12 +118,10 @@ type PrereleaseContextValue = {
   cards: PlacedCardState[];
   isPending: boolean;
   kitId: string;
-  // Canvas position persistence
   moveCard: (id: string, posX: number, posY: number, zIndex: number) => void;
   moveCards: (updates: PositionUpdatePayload[]) => void;
-  // Deck zone assignment
   setDeckZone: (ids: string[], zone: boolean | null) => void;
-  // Drag state (shared with Sidebar for drop-zone UI)
+  addBasicLandsToKit: (landName: "Plains" | "Island" | "Swamp" | "Mountain" | "Forest", quantity: number) => void;
   draggingCardId: string | null;
   setDraggingCard: (id: string | null) => void;
 };
@@ -164,6 +185,52 @@ export function PrereleaseProvider({
     [dispatch, kitId]
   );
 
+  const addBasicLandsToKit = useCallback(
+    (landName: "Plains" | "Island" | "Swamp" | "Mountain" | "Forest", quantity: number) => {
+      startTransition(async () => {
+        try {
+          const createdCards = await serverAddBasicLandsToKit(kitId, landName, quantity, true);
+          const optimisticCards: PlacedCardState[] = createdCards.map((created) => ({
+            id: created.id,
+            cardId: created.cardId,
+            posX: created.posX,
+            posY: created.posY,
+            zIndex: created.zIndex,
+            isMainDeck: created.isMainDeck,
+            isFoil: created.isFoil,
+            isPromo: false,
+            card: {
+              id: created.card.id,
+              name: created.card.name,
+              rarity: created.card.rarity,
+              set: created.card.set,
+              setName: created.card.setName,
+              colors: Array.isArray(created.card.colors) ? created.card.colors as string[] : [],
+              manaCost: created.card.manaCost,
+              cmc: created.card.cmc,
+              typeLine: created.card.typeLine,
+              oracleText: created.card.oracleText,
+              flavorText: created.card.flavorText,
+              power: created.card.power,
+              toughness: created.card.toughness,
+              loyalty: created.card.loyalty,
+              artist: created.card.artist,
+              releasedAt: created.card.releasedAt,
+              imagePath: created.card.imagePath,
+              collectorNumber: created.card.collectorNumber,
+              rawData: created.card.rawData,
+            },
+          }));
+
+          dispatch({ type: "ADD_CARDS", cards: optimisticCards });
+        } catch (err) {
+          console.error("Falha ao adicionar terrenos básicos:", err);
+        }
+      });
+    },
+    [dispatch, kitId]
+  );
+
   const contextValue = useMemo(
     () => ({
       cards: optimisticCards,
@@ -172,10 +239,11 @@ export function PrereleaseProvider({
       moveCard,
       moveCards,
       setDeckZone,
+      addBasicLandsToKit,
       draggingCardId,
       setDraggingCard,
     }),
-    [optimisticCards, isPending, kitId, moveCard, moveCards, setDeckZone, draggingCardId]
+    [optimisticCards, isPending, kitId, moveCard, moveCards, setDeckZone, addBasicLandsToKit, draggingCardId]
   );
 
   return (

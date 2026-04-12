@@ -27,8 +27,8 @@ export function CanvasContainer() {
         className="absolute inset-0 pointer-events-none opacity-[0.04]"
         style={{
           backgroundImage:
-            "linear-gradient(rgba(197,160,89,1) 1px, transparent 1px), " +
-            "linear-gradient(90deg, rgba(197,160,89,1) 1px, transparent 1px)",
+            "linear-gradient(rgba(77,99,147,1) 1px, transparent 1px), " +
+            "linear-gradient(90deg, rgba(77,99,147,1) 1px, transparent 1px)",
           backgroundSize: "40px 40px",
         }}
       />
