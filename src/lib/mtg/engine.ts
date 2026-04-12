@@ -13,8 +13,8 @@
  *   Rest     — SOS Commons (non-land) until 14 total
  */
 
-import { prisma } from "@/lib/prisma";
 import type { Card, College } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 
 // ─── Probability constants ──────────────────────────────────────────────────────
 
@@ -34,7 +34,7 @@ export const MYTHIC_UPGRADE_RATE = 0.125; // 1/8
 /**
  * Probability the Land slot is foil.
  */
-export const LAND_FOIL_RATE = 0.20;
+export const LAND_FOIL_RATE = 0.2;
 
 /** MTG color identities per Strixhaven college. */
 export const COLLEGE_COLORS = {
@@ -114,7 +114,12 @@ function weightedIndex(weights: readonly number[]): number {
  * |   5   |    0.5%     |
  */
 export function rollRareSlotCount(): 1 | 2 | 3 | 4 | 5 {
-  return (weightedIndex([0.60, 0.33, 0.06, 0.005, 0.005]) + 1) as 1 | 2 | 3 | 4 | 5;
+  return (weightedIndex([0.6, 0.33, 0.06, 0.005, 0.005]) + 1) as
+    | 1
+    | 2
+    | 3
+    | 4
+    | 5;
 }
 
 /**
@@ -139,9 +144,12 @@ function sampleN<T>(pool: readonly T[], n: number): T[] {
 }
 
 /** Picks one card, applying the mythic upgrade rate. */
-function rollRareMythic(rares: readonly Card[], mythics: readonly Card[]): Card {
+function rollRareMythic(
+  rares: readonly Card[],
+  mythics: readonly Card[],
+): Card {
   const useMythic = mythics.length > 0 && Math.random() < MYTHIC_UPGRADE_RATE;
-  const pool = useMythic ? mythics : (rares.length > 0 ? rares : mythics);
+  const pool = useMythic ? mythics : rares.length > 0 ? rares : mythics;
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
@@ -155,7 +163,10 @@ function parseColors(raw: unknown): string[] {
 
   // 2. Se for uma string separada por vírgula
   if (typeof raw === "string") {
-    return raw.split(",").map((s) => s.trim()).filter(Boolean);
+    return raw
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
   }
 
   // 3. Se for null, undefined ou objeto inválido
@@ -330,7 +341,10 @@ function openPlayBooster(allCards: readonly Card[]): BoosterPack {
  * - All SOS slots (land, rares, uncommons, commons) are filtered by college colors
  * - SOA slot (Slot 1) remains unfiltered — Archive cards are set-agnostic
  */
-function openSeededBooster(allCards: readonly Card[], college: College): BoosterPack {
+function openSeededBooster(
+  allCards: readonly Card[],
+  college: College,
+): BoosterPack {
   const colors = COLLEGE_COLORS[college];
   const cards: DraftCard[] = [];
 
@@ -357,7 +371,10 @@ function openSeededBooster(allCards: readonly Card[], college: College): Booster
 
   // Uncommons + commons (college-filtered, non-land)
   const nonLandPool = sosPool.filter((c) => !isLand(c));
-  const { uncommons, commons } = fillCommonUncommonSlots(nonLandPool, rareCount);
+  const { uncommons, commons } = fillCommonUncommonSlots(
+    nonLandPool,
+    rareCount,
+  );
   cards.push(...uncommons, ...commons);
 
   return { cards };
@@ -373,7 +390,8 @@ export function generatePromoCard(allCards: readonly Card[]): DraftCard {
   const pool = allCards.filter(
     (c) => c.set === "SOS" && (c.rarity === "RARE" || c.rarity === "MYTHIC"),
   );
-  if (pool.length === 0) throw new Error("No SOS Rare/Mythic cards in pool for promo.");
+  if (pool.length === 0)
+    throw new Error("No SOS Rare/Mythic cards in pool for promo.");
   const card = pool[Math.floor(Math.random() * pool.length)];
   return { cardId: card.id, isFoil: true };
 }
@@ -383,7 +401,10 @@ export function generatePromoCard(allCards: readonly Card[]): DraftCard {
 /**
  * Resolves canvas coordinates for a card given its pack column and row.
  */
-function toGridPos(packIndex: number, slotIndex: number): { posX: number; posY: number } {
+function toGridPos(
+  packIndex: number,
+  slotIndex: number,
+): { posX: number; posY: number } {
   return {
     posX: ORIGIN_X + packIndex * COL_STRIDE,
     posY: ORIGIN_Y + slotIndex * (CARD_H + ROW_GAP),
@@ -405,13 +426,23 @@ function layoutAll(
   for (let packIdx = 0; packIdx < packs.length; packIdx++) {
     for (let slotIdx = 0; slotIdx < packs[packIdx].cards.length; slotIdx++) {
       const { posX, posY } = toGridPos(packIdx, slotIdx);
-      placed.push({ ...packs[packIdx].cards[slotIdx], posX, posY, zIndex: zIndex++ });
+      placed.push({
+        ...packs[packIdx].cards[slotIdx],
+        posX,
+        posY,
+        zIndex: zIndex++,
+      });
     }
   }
 
   // Promo — standalone, prominent position after all pack columns
   if (promo.cardId) {
-    placed.push({ ...promo, posX: PROMO_OFFSET_X, posY: PROMO_OFFSET_Y, zIndex: zIndex++ });
+    placed.push({
+      ...promo,
+      posX: PROMO_OFFSET_X,
+      posY: PROMO_OFFSET_Y,
+      zIndex: zIndex++,
+    });
   }
 
   return placed;
@@ -436,11 +467,15 @@ export async function generateFullKit(college: College): Promise<string> {
   const allCards: Card[] = await prisma.card.findMany();
 
   if (allCards.length === 0) {
-    throw new Error("Card pool is empty. Seed the database before generating a kit.");
+    throw new Error(
+      "Card pool is empty. Seed the database before generating a kit.",
+    );
   }
 
   // ── Assemble packs ──────────────────────────────────────────────────────────
-  const playBoosters = Array.from({ length: 5 }, () => openPlayBooster(allCards));
+  const playBoosters = Array.from({ length: 5 }, () =>
+    openPlayBooster(allCards),
+  );
   const seededBooster = openSeededBooster(allCards, college);
   const allPacks: BoosterPack[] = [...playBoosters, seededBooster];
 
@@ -456,7 +491,7 @@ export async function generateFullKit(college: College): Promise<string> {
     if (realCards.length !== 85) {
       console.warn(
         `[engine] Expected 85 placed cards, got ${realCards.length}. ` +
-        "Pool may be too small for full deduplication.",
+          "Pool may be too small for full deduplication.",
       );
     }
   }

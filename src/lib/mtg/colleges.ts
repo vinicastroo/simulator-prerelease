@@ -50,7 +50,8 @@ export const COLLEGES: CollegeDef[] = [
     name: "Lorehold",
     school: "School of Chaos",
     tagline: "The past is alive — and angry.",
-    strategy: "Animate your graveyard. Summon spirit tokens from fallen cards and overrun opponents.",
+    strategy:
+      "Animate your graveyard. Summon spirit tokens from fallen cards and overrun opponents.",
     keywords: ["Spirits", "Graveyard", "Aggro"],
     colors: [PIPS.R, PIPS.W],
     theme: {
@@ -68,7 +69,8 @@ export const COLLEGES: CollegeDef[] = [
     name: "Prismari",
     school: "School of Perfection",
     tagline: "Art is power. Power is art.",
-    strategy: "Cast enormous elemental spells that reshape the battlefield. Ramp into game-ending sorceries.",
+    strategy:
+      "Cast enormous elemental spells that reshape the battlefield. Ramp into game-ending sorceries.",
     keywords: ["Big Spells", "Ramp", "Elemental"],
     colors: [PIPS.U, PIPS.R],
     theme: {
@@ -86,7 +88,8 @@ export const COLLEGES: CollegeDef[] = [
     name: "Quandrix",
     school: "School of Substance",
     tagline: "Every number hides a creature.",
-    strategy: "Multiply lands and fractal tokens exponentially. Build a mathematical army.",
+    strategy:
+      "Multiply lands and fractal tokens exponentially. Build a mathematical army.",
     keywords: ["Fractals", "Ramp", "Tokens"],
     colors: [PIPS.G, PIPS.U],
     theme: {
@@ -104,7 +107,8 @@ export const COLLEGES: CollegeDef[] = [
     name: "Silverquill",
     school: "School of Eloquence",
     tagline: "Words that wound. Words that heal.",
-    strategy: "Flood the board with inked spirit tokens and +1/+1 counters. Drain opponents with lifelink.",
+    strategy:
+      "Flood the board with inked spirit tokens and +1/+1 counters. Drain opponents with lifelink.",
     keywords: ["Counters", "Lifelink", "Tokens"],
     colors: [PIPS.W, PIPS.B],
     theme: {
@@ -122,7 +126,8 @@ export const COLLEGES: CollegeDef[] = [
     name: "Witherbloom",
     school: "School of Essence",
     tagline: "Life is a resource. Spend it wisely.",
-    strategy: "Sacrifice creatures to trigger devastating effects, then recoup life with synergies.",
+    strategy:
+      "Sacrifice creatures to trigger devastating effects, then recoup life with synergies.",
     keywords: ["Sacrifice", "Life Drain", "Midrange"],
     colors: [PIPS.B, PIPS.G],
     theme: {

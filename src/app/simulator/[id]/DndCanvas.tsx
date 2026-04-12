@@ -1,15 +1,18 @@
 "use client";
 
-import { memo, useCallback, useEffect, useRef, useState } from "react";
 import {
-  motion,
-  useMotionValue,
   AnimatePresence,
   type MotionValue,
+  motion,
   type PanInfo,
+  useMotionValue,
 } from "framer-motion";
 import Image from "next/image";
-import { usePrerelease, type PlacedCardState } from "@/context/PrereleaseContext";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
+import {
+  type PlacedCardState,
+  usePrerelease,
+} from "@/context/PrereleaseContext";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -30,16 +33,29 @@ function clamp(value: number, min: number, max: number): number {
 
 // ─── CustomEvent types ────────────────────────────────────────────────────────
 
-interface MassDragStartPayload { leaderId: string }
-interface MassDragMovePayload  { leaderId: string; offsetX: number; offsetY: number }
-interface MassDragEndPayload   { leaderId: string; offsetX: number; offsetY: number; snapGrid: number | null }
-interface MassDragCancelPayload { leaderId: string }
+interface MassDragStartPayload {
+  leaderId: string;
+}
+interface MassDragMovePayload {
+  leaderId: string;
+  offsetX: number;
+  offsetY: number;
+}
+interface MassDragEndPayload {
+  leaderId: string;
+  offsetX: number;
+  offsetY: number;
+  snapGrid: number | null;
+}
+interface MassDragCancelPayload {
+  leaderId: string;
+}
 
 declare global {
   interface WindowEventMap {
-    "mass-drag-start":  CustomEvent<MassDragStartPayload>;
-    "mass-drag-move":   CustomEvent<MassDragMovePayload>;
-    "mass-drag-end":    CustomEvent<MassDragEndPayload>;
+    "mass-drag-start": CustomEvent<MassDragStartPayload>;
+    "mass-drag-move": CustomEvent<MassDragMovePayload>;
+    "mass-drag-end": CustomEvent<MassDragEndPayload>;
     "mass-drag-cancel": CustomEvent<MassDragCancelPayload>;
   }
 }
@@ -51,7 +67,12 @@ type CardRegistry = Map<string, CardEntry>;
 
 // ─── Lasso helpers ────────────────────────────────────────────────────────────
 
-interface LassoRect { x: number; y: number; w: number; h: number }
+interface LassoRect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
 
 function rectsIntersect(lasso: LassoRect, card: PlacedCardState): boolean {
   return !(
@@ -90,20 +111,27 @@ interface DndCardProps {
   onGroupDragEnd: (
     leaderId: string,
     clientPos: { x: number; y: number },
-    startPos: { x: number; y: number }
+    startPos: { x: number; y: number },
   ) => void;
 }
 
 // ─── Toolbar ─────────────────────────────────────────────────────────────────
 
 function ZoomControls({
-  scale, setScale, toolMode, setToolMode, viewMode, setViewMode, onSort,
+  scale,
+  setScale,
+  toolMode,
+  setToolMode,
+  viewMode,
+  setViewMode,
+  onSort,
 }: ZoomProps) {
   const isCanvasView = viewMode === "canvas";
 
   return (
     <div className="fixed bottom-6 left-6 z-[150000000] flex flex-col gap-2 rounded-xl border border-[#30476f]/55 bg-[#0d1015]/88 p-2 backdrop-blur-md shadow-2xl">
       <button
+        type="button"
         title="Visualização canvas"
         onClick={() => setViewMode("canvas")}
         className={`w-10 h-10 flex items-center justify-center rounded-lg transition-colors ${
@@ -115,6 +143,7 @@ function ZoomControls({
         <CanvasIcon className="h-4 w-4" />
       </button>
       <button
+        type="button"
         title="Visualização grade"
         onClick={() => setViewMode("gallery")}
         className={`w-10 h-10 flex items-center justify-center rounded-lg transition-colors ${
@@ -127,6 +156,7 @@ function ZoomControls({
       </button>
       <div className="mx-2 h-[1px] bg-[#30476f]/45" />
       <button
+        type="button"
         disabled={!isCanvasView}
         onClick={() => setScale(Math.min(scale + 0.2, 2.5))}
         className={`w-10 h-10 flex items-center justify-center rounded-lg text-xl font-bold transition-colors ${
@@ -139,6 +169,7 @@ function ZoomControls({
       </button>
       <div className="mx-2 h-[1px] bg-[#30476f]/45" />
       <button
+        type="button"
         disabled={!isCanvasView}
         onClick={() => setScale(Math.max(scale - 0.2, 0.4))}
         className={`w-10 h-10 flex items-center justify-center rounded-lg text-xl font-bold transition-colors ${
@@ -154,6 +185,7 @@ function ZoomControls({
       </div>
       <div className="mx-2 h-[1px] bg-[#30476f]/45" />
       <button
+        type="button"
         title="Mover canvas (H)"
         disabled={!isCanvasView}
         onClick={() => setToolMode(toolMode === "hand" ? "select" : "hand")}
@@ -161,14 +193,15 @@ function ZoomControls({
           !isCanvasView
             ? "text-white/20 cursor-not-allowed"
             : toolMode === "hand"
-            ? "bg-[#233455]/55 text-[#b8c6e6]"
-            : "text-[#6f84b4] hover:bg-[#233455]/45 hover:text-[#b8c6e6]"
+              ? "bg-[#233455]/55 text-[#b8c6e6]"
+              : "text-[#6f84b4] hover:bg-[#233455]/45 hover:text-[#b8c6e6]"
         }`}
       >
         ✋
       </button>
       <div className="mx-2 h-[1px] bg-[#30476f]/45" />
       <button
+        type="button"
         title="Ordenar por custo"
         onClick={() => onSort("cmc")}
         className="w-10 h-10 flex items-center justify-center rounded-lg text-[10px] font-black uppercase tracking-wide text-[#7f95c9] transition-colors hover:bg-[#233455]/45 hover:text-[#b8c6e6]"
@@ -176,6 +209,7 @@ function ZoomControls({
         CMC
       </button>
       <button
+        type="button"
         title="Ordenar por cor"
         onClick={() => onSort("color")}
         className="w-10 h-10 flex items-center justify-center rounded-lg text-[10px] font-black uppercase tracking-wide text-[#7f95c9] transition-colors hover:bg-[#233455]/45 hover:text-[#b8c6e6]"
@@ -183,6 +217,7 @@ function ZoomControls({
         Cor
       </button>
       <button
+        type="button"
         title="Ordenar por raridade"
         onClick={() => onSort("rarity")}
         className="w-10 h-10 flex items-center justify-center rounded-lg text-[9px] font-black uppercase tracking-wide text-[#7f95c9] transition-colors hover:bg-[#233455]/45 hover:text-[#b8c6e6]"
@@ -204,7 +239,9 @@ export function DndCanvas() {
   const [toolMode, setToolMode] = useState<ToolMode>("select");
   const [viewMode, setViewMode] = useState<ViewMode>("canvas");
   const [gallerySortMode, setGallerySortMode] = useState<CanvasSortMode>("cmc");
-  const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(new Set());
+  const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(
+    new Set(),
+  );
   const [viewingCard, setViewingCard] = useState<PlacedCardState | null>(null);
 
   // Pan offset (MotionValues → no re-renders while panning)
@@ -220,9 +257,15 @@ export function DndCanvas() {
   const selectedIdsRef = useRef(selectedIds);
   const toolModeRef = useRef(toolMode);
   const spaceHeld = useRef(false);
-  useEffect(() => { scaleRef.current = scale; }, [scale]);
-  useEffect(() => { selectedIdsRef.current = selectedIds; }, [selectedIds]);
-  useEffect(() => { toolModeRef.current = toolMode; }, [toolMode]);
+  useEffect(() => {
+    scaleRef.current = scale;
+  }, [scale]);
+  useEffect(() => {
+    selectedIdsRef.current = selectedIds;
+  }, [selectedIds]);
+  useEffect(() => {
+    toolModeRef.current = toolMode;
+  }, [toolMode]);
 
   // Lasso state — all in refs, zero re-renders during mouse move
   const lassoActive = useRef(false);
@@ -237,8 +280,12 @@ export function DndCanvas() {
   // ── Keyboard: Space = temporary hand tool ──
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
-      if (e.code === "Space" && !e.repeat) { e.preventDefault(); spaceHeld.current = true; }
-      if (e.code === "KeyH") setToolMode((m) => m === "hand" ? "select" : "hand");
+      if (e.code === "Space" && !e.repeat) {
+        e.preventDefault();
+        spaceHeld.current = true;
+      }
+      if (e.code === "KeyH")
+        setToolMode((m) => (m === "hand" ? "select" : "hand"));
     };
     const up = (e: KeyboardEvent) => {
       if (e.code === "Space") spaceHeld.current = false;
@@ -294,75 +341,95 @@ export function DndCanvas() {
   }, []);
 
   // ── Background pointer handlers (pan or lasso) ──
-  const onWorldPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    const isHandMode = toolModeRef.current === "hand" || spaceHeld.current;
-    e.currentTarget.setPointerCapture(e.pointerId);
+  const onWorldPointerDown = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      const isHandMode = toolModeRef.current === "hand" || spaceHeld.current;
+      e.currentTarget.setPointerCapture(e.pointerId);
 
-    if (isHandMode) {
-      isPanning.current = true;
-      panStart.current = { clientX: e.clientX, clientY: e.clientY, wx: worldX.get(), wy: worldY.get() };
-      return;
-    }
-
-    const pos = toWorld(e.clientX, e.clientY);
-    lassoActive.current = true;
-    lassoStart.current = pos;
-    if (lassoEl.current) {
-      lassoEl.current.style.cssText = `display:block;left:${pos.x * scaleRef.current}px;top:${pos.y * scaleRef.current}px;width:0;height:0`;
-    }
-  }, [toWorld, worldX, worldY]);
-
-  const onWorldPointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    if (isPanning.current) {
-      worldX.set(panStart.current.wx + (e.clientX - panStart.current.clientX));
-      worldY.set(panStart.current.wy + (e.clientY - panStart.current.clientY));
-      return;
-    }
-    if (!lassoActive.current) return;
-
-    cancelAnimationFrame(rAFId.current);
-    const cx = e.clientX;
-    const cy = e.clientY;
-    rAFId.current = requestAnimationFrame(() => {
-      const curr = toWorld(cx, cy);
-      const x = Math.min(curr.x, lassoStart.current.x);
-      const y = Math.min(curr.y, lassoStart.current.y);
-      const w = Math.abs(curr.x - lassoStart.current.x);
-      const h = Math.abs(curr.y - lassoStart.current.y);
-      if (lassoEl.current) {
-        const scale = scaleRef.current;
-        lassoEl.current.style.cssText = `display:block;left:${x * scale}px;top:${y * scale}px;width:${w * scale}px;height:${h * scale}px`;
+      if (isHandMode) {
+        isPanning.current = true;
+        panStart.current = {
+          clientX: e.clientX,
+          clientY: e.clientY,
+          wx: worldX.get(),
+          wy: worldY.get(),
+        };
+        return;
       }
-    });
-  }, [toWorld, worldX, worldY]);
 
-  const onWorldPointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    if (isPanning.current) {
-      isPanning.current = false;
-      return;
-    }
-    if (!lassoActive.current) return;
+      const pos = toWorld(e.clientX, e.clientY);
+      lassoActive.current = true;
+      lassoStart.current = pos;
+      if (lassoEl.current) {
+        lassoEl.current.style.cssText = `display:block;left:${pos.x * scaleRef.current}px;top:${pos.y * scaleRef.current}px;width:0;height:0`;
+      }
+    },
+    [toWorld, worldX, worldY],
+  );
 
-    cancelAnimationFrame(rAFId.current);
-    lassoActive.current = false;
-    if (lassoEl.current) lassoEl.current.style.display = "none";
+  const onWorldPointerMove = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (isPanning.current) {
+        worldX.set(
+          panStart.current.wx + (e.clientX - panStart.current.clientX),
+        );
+        worldY.set(
+          panStart.current.wy + (e.clientY - panStart.current.clientY),
+        );
+        return;
+      }
+      if (!lassoActive.current) return;
 
-    const curr = toWorld(e.clientX, e.clientY);
-    const lasso: LassoRect = {
-      x: Math.min(curr.x, lassoStart.current.x),
-      y: Math.min(curr.y, lassoStart.current.y),
-      w: Math.abs(curr.x - lassoStart.current.x),
-      h: Math.abs(curr.y - lassoStart.current.y),
-    };
+      cancelAnimationFrame(rAFId.current);
+      const cx = e.clientX;
+      const cy = e.clientY;
+      rAFId.current = requestAnimationFrame(() => {
+        const curr = toWorld(cx, cy);
+        const x = Math.min(curr.x, lassoStart.current.x);
+        const y = Math.min(curr.y, lassoStart.current.y);
+        const w = Math.abs(curr.x - lassoStart.current.x);
+        const h = Math.abs(curr.y - lassoStart.current.y);
+        if (lassoEl.current) {
+          const scale = scaleRef.current;
+          lassoEl.current.style.cssText = `display:block;left:${x * scale}px;top:${y * scale}px;width:${w * scale}px;height:${h * scale}px`;
+        }
+      });
+    },
+    [toWorld, worldX, worldY],
+  );
 
-    if (lasso.w < 4 && lasso.h < 4) {
-      setSelectedIds(new Set());
-      return;
-    }
-    setSelectedIds(
-      new Set(canvasCards.filter((c) => rectsIntersect(lasso, c)).map((c) => c.id))
-    );
-  }, [canvasCards, toWorld]);
+  const onWorldPointerUp = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (isPanning.current) {
+        isPanning.current = false;
+        return;
+      }
+      if (!lassoActive.current) return;
+
+      cancelAnimationFrame(rAFId.current);
+      lassoActive.current = false;
+      if (lassoEl.current) lassoEl.current.style.display = "none";
+
+      const curr = toWorld(e.clientX, e.clientY);
+      const lasso: LassoRect = {
+        x: Math.min(curr.x, lassoStart.current.x),
+        y: Math.min(curr.y, lassoStart.current.y),
+        w: Math.abs(curr.x - lassoStart.current.x),
+        h: Math.abs(curr.y - lassoStart.current.y),
+      };
+
+      if (lasso.w < 4 && lasso.h < 4) {
+        setSelectedIds(new Set());
+        return;
+      }
+      setSelectedIds(
+        new Set(
+          canvasCards.filter((c) => rectsIntersect(lasso, c)).map((c) => c.id),
+        ),
+      );
+    },
+    [canvasCards, toWorld],
+  );
 
   // ── Card selection ──
   const handleCardSelect = useCallback((id: string, multi: boolean) => {
@@ -384,107 +451,125 @@ export function DndCanvas() {
     setViewingCard(placed);
   }, []);
 
-  const handleSortCanvas = useCallback((mode: CanvasSortMode) => {
-    const sorted = sortPlacedCards(canvasCards, mode);
+  const handleSortCanvas = useCallback(
+    (mode: CanvasSortMode) => {
+      const sorted = sortPlacedCards(canvasCards, mode);
 
-    const cols = 7;
-    const gapX = 22;
-    const gapY = 28;
-    const startX = 72;
-    const startY = 72;
-    const nextZ = timeBasedZ();
+      const cols = 7;
+      const gapX = 22;
+      const gapY = 28;
+      const startX = 72;
+      const startY = 72;
+      const nextZ = timeBasedZ();
 
-    moveCards(
-      sorted.map((card, index) => {
-        const col = index % cols;
-        const row = Math.floor(index / cols);
-        return {
-          id: card.id,
-          posX: startX + col * (CARD_W + gapX),
-          posY: startY + row * (CARD_H + gapY),
-          zIndex: nextZ + index,
-        };
-      })
-    );
-  }, [canvasCards, moveCards]);
+      moveCards(
+        sorted.map((card, index) => {
+          const col = index % cols;
+          const row = Math.floor(index / cols);
+          return {
+            id: card.id,
+            posX: startX + col * (CARD_W + gapX),
+            posY: startY + row * (CARD_H + gapY),
+            zIndex: nextZ + index,
+          };
+        }),
+      );
+    },
+    [canvasCards, moveCards],
+  );
 
-  const handleSort = useCallback((mode: CanvasSortMode) => {
-    if (viewMode === "gallery") {
-      setGallerySortMode(mode);
-      return;
-    }
+  const handleSort = useCallback(
+    (mode: CanvasSortMode) => {
+      if (viewMode === "gallery") {
+        setGallerySortMode(mode);
+        return;
+      }
 
-    handleSortCanvas(mode);
-  }, [handleSortCanvas, viewMode]);
+      handleSortCanvas(mode);
+    },
+    [handleSortCanvas, viewMode],
+  );
 
   const galleryCards = sortPlacedCards(canvasCards, gallerySortMode);
 
-  const handleSidebarDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
-    const ids = getDraggedPlacedCardIds(e.dataTransfer);
-    if (ids.length === 0) return;
+  const handleSidebarDrop = useCallback(
+    (e: React.DragEvent<HTMLDivElement>) => {
+      const ids = getDraggedPlacedCardIds(e.dataTransfer);
+      if (ids.length === 0) return;
 
-    e.preventDefault();
-    const pos = toWorld(e.clientX, e.clientY);
-    const maxZ = cards.reduce((acc, card) => Math.max(acc, card.zIndex), 0) + 1;
-    const gapX = 22;
+      e.preventDefault();
+      const pos = toWorld(e.clientX, e.clientY);
+      const maxZ =
+        cards.reduce((acc, card) => Math.max(acc, card.zIndex), 0) + 1;
+      const gapX = 22;
 
-    setDeckZone(ids, null);
+      setDeckZone(ids, null);
 
-    if (ids.length === 1) {
-      const posX = pos.x - CARD_W / 2;
-      const posY = pos.y - CARD_H / 2;
-      moveCard(ids[0], posX, posY, maxZ);
-    } else {
-      moveCards(
-        ids.map((id, index) => ({
-          id,
-          posX: pos.x - CARD_W / 2 + index * gapX,
-          posY: pos.y - CARD_H / 2,
-          zIndex: maxZ + index,
-        }))
-      );
-    }
-
-    setDraggingCard(null);
-  }, [cards, moveCard, moveCards, setDeckZone, setDraggingCard, toWorld]);
-
-  const handleGroupDragEnd = useCallback((
-    leaderId: string,
-    clientPos: { x: number; y: number },
-    startPos: { x: number; y: number }
-  ) => {
-    const el = document.elementFromPoint(clientPos.x, clientPos.y);
-    const zone = el?.closest("[data-zone]")?.getAttribute("data-zone");
-
-    const ids = Array.from(selectedIdsRef.current);
-
-    if (zone === "main") {
-      setDeckZone(ids, true);
-      setDraggingCard(null);
-      return;
-    }
-    if (zone === "side") {
-      setDeckZone(ids, false);
-      setDraggingCard(null);
-      return;
-    }
-
-    const updates = ids.map((id) => {
-      const entry = registry.current.get(id);
-      if (!entry) {
-        return { id, posX: startPos.x, posY: startPos.y, zIndex: timeBasedZ() };
+      if (ids.length === 1) {
+        const posX = pos.x - CARD_W / 2;
+        const posY = pos.y - CARD_H / 2;
+        moveCard(ids[0], posX, posY, maxZ);
+      } else {
+        moveCards(
+          ids.map((id, index) => ({
+            id,
+            posX: pos.x - CARD_W / 2 + index * gapX,
+            posY: pos.y - CARD_H / 2,
+            zIndex: maxZ + index,
+          })),
+        );
       }
-      return {
-        id,
-        posX: entry.x.get() / scaleRef.current,
-        posY: entry.y.get() / scaleRef.current,
-        zIndex: id === leaderId ? timeBasedZ() : timeBasedZ() - 1,
-      };
-    });
 
-    moveCards(updates);
-    setDraggingCard(null);
-  }, [moveCards, setDeckZone, setDraggingCard]);
+      setDraggingCard(null);
+    },
+    [cards, moveCard, moveCards, setDeckZone, setDraggingCard, toWorld],
+  );
+
+  const handleGroupDragEnd = useCallback(
+    (
+      leaderId: string,
+      clientPos: { x: number; y: number },
+      startPos: { x: number; y: number },
+    ) => {
+      const el = document.elementFromPoint(clientPos.x, clientPos.y);
+      const zone = el?.closest("[data-zone]")?.getAttribute("data-zone");
+
+      const ids = Array.from(selectedIdsRef.current);
+
+      if (zone === "main") {
+        setDeckZone(ids, true);
+        setDraggingCard(null);
+        return;
+      }
+      if (zone === "side") {
+        setDeckZone(ids, false);
+        setDraggingCard(null);
+        return;
+      }
+
+      const updates = ids.map((id) => {
+        const entry = registry.current.get(id);
+        if (!entry) {
+          return {
+            id,
+            posX: startPos.x,
+            posY: startPos.y,
+            zIndex: timeBasedZ(),
+          };
+        }
+        return {
+          id,
+          posX: entry.x.get() / scaleRef.current,
+          posY: entry.y.get() / scaleRef.current,
+          zIndex: id === leaderId ? timeBasedZ() : timeBasedZ() - 1,
+        };
+      });
+
+      moveCards(updates);
+      setDraggingCard(null);
+    },
+    [moveCards, setDeckZone, setDraggingCard],
+  );
 
   return (
     <div className="relative h-full w-full overflow-hidden bg-bg-void">
@@ -568,7 +653,10 @@ export function DndCanvas() {
 
       <AnimatePresence>
         {viewingCard && (
-          <CardOverview placed={viewingCard} onClose={() => setViewingCard(null)} />
+          <CardOverview
+            placed={viewingCard}
+            onClose={() => setViewingCard(null)}
+          />
         )}
       </AnimatePresence>
     </div>
@@ -581,7 +669,10 @@ function getDraggedPlacedCardIds(dataTransfer: DataTransfer): string[] {
     try {
       const parsed = JSON.parse(rawIds);
       if (Array.isArray(parsed)) {
-        return parsed.filter((value): value is string => typeof value === "string" && value.length > 0);
+        return parsed.filter(
+          (value): value is string =>
+            typeof value === "string" && value.length > 0,
+        );
       }
     } catch {
       // ignore and fallback
@@ -607,7 +698,11 @@ function sortPlacedCards(cards: PlacedCardState[], mode: CanvasSortMode) {
     if (mode === "color") {
       const left = a.card.colors.join("") || "Z";
       const right = b.card.colors.join("") || "Z";
-      return left.localeCompare(right) || a.card.cmc - b.card.cmc || a.card.name.localeCompare(b.card.name);
+      return (
+        left.localeCompare(right) ||
+        a.card.cmc - b.card.cmc ||
+        a.card.name.localeCompare(b.card.name)
+      );
     }
     return (
       (rarityRank[a.card.rarity] ?? 9) - (rarityRank[b.card.rarity] ?? 9) ||
@@ -663,13 +758,18 @@ function GalleryView({
               >
                 <div className="relative overflow-hidden rounded-[18px] bg-[#0f1318] shadow-[0_0_0_1px_rgba(49,69,111,0.18)]">
                   <div className="relative aspect-[2.5/3.5] w-full">
-                    <img
+                    <Image
                       src={placed.card.imagePath}
                       alt={placed.card.name}
-                      loading={index < 10 ? "eager" : "lazy"}
-                      className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-[1.02]"
+                      fill
+                      priority={index < 10}
+                      sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, (max-width: 1536px) 20vw, 16vw"
+                      className="object-cover transition-transform duration-200 group-hover:scale-[1.02]"
+                      draggable={false}
                     />
-                    {placed.isFoil && <div className="absolute inset-0 foil-overlay pointer-events-none opacity-50" />}
+                    {placed.isFoil && (
+                      <div className="absolute inset-0 foil-overlay pointer-events-none opacity-50" />
+                    )}
                     {placed.isPromo && <StarBadge />}
                     {placed.card.set === "SOA" && <ArchiveBadge />}
                   </div>
@@ -707,13 +807,19 @@ const DndCard = memo(function DndCard({
 
   const isSelectedRef = useRef(isSelected);
   const selectedIdsRef = useRef(selectedIds);
-  useEffect(() => { isSelectedRef.current = isSelected; }, [isSelected]);
-  useEffect(() => { selectedIdsRef.current = selectedIds; }, [selectedIds]);
+  useEffect(() => {
+    isSelectedRef.current = isSelected;
+  }, [isSelected]);
+  useEffect(() => {
+    selectedIdsRef.current = selectedIds;
+  }, [selectedIds]);
 
   useEffect(() => {
     const reg = registry.current;
     reg.set(placed.id, { x, y });
-    return () => { reg.delete(placed.id); };
+    return () => {
+      reg.delete(placed.id);
+    };
   }, [placed.id, x, y, registry]);
 
   useEffect(() => {
@@ -781,7 +887,7 @@ const DndCard = memo(function DndCard({
       window.removeEventListener("mass-drag-end", handleEnd);
       window.removeEventListener("mass-drag-cancel", handleCancel);
     };
-  }, [placed.id, x, y, isSelected]);
+  }, [placed.id, x, y]);
 
   function handleDragStart() {
     isDragging.current = true;
@@ -791,12 +897,15 @@ const DndCard = memo(function DndCard({
 
     if (isSelectedRef.current && selectedIdsRef.current.size > 1) {
       window.dispatchEvent(
-        new CustomEvent("mass-drag-start", { detail: { leaderId: placed.id } })
+        new CustomEvent("mass-drag-start", { detail: { leaderId: placed.id } }),
       );
     }
   }
 
-  function handleDrag(_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) {
+  function handleDrag(
+    _: MouseEvent | TouchEvent | PointerEvent,
+    info: PanInfo,
+  ) {
     const rawX = dragStartPos.current.x + info.offset.x;
     const rawY = dragStartPos.current.y + info.offset.y;
 
@@ -812,11 +921,14 @@ const DndCard = memo(function DndCard({
           offsetX: info.offset.x,
           offsetY: info.offset.y,
         },
-      })
+      }),
     );
   }
 
-  function handleDragEnd(e: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) {
+  function handleDragEnd(
+    e: MouseEvent | TouchEvent | PointerEvent,
+    info: PanInfo,
+  ) {
     isDragging.current = false;
     const isGroup = isSelectedRef.current && selectedIdsRef.current.size > 1;
 
@@ -828,8 +940,13 @@ const DndCard = memo(function DndCard({
       y.set(dragStartPos.current.y + info.offset.y);
       window.dispatchEvent(
         new CustomEvent("mass-drag-end", {
-          detail: { leaderId: placed.id, offsetX: info.offset.x, offsetY: info.offset.y, snapGrid: null },
-        })
+          detail: {
+            leaderId: placed.id,
+            offsetX: info.offset.x,
+            offsetY: info.offset.y,
+            snapGrid: null,
+          },
+        }),
       );
     } else {
       setLocalZ(timeBasedZ());
@@ -838,7 +955,7 @@ const DndCard = memo(function DndCard({
     onGroupDragEnd(
       placed.id,
       { x: clientX, y: clientY },
-      { x: dragStartPos.current.x / scale, y: dragStartPos.current.y / scale }
+      { x: dragStartPos.current.x / scale, y: dragStartPos.current.y / scale },
     );
   }
 
@@ -849,7 +966,13 @@ const DndCard = memo(function DndCard({
       drag
       dragMomentum={false}
       dragElastic={0}
-      style={{ x, y, zIndex: localZ, width: CARD_W * scale, height: CARD_H * scale }}
+      style={{
+        x,
+        y,
+        zIndex: localZ,
+        width: CARD_W * scale,
+        height: CARD_H * scale,
+      }}
       className="absolute left-0 top-0 touch-none will-change-transform cursor-grab active:cursor-grabbing"
       onPointerDown={(e) => {
         e.stopPropagation();
@@ -879,7 +1002,13 @@ const DndCard = memo(function DndCard({
 
 // ─── Card visuals ─────────────────────────────────────────────────────────────
 
-function CardFrame({ placed, priority }: { placed: PlacedCardState; priority: boolean }) {
+function CardFrame({
+  placed,
+  priority,
+}: {
+  placed: PlacedCardState;
+  priority: boolean;
+}) {
   const isSoa = placed.card.set === "SOA";
   return (
     <div
@@ -889,13 +1018,14 @@ function CardFrame({ placed, priority }: { placed: PlacedCardState; priority: bo
       `}
     >
       {placed.card.imagePath ? (
-        <img
+        <Image
           src={placed.card.imagePath}
           alt={placed.card.name}
+          fill
+          priority={priority}
+          sizes="130px"
+          className="object-cover pointer-events-none select-none"
           draggable={false}
-          fetchPriority={priority ? "high" : "auto"}
-          loading={priority ? "eager" : "lazy"}
-          className="h-full w-full object-cover pointer-events-none select-none"
         />
       ) : (
         <div className="w-full h-full bg-silverquill-ink flex flex-col items-center justify-center p-2 text-center text-gold-accent text-[9px] font-semibold">
@@ -903,7 +1033,9 @@ function CardFrame({ placed, priority }: { placed: PlacedCardState; priority: bo
           <span className="mt-1 line-clamp-2">{placed.card.name}</span>
         </div>
       )}
-      {placed.isFoil && <div className="absolute inset-0 foil-overlay pointer-events-none opacity-50" />}
+      {placed.isFoil && (
+        <div className="absolute inset-0 foil-overlay pointer-events-none opacity-50" />
+      )}
       {placed.isPromo && <div className="promo-gloss-beam" />}
       <div className="absolute bottom-[5px] left-1/2 -translate-x-1/2 pointer-events-none">
         <RarityPip rarity={placed.card.rarity} />
@@ -912,7 +1044,13 @@ function CardFrame({ placed, priority }: { placed: PlacedCardState; priority: bo
   );
 }
 
-function CardOverview({ placed, onClose }: { placed: PlacedCardState; onClose: () => void }) {
+function CardOverview({
+  placed,
+  onClose,
+}: {
+  placed: PlacedCardState;
+  onClose: () => void;
+}) {
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -938,6 +1076,7 @@ function CardOverview({ placed, onClose }: { placed: PlacedCardState; onClose: (
           priority
         />
         <button
+          type="button"
           onClick={onClose}
           className="absolute top-4 right-4 w-10 h-10 bg-black/50 text-white rounded-full flex items-center justify-center text-2xl hover:bg-black/80 transition-colors shadow-lg"
         >
@@ -953,7 +1092,12 @@ function CardOverview({ placed, onClose }: { placed: PlacedCardState; onClose: (
 function StarBadge() {
   return (
     <div className="absolute -top-2 -right-2 z-10 text-gold-accent drop-shadow-md pointer-events-none">
-      <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
+      <svg
+        aria-hidden="true"
+        viewBox="0 0 20 20"
+        fill="currentColor"
+        className="w-5 h-5"
+      >
         <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
       </svg>
     </div>
@@ -972,7 +1116,14 @@ function ArchiveBadge() {
 
 function CanvasIcon({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className={className}>
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      className={className}
+    >
       <rect x="3" y="3" width="14" height="14" rx="2.2" />
       <path d="M3 8.5h14" />
       <path d="M8.5 3v14" />
@@ -982,7 +1133,12 @@ function CanvasIcon({ className }: { className?: string }) {
 
 function GridIcon({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 20 20" fill="currentColor" className={className}>
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 20 20"
+      fill="currentColor"
+      className={className}
+    >
       <rect x="3" y="3" width="5" height="5" rx="1.2" />
       <rect x="12" y="3" width="5" height="5" rx="1.2" />
       <rect x="3" y="12" width="5" height="5" rx="1.2" />
@@ -991,7 +1147,13 @@ function GridIcon({ className }: { className?: string }) {
   );
 }
 
-function RarityPip({ rarity, size = "sm" }: { rarity: string; size?: "sm" | "lg" }) {
+function RarityPip({
+  rarity,
+  size = "sm",
+}: {
+  rarity: string;
+  size?: "sm" | "lg";
+}) {
   const colors: Record<string, string> = {
     COMMON: "bg-white/40",
     UNCOMMON: "bg-slate-400",
@@ -999,5 +1161,9 @@ function RarityPip({ rarity, size = "sm" }: { rarity: string; size?: "sm" | "lg"
     MYTHIC: "bg-orange-500",
   };
   const dim = size === "lg" ? "w-3 h-3" : "w-1.5 h-1.5";
-  return <span className={`block rounded-full shadow-md ${dim} ${colors[rarity] ?? "bg-white/20"}`} />;
+  return (
+    <span
+      className={`block rounded-full shadow-md ${dim} ${colors[rarity] ?? "bg-white/20"}`}
+    />
+  );
 }

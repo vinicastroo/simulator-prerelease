@@ -1,8 +1,8 @@
 "use server";
 
+import type { College } from "@prisma/client";
 import { redirect } from "next/navigation";
 import { generateFullKit } from "@/lib/mtg/engine";
-import type { College } from "@prisma/client";
 
 const VALID_COLLEGES = new Set<string>([
   "LOREHOLD",

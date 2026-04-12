@@ -1,9 +1,9 @@
 "use client";
 
-import { useTransition } from "react";
 import Image from "next/image";
-import { COLLEGES, type CollegeDef } from "@/lib/mtg/colleges";
+import { useTransition } from "react";
 import { createPrereleaseKit } from "@/actions/kit";
+import { COLLEGES, type CollegeDef } from "@/lib/mtg/colleges";
 
 export function CollegeGrid() {
   const [isPending, startTransition] = useTransition();
@@ -93,12 +93,17 @@ function CollegeCard({
                   {college.school}
                 </p>
                 <div className="flex items-center gap-3">
-                  <h2 className={`text-3xl font-black tracking-tighter uppercase drop-shadow-sm md:text-4xl ${theme.accentClass}`}>
+                  <h2
+                    className={`text-3xl font-black tracking-tighter uppercase drop-shadow-sm md:text-4xl ${theme.accentClass}`}
+                  >
                     {college.name}
                   </h2>
                   <div className="flex gap-1">
                     {college.colors.map((color) => (
-                      <div key={color.code} className="relative h-5 w-5 drop-shadow-md md:h-6 md:w-6">
+                      <div
+                        key={color.code}
+                        className="relative h-5 w-5 drop-shadow-md md:h-6 md:w-6"
+                      >
                         <Image
                           src={color.svgPath}
                           alt={color.label}
@@ -150,7 +155,9 @@ function CollegeCard({
                 px-5 py-3 transition-all duration-300 group-hover:bg-white/[0.1] group-hover:${theme.ringClass}
               `}
             >
-              <span className={`text-[10px] font-black uppercase tracking-[0.24em] ${theme.accentClass}`}>
+              <span
+                className={`text-[10px] font-black uppercase tracking-[0.24em] ${theme.accentClass}`}
+              >
                 Enroll Now
               </span>
             </div>
@@ -161,7 +168,10 @@ function CollegeCard({
           <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/80 backdrop-blur-md">
             <div
               className="w-8 h-8 border-4 border-t-transparent animate-spin rounded-full"
-              style={{ borderColor: theme.gradientFrom, borderTopColor: 'transparent' }}
+              style={{
+                borderColor: theme.gradientFrom,
+                borderTopColor: "transparent",
+              }}
             />
           </div>
         )}

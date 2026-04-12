@@ -1,10 +1,13 @@
-import { notFound } from "next/navigation";
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { getKitWithCards } from "@/actions/cards";
-import { PrereleaseProvider, type PlacedCardState } from "@/context/PrereleaseContext";
 import { AppShell } from "@/components/AppShell";
-import { DndCanvas } from "./DndCanvas";
 import { Sidebar } from "@/components/Sidebar";
+import {
+  type PlacedCardState,
+  PrereleaseProvider,
+} from "@/context/PrereleaseContext";
+import { DndCanvas } from "./DndCanvas";
 
 type Props = { params: { id: string } };
 

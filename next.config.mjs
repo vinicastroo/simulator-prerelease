@@ -5,7 +5,10 @@ const s3BucketHostname = process.env.NEXT_PUBLIC_S3_BUCKET_HOSTNAME;
 const remotePatterns = [
   { protocol: "https", hostname: "cards.scryfall.io" },
   { protocol: "https", hostname: "c1.scryfall.com" },
-  { protocol: "https", hostname: "meu-bucket-cartas-strixhaven.s3.us-east-1.amazonaws.com" },
+  {
+    protocol: "https",
+    hostname: "meu-bucket-cartas-strixhaven.s3.us-east-1.amazonaws.com",
+  },
 ];
 
 if (cloudfrontHostname) {

@@ -28,8 +28,12 @@ body {
 
 /* ── Foil shimmer ──────────────────────────────────────────────────────────── */
 @keyframes foil-shimmer {
-  0%   { background-position: -200% center; }
-  100% { background-position:  200% center; }
+  0% {
+    background-position: -200% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
 }
 
 .foil-overlay {
@@ -38,7 +42,7 @@ body {
     transparent 0%,
     transparent 36%,
     rgba(255, 255, 255, 0.32) 44%,
-    rgba(197, 160,  89, 0.22) 50%,
+    rgba(197, 160, 89, 0.22) 50%,
     rgba(120, 200, 255, 0.18) 54%,
     rgba(255, 255, 255, 0.32) 58%,
     transparent 66%,
@@ -52,8 +56,13 @@ body {
 
 /* ── Promo pulse ───────────────────────────────────────────────────────────── */
 @keyframes promo-pulse {
-  0%, 100% { opacity: 0.55; }
-  50%       { opacity: 0.85; }
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 0.85;
+  }
 }
 
 .promo-glow {
@@ -62,8 +71,12 @@ body {
 
 /* ── College card hover shimmer ────────────────────────────────────────────── */
 @keyframes college-shine {
-  0%   { background-position: -300% center; }
-  100% { background-position:  300% center; }
+  0% {
+    background-position: -300% center;
+  }
+  100% {
+    background-position: 300% center;
+  }
 }
 
 .college-shine {
@@ -71,9 +84,9 @@ body {
     105deg,
     transparent 0%,
     transparent 42%,
-    rgba(255,255,255,0.06) 48%,
-    rgba(255,255,255,0.10) 50%,
-    rgba(255,255,255,0.06) 52%,
+    rgba(255, 255, 255, 0.06) 48%,
+    rgba(255, 255, 255, 0.1) 50%,
+    rgba(255, 255, 255, 0.06) 52%,
     transparent 58%,
     transparent 100%
   );
@@ -85,10 +98,20 @@ body {
 /* ── Promo glossy sweep ────────────────────────────────────────────────────── */
 /*    A beam of light that crosses the card — premium feel, distinct from foil  */
 @keyframes gloss-sweep {
-  0%   { transform: translateX(-180%) skewX(-12deg); opacity: 0;   }
-  8%   { opacity: 1;   }
-  92%  { opacity: 1;   }
-  100% { transform: translateX(280%)  skewX(-12deg); opacity: 0;   }
+  0% {
+    transform: translateX(-180%) skewX(-12deg);
+    opacity: 0;
+  }
+  8% {
+    opacity: 1;
+  }
+  92% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(280%) skewX(-12deg);
+    opacity: 0;
+  }
 }
 
 .promo-gloss-beam {
@@ -100,7 +123,7 @@ body {
 }
 
 .promo-gloss-beam::after {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 0;
@@ -108,28 +131,27 @@ body {
   height: 100%;
   background: linear-gradient(
     90deg,
-    transparent   0%,
-    rgba(255,255,255,0.07) 25%,
-    rgba(255,255,255,0.22) 50%,
-    rgba(255,255,255,0.07) 75%,
-    transparent   100%
+    transparent 0%,
+    rgba(255, 255, 255, 0.07) 25%,
+    rgba(255, 255, 255, 0.22) 50%,
+    rgba(255, 255, 255, 0.07) 75%,
+    transparent 100%
   );
   animation: gloss-sweep 4.5s ease-in-out 1.2s infinite;
 }
 
 /* ── Pack skeleton wave ────────────────────────────────────────────────────── */
 @keyframes skeleton-wave {
-  0%   { background-position: -400px 0; }
-  100% { background-position:  400px 0; }
+  0% {
+    background-position: -400px 0;
+  }
+  100% {
+    background-position: 400px 0;
+  }
 }
 
 .skeleton-wave {
-  background: linear-gradient(
-    90deg,
-    #1a1a1a 0px,
-    #2a2a2a 80px,
-    #1a1a1a 160px
-  );
+  background: linear-gradient(90deg, #1a1a1a 0px, #2a2a2a 80px, #1a1a1a 160px);
   background-size: 400px 100%;
   animation: skeleton-wave 1.6s ease-in-out infinite;
 }

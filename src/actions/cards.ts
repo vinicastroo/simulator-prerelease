@@ -1,7 +1,7 @@
 "use server";
 
-import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { prisma } from "@/lib/prisma";
 
 type BasicLandName = "Plains" | "Island" | "Swamp" | "Mountain" | "Forest";
 
@@ -15,7 +15,7 @@ export async function updateCardPosition(
   posX: number,
   posY: number,
   zIndex: number,
-  kitId: string
+  kitId: string,
 ) {
   await prisma.placedCard.update({
     where: { id: placedCardId },
@@ -27,15 +27,15 @@ export async function updateCardPosition(
 
 export async function updateMultiplePositions(
   updates: { id: string; posX: number; posY: number; zIndex: number }[],
-  kitId: string
+  kitId: string,
 ) {
   await prisma.$transaction(
     updates.map(({ id, posX, posY, zIndex }) =>
       prisma.placedCard.update({
         where: { id },
         data: { posX, posY, zIndex },
-      })
-    )
+      }),
+    ),
   );
   revalidatePath(`/simulator/${kitId}`);
 }
@@ -55,10 +55,9 @@ export async function setDeckZone(
     ids.map((id) =>
       prisma.placedCard.update({
         where: { id },
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        data: { isMainDeck: zone as any },
-      })
-    )
+        data: { isMainDeck: { set: zone } },
+      }),
+    ),
   );
   revalidatePath(`/simulator/${kitId}`);
 }
@@ -104,10 +103,7 @@ export async function addBasicLandsToKit(
       name: landName,
       typeLine: { contains: "Basic Land" },
     },
-    orderBy: [
-      { set: "asc" },
-      { collectorNumber: "asc" },
-    ],
+    orderBy: [{ set: "asc" }, { collectorNumber: "asc" }],
   });
 
   if (!landCard) {
@@ -134,8 +130,8 @@ export async function addBasicLandsToKit(
           isFoil: false,
         },
         include: { card: true },
-      })
-    )
+      }),
+    ),
   );
 
   revalidatePath(`/simulator/${kitId}`);

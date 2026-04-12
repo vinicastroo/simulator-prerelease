@@ -1,7 +1,11 @@
 "use client";
 
+import Image from "next/image";
 import { useRef } from "react";
-import { usePrerelease, type PlacedCardState } from "@/context/PrereleaseContext";
+import {
+  type PlacedCardState,
+  usePrerelease,
+} from "@/context/PrereleaseContext";
 
 type Props = { placed: PlacedCardState };
 
@@ -46,11 +50,12 @@ export function CardToken({ placed }: Props) {
       onPointerUp={onPointerUp}
     >
       {placed.card.imagePath ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
+        <Image
           src={placed.card.imagePath}
           alt={placed.card.name}
-          className="w-full h-full rounded-lg object-cover"
+          fill
+          sizes="130px"
+          className="rounded-lg object-cover"
           draggable={false}
         />
       ) : (

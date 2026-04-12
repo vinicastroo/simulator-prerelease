@@ -1,10 +1,13 @@
 "use client";
 
-import { memo, useEffect, useRef, useState } from "react";
 import { motion, useMotionValue } from "framer-motion";
 import Image from "next/image";
 import type { RefObject } from "react";
-import { usePrerelease, type PlacedCardState } from "@/context/PrereleaseContext";
+import { memo, useEffect, useRef, useState } from "react";
+import {
+  type PlacedCardState,
+  usePrerelease,
+} from "@/context/PrereleaseContext";
 
 export const CARD_W = 130;
 export const CARD_H = 182;
@@ -45,9 +48,9 @@ export const DraggableCard = memo(function DraggableCard({
     if (!isDragging.current) setLocalZ(placed.zIndex);
   }, [placed.zIndex]);
 
-  const isSoa   = placed.card.set === "SOA";
-  const isSPG   = placed.card.set === "SPG";
-  const isFoil  = placed.isFoil;
+  const isSoa = placed.card.set === "SOA";
+  const isSPG = placed.card.set === "SPG";
+  const isFoil = placed.isFoil;
   const isPromo = placed.isPromo;
 
   // Compute max zIndex at drag start from live context state (O(n) over 85 items).
@@ -82,9 +85,12 @@ export const DraggableCard = memo(function DraggableCard({
         className={[
           "relative w-full h-full rounded-[7px] overflow-hidden",
           // SOA (Mystical Archive) — blue ring + cool glow
-          isSoa && "ring-1 ring-gold-accent shadow-[0_0_16px_4px_rgba(77,99,147,0.45)]",
+          isSoa &&
+            "ring-1 ring-gold-accent shadow-[0_0_16px_4px_rgba(77,99,147,0.45)]",
           // SPG (Special Guests) — subtle silver ring
-          isSPG && !isSoa && "ring-1 ring-white/25 shadow-[0_0_10px_2px_rgba(255,255,255,0.12)]",
+          isSPG &&
+            !isSoa &&
+            "ring-1 ring-white/25 shadow-[0_0_10px_2px_rgba(255,255,255,0.12)]",
         ]
           .filter(Boolean)
           .join(" ")}
@@ -128,10 +134,7 @@ export const DraggableCard = memo(function DraggableCard({
 
       {/* ── Promo star badge — outside frame so it's not clipped ──────────── */}
       {isPromo && (
-        <div
-          aria-label="Promo card"
-          className="absolute -top-1.5 -right-1.5 pointer-events-none z-10"
-        >
+        <div className="absolute -top-1.5 -right-1.5 pointer-events-none z-10">
           <StarIcon className="w-5 h-5 text-gold-accent drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]" />
         </div>
       )}
@@ -150,11 +153,7 @@ export const DraggableCard = memo(function DraggableCard({
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
-function PlaceholderFace({
-  card,
-}: {
-  card: PlacedCardState["card"];
-}) {
+function PlaceholderFace({ card }: { card: PlacedCardState["card"] }) {
   return (
     <div className="w-full h-full bg-silverquill-ink flex flex-col items-center justify-center gap-1 p-2">
       <RarityPip rarity={card.rarity} size="lg" />
@@ -169,10 +168,10 @@ function PlaceholderFace({
 }
 
 const RARITY_RING: Record<string, string> = {
-  COMMON:   "bg-white/40",
+  COMMON: "bg-white/40",
   UNCOMMON: "bg-slate-400",
-  RARE:     "bg-yellow-400",
-  MYTHIC:   "bg-orange-500",
+  RARE: "bg-yellow-400",
+  MYTHIC: "bg-orange-500",
 };
 
 function RarityPip({
@@ -192,7 +191,12 @@ function RarityPip({
 
 function StarIcon({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 20 20" fill="currentColor" className={className}>
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 20 20"
+      fill="currentColor"
+      className={className}
+    >
       <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
     </svg>
   );

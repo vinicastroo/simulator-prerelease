@@ -6,22 +6,45 @@
  * so the layout doesn't jump when the real content loads.
  */
 
-const PACKS        = 6;   // 5 play + 1 seeded
+const PACKS = 6; // 5 play + 1 seeded
 const CARDS_PER_COL = 14;
-const CARD_W        = 130;
-const CARD_H        = 182;
-const COL_GAP       = 20;
-const ROW_GAP       = 12;
-const ORIGIN_X      = 24;
-const ORIGIN_Y      = 24;
-const PROMO_X       = ORIGIN_X + PACKS * (CARD_W + COL_GAP) + 40;
+const CARD_W = 130;
+const CARD_H = 182;
+const COL_GAP = 20;
+const ROW_GAP = 12;
+const ORIGIN_X = 24;
+const ORIGIN_Y = 24;
+const PROMO_X = ORIGIN_X + PACKS * (CARD_W + COL_GAP) + 40;
+const PACK_SKELETON_CARDS = Array.from({ length: PACKS }, (_, col) =>
+  Array.from({ length: CARDS_PER_COL }, (_, row) => ({
+    key: `pack-${col}-card-${row}`,
+    col,
+    row,
+    delay: (col * CARDS_PER_COL + row) * 18,
+    isSeeded: col === PACKS - 1,
+  })),
+).flat();
+const PROGRESS_DOTS = ["dot-0", "dot-1", "dot-2", "dot-3", "dot-4", "dot-5"];
+const SIDEBAR_ROWS = [
+  "row-0",
+  "row-1",
+  "row-2",
+  "row-3",
+  "row-4",
+  "row-5",
+  "row-6",
+  "row-7",
+  "row-8",
+  "row-9",
+  "row-10",
+  "row-11",
+];
 
 export default function SimulatorLoading() {
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-bg-void">
       {/* ── Canvas skeleton ─────────────────────────────────────────────── */}
       <div className="relative flex-1 overflow-hidden">
-
         {/* Faint grid — matches CanvasContainer */}
         <div
           aria-hidden
@@ -35,43 +58,37 @@ export default function SimulatorLoading() {
         />
 
         {/* Pack columns */}
-        {Array.from({ length: PACKS }, (_, col) =>
-          Array.from({ length: CARDS_PER_COL }, (_, row) => {
-            const delay = (col * CARDS_PER_COL + row) * 18; // stagger ms
-            const isSeeded = col === PACKS - 1;
-            return (
-              <div
-                key={`${col}-${row}`}
-                aria-hidden
-                className="absolute rounded-[7px] skeleton-wave"
-                style={{
-                  width:  CARD_W,
-                  height: CARD_H,
-                  left:   ORIGIN_X + col * (CARD_W + COL_GAP),
-                  top:    ORIGIN_Y + row * (CARD_H + ROW_GAP),
-                  animationDelay: `${delay}ms`,
-                  // Seeded booster column is slightly brighter
-                  filter: isSeeded ? "brightness(1.25)" : undefined,
-                  // Subtle blue ring on first row to hint at structure
-                  boxShadow:
-                    row === 0 && isSeeded
-                      ? "0 0 0 1px rgba(77,99,147,0.32)"
-                      : undefined,
-                }}
-              />
-            );
-          })
-        )}
+        {PACK_SKELETON_CARDS.map(({ key, col, row, delay, isSeeded }) => (
+          <div
+            key={key}
+            aria-hidden
+            className="absolute rounded-[7px] skeleton-wave"
+            style={{
+              width: CARD_W,
+              height: CARD_H,
+              left: ORIGIN_X + col * (CARD_W + COL_GAP),
+              top: ORIGIN_Y + row * (CARD_H + ROW_GAP),
+              animationDelay: `${delay}ms`,
+              // Seeded booster column is slightly brighter
+              filter: isSeeded ? "brightness(1.25)" : undefined,
+              // Subtle blue ring on first row to hint at structure
+              boxShadow:
+                row === 0 && isSeeded
+                  ? "0 0 0 1px rgba(77,99,147,0.32)"
+                  : undefined,
+            }}
+          />
+        ))}
 
         {/* Promo card skeleton */}
         <div
           aria-hidden
           className="absolute rounded-[7px] skeleton-wave"
           style={{
-            width:     CARD_W,
-            height:    CARD_H,
-            left:      PROMO_X,
-            top:       ORIGIN_Y,
+            width: CARD_W,
+            height: CARD_H,
+            left: PROMO_X,
+            top: ORIGIN_Y,
             animationDelay: `${PACKS * CARDS_PER_COL * 18}ms`,
             boxShadow: "0 0 0 1px rgba(77,99,147,0.4)",
           }}
@@ -91,9 +108,9 @@ export default function SimulatorLoading() {
 
           {/* Progress dots */}
           <div className="flex gap-1.5 mt-1">
-            {[0, 1, 2, 3, 4, 5].map((i) => (
+            {PROGRESS_DOTS.map((dotId, i) => (
               <span
-                key={i}
+                key={dotId}
                 className="w-1.5 h-1.5 rounded-full bg-gold-accent/50 animate-pulse"
                 style={{ animationDelay: `${i * 150}ms` }}
               />
@@ -118,9 +135,9 @@ export default function SimulatorLoading() {
         </div>
 
         {/* Card rows */}
-        {Array.from({ length: 12 }, (_, i) => (
+        {SIDEBAR_ROWS.map((rowId, i) => (
           <div
-            key={i}
+            key={rowId}
             className="flex items-center gap-3 px-4 py-2 border-b border-white/[0.03]"
           >
             <div className="w-2 h-2 rounded-full skeleton-wave shrink-0" />
@@ -141,6 +158,7 @@ export default function SimulatorLoading() {
 function PackIcon({ className }: { className?: string }) {
   return (
     <svg
+      aria-hidden="true"
       viewBox="0 0 48 48"
       fill="none"
       stroke="currentColor"
