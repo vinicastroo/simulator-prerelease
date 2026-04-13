@@ -3,6 +3,32 @@
 import { AnimatePresence, motion } from "framer-motion";
 import Image from "next/image";
 import { forwardRef, useCallback, useEffect, useRef, useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   type PlacedCardState,
   usePrerelease,
@@ -117,8 +143,10 @@ export function Sidebar() {
     return (
       <aside style={{ width: 68, minWidth: 68 }}>
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(74,98,153,0.18),transparent_32%),linear-gradient(180deg,rgba(255,255,255,0.03),transparent_20%)]" />
-        <button
+        <Button
           type="button"
+          variant="outline"
+          size="icon-lg"
           onClick={() => setIsCollapsed(false)}
           className={`relative mt-4 flex h-12 w-12 items-center justify-center rounded-2xl border bg-[#111315]/90 shadow-[0_10px_24px_rgba(0,0,0,0.22)] transition-all ${
             draggingCardId
@@ -142,7 +170,7 @@ export function Sidebar() {
           }}
         >
           <DeckIcon className="h-5 w-5" />
-        </button>
+        </Button>
       </aside>
     );
   }
@@ -164,14 +192,16 @@ export function Sidebar() {
               Solte a carta em uma das áreas abaixo
             </p>
           </div>
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="icon"
             onClick={() => setIsCollapsed(true)}
-            className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#30476f]/55 bg-[#0f1113]/80 text-[#8ea4d6] transition-colors hover:bg-[#233455]/45 hover:text-[#b8c6e6]"
+            className="h-9 w-9 rounded-xl border-[#30476f]/55 bg-[#0f1113]/80 text-[#8ea4d6] hover:bg-[#233455]/45 hover:text-[#b8c6e6]"
             title="Minimizar sidebar"
           >
             ›
-          </button>
+          </Button>
         </div>
 
         <DropZonePanel
@@ -225,169 +255,212 @@ export function Sidebar() {
 
         <div className="relative flex items-start justify-between border-b border-[#2f446d]/45 px-4 py-4 flex-shrink-0">
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.32em] text-[#7f95c9]">
+            <Badge
+              variant="outline"
+              className="border-[#30476f]/55 bg-[#162032]/70 text-[#9bb0e0]"
+            >
               Workshop
-            </p>
-            <h2 className="mt-1 text-[#b7c5e8] font-semibold tracking-wider text-sm uppercase">
+            </Badge>
+            <h2 className="mt-2 text-[#e5edff] font-semibold tracking-wider text-sm uppercase">
               Deck Builder
             </h2>
-            <p className="text-white/30 text-[11px] mt-0.5">
+            <p className="text-white/35 text-[11px] mt-0.5">
               Arraste cartas para adicionar
             </p>
           </div>
           <div className="flex items-center gap-2">
             {isPending && (
-              <span className="rounded-full border border-[#30476f]/55 bg-[#20304f]/55 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-[#8ea4d6] animate-pulse">
+              <Badge className="animate-pulse border-[#30476f]/55 bg-[#20304f]/55 text-[#c7d5f8]">
                 Salvando
-              </span>
+              </Badge>
             )}
-            <button
+            <Button
               type="button"
+              variant="outline"
+              size="icon"
               onClick={() => setIsCollapsed(true)}
-              className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#30476f]/55 bg-[#0f1113]/80 text-[#8ea4d6] transition-colors hover:bg-[#233455]/45 hover:text-[#b8c6e6]"
+              className="h-9 w-9 rounded-xl border-[#30476f]/55 bg-[#0f1113]/80 text-[#8ea4d6] hover:bg-[#233455]/45 hover:text-[#b8c6e6]"
               title="Minimizar sidebar"
             >
               ›
-            </button>
+            </Button>
           </div>
         </div>
 
-        <div className="relative mt-3 flex-1 overflow-y-auto px-3 pb-3 [scrollbar-color:#31456f_transparent] [scrollbar-width:thin] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#31456f]/80 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar]:w-1.5">
-          <div className="rounded-[22px] bg-[#15191d]/88 px-3.5 py-3 shadow-[0_0_0_1px_rgba(49,69,111,0.26)]">
-            <p className="font-mono text-[8px] font-bold uppercase tracking-[0.2em] text-[#7f95c9]">
-              Resumo do Deck
-            </p>
+        <ScrollArea className="relative mt-3 flex-1">
+          <div className="px-3 pb-3">
+            <Tabs defaultValue="summary">
+              <TabsList className="grid w-full grid-cols-2 rounded-[18px] bg-[#15191d]/88 p-1 shadow-[0_0_0_1px_rgba(49,69,111,0.26)]">
+                <TabsTrigger value="summary">Resumo</TabsTrigger>
+                <TabsTrigger value="curve">Curva</TabsTrigger>
+              </TabsList>
 
-            <div className="mt-2.5 space-y-1.5">
-              <SummaryMetricRow
-                label="Total"
-                value={`${mainDeck.length}/40`}
-                accent
-              />
-              <div className="h-px bg-[#30476f]/30" />
-              <SummaryMetricRow label="Main" value={mainDeck.length} />
-              <SummaryMetricRow label="Sideboard" value={sideboard.length} />
-              <SummaryMetricRow label="Criaturas" value={creatureCount} />
-              <SummaryMetricRow label="Feitiços" value={spellCount} />
-              <SummaryMetricRow label="Terrenos" value={landCount} />
-            </div>
+              <TabsContent value="summary">
+                <Card className="rounded-[22px] border-white/5 bg-[#15191d]/88 shadow-[0_0_0_1px_rgba(49,69,111,0.26)]">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="font-mono text-[8px] font-bold uppercase tracking-[0.2em] text-[#7f95c9]">
+                      Resumo do Deck
+                    </CardTitle>
+                    <CardDescription className="text-[10px] text-white/28">
+                      Estado atual da build principal
+                    </CardDescription>
+                  </CardHeader>
+
+                  <CardContent className="space-y-1.5 pt-0">
+                    <SummaryMetricRow
+                      label="Total"
+                      value={`${mainDeck.length}/40`}
+                      accent
+                    />
+                    <Separator className="bg-[#30476f]/30" />
+                    <SummaryMetricRow label="Main" value={mainDeck.length} />
+                    <SummaryMetricRow
+                      label="Sideboard"
+                      value={sideboard.length}
+                    />
+                    <SummaryMetricRow label="Criaturas" value={creatureCount} />
+                    <SummaryMetricRow label="Feitiços" value={spellCount} />
+                    <SummaryMetricRow label="Terrenos" value={landCount} />
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="curve">
+                <Card className="rounded-[22px] border-white/5 bg-[#15191d]/88 shadow-[0_0_0_1px_rgba(49,69,111,0.26)]">
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center justify-between gap-3">
+                      <CardTitle className="font-mono text-[8px] font-bold uppercase tracking-[0.2em] text-[#7f95c9]">
+                        Curva de Mana
+                      </CardTitle>
+                      <Badge
+                        variant="outline"
+                        className="border-white/10 bg-white/[0.03] text-white/45"
+                      >
+                        Main Deck
+                      </Badge>
+                    </div>
+                  </CardHeader>
+
+                  <CardContent className="pt-0">
+                    <div className="grid grid-cols-7 items-end gap-1.5">
+                      {curveEntries.map((entry) => (
+                        <ManaCurveBar
+                          key={entry.label}
+                          label={entry.label}
+                          value={entry.value}
+                          max={curveEntries.maxValue}
+                        />
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
+
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsBasicLandsOpen(true)}
+              className="mt-3 flex h-auto w-full items-center justify-between rounded-[20px] border-white/5 bg-[#15191d]/80 px-3.5 py-3 text-left hover:bg-[#18202a]"
+            >
+              <div className="min-w-0 text-left">
+                <p className="font-mono text-[8px] font-bold uppercase tracking-[0.2em] text-[#7f95c9]">
+                  Terrenos Básicos
+                </p>
+                <p className="mt-1 text-[10px] text-white/28">
+                  Adiciona direto no main deck
+                </p>
+              </div>
+              <Badge className="rounded-full border-[#30476f]/45 bg-[#162032]/75 px-2 text-[#b7c5e8]">
+                +
+              </Badge>
+            </Button>
+
+            <DeckSection
+              ref={mainZoneRef}
+              label="Main Deck"
+              count={mainDeck.length}
+              dataZone="main"
+              isActive={activeSidebarDropZone === "main"}
+              onActivate={() => setActiveSidebarDropZone("main")}
+              onDeactivate={() =>
+                setActiveSidebarDropZone((prev) =>
+                  prev === "main" ? null : prev,
+                )
+              }
+              onDropCard={(ids) => {
+                setDeckZone(ids, true);
+                setActiveSidebarDropZone(null);
+                setDraggingSidebarCardId(null);
+              }}
+            >
+              {mainDeck.length === 0 ? (
+                <EmptySlot message="Arraste cartas aqui" />
+              ) : (
+                <ul className="flex flex-col overflow-hidden rounded-b-[22px] bg-[#14181b]/78 shadow-[0_0_0_1px_rgba(49,69,111,0.34)]">
+                  {groupedMainDeck.map((group) => (
+                    <CardRow
+                      key={group.key}
+                      card={group.card}
+                      count={group.count}
+                      dragIds={group.ids}
+                      isDragging={group.ids.includes(
+                        draggingSidebarCardId ?? "",
+                      )}
+                      onHover={handleHover}
+                      onHoverEnd={handleHoverEnd}
+                      onOpen={handleOpen}
+                      onDragStateChange={setDraggingSidebarCardId}
+                    />
+                  ))}
+                </ul>
+              )}
+            </DeckSection>
+
+            <DeckSection
+              ref={sideZoneRef}
+              label="Sideboard"
+              count={sideboard.length}
+              dataZone="side"
+              isActive={activeSidebarDropZone === "side"}
+              onActivate={() => setActiveSidebarDropZone("side")}
+              onDeactivate={() =>
+                setActiveSidebarDropZone((prev) =>
+                  prev === "side" ? null : prev,
+                )
+              }
+              onDropCard={(ids) => {
+                setDeckZone(ids, false);
+                setActiveSidebarDropZone(null);
+                setDraggingSidebarCardId(null);
+              }}
+            >
+              {sideboard.length === 0 ? (
+                <EmptySlot message="Arraste cartas aqui" />
+              ) : (
+                <ul className="flex flex-col overflow-hidden rounded-b-[22px] bg-[#14181b]/78 shadow-[0_0_0_1px_rgba(49,69,111,0.34)]">
+                  {groupedSideboard.map((group) => (
+                    <CardRow
+                      key={group.key}
+                      card={group.card}
+                      count={group.count}
+                      dragIds={group.ids}
+                      isDragging={group.ids.includes(
+                        draggingSidebarCardId ?? "",
+                      )}
+                      onHover={handleHover}
+                      onHoverEnd={handleHoverEnd}
+                      onOpen={handleOpen}
+                      onDragStateChange={setDraggingSidebarCardId}
+                    />
+                  ))}
+                </ul>
+              )}
+            </DeckSection>
+
+            <div className="h-8" />
           </div>
-
-          <div className="mt-3 rounded-[22px] bg-[#15191d]/88 px-3.5 py-3 shadow-[0_0_0_1px_rgba(49,69,111,0.26)]">
-            <div className="mb-2.5 flex items-center justify-between">
-              <p className="font-mono text-[8px] font-bold uppercase tracking-[0.2em] text-[#7f95c9]">
-                Curva de Mana
-              </p>
-              <p className="font-mono text-[8px] text-white/25">Main Deck</p>
-            </div>
-
-            <div className="grid grid-cols-7 items-end gap-1.5">
-              {curveEntries.map((entry) => (
-                <ManaCurveBar
-                  key={entry.label}
-                  label={entry.label}
-                  value={entry.value}
-                  max={curveEntries.maxValue}
-                />
-              ))}
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => setIsBasicLandsOpen(true)}
-            className="mt-3 flex w-full items-center justify-between rounded-[20px] bg-[#15191d]/80 px-3.5 py-3 text-left shadow-[0_0_0_1px_rgba(49,69,111,0.26)] transition-colors hover:bg-[#18202a]"
-          >
-            <div className="min-w-0">
-              <p className="font-mono text-[8px] font-bold uppercase tracking-[0.2em] text-[#7f95c9]">
-                Terrenos Básicos
-              </p>
-            </div>
-            <span className="flex h-7 min-w-7 items-center justify-center rounded-full border border-[#30476f]/45 bg-[#162032]/75 px-2 font-mono text-[10px] text-[#b7c5e8]">
-              +
-            </span>
-          </button>
-
-          <DeckSection
-            ref={mainZoneRef}
-            label="Main Deck"
-            count={mainDeck.length}
-            dataZone="main"
-            isActive={activeSidebarDropZone === "main"}
-            onActivate={() => setActiveSidebarDropZone("main")}
-            onDeactivate={() =>
-              setActiveSidebarDropZone((prev) =>
-                prev === "main" ? null : prev,
-              )
-            }
-            onDropCard={(ids) => {
-              setDeckZone(ids, true);
-              setActiveSidebarDropZone(null);
-              setDraggingSidebarCardId(null);
-            }}
-          >
-            {mainDeck.length === 0 ? (
-              <EmptySlot message="Arraste cartas aqui" />
-            ) : (
-              <ul className="flex flex-col overflow-hidden rounded-b-[22px] bg-[#14181b]/78 shadow-[0_0_0_1px_rgba(49,69,111,0.34)]">
-                {groupedMainDeck.map((group) => (
-                  <CardRow
-                    key={group.key}
-                    card={group.card}
-                    count={group.count}
-                    dragIds={group.ids}
-                    isDragging={group.ids.includes(draggingSidebarCardId ?? "")}
-                    onHover={handleHover}
-                    onHoverEnd={handleHoverEnd}
-                    onOpen={handleOpen}
-                    onDragStateChange={setDraggingSidebarCardId}
-                  />
-                ))}
-              </ul>
-            )}
-          </DeckSection>
-
-          <DeckSection
-            ref={sideZoneRef}
-            label="Sideboard"
-            count={sideboard.length}
-            dataZone="side"
-            isActive={activeSidebarDropZone === "side"}
-            onActivate={() => setActiveSidebarDropZone("side")}
-            onDeactivate={() =>
-              setActiveSidebarDropZone((prev) =>
-                prev === "side" ? null : prev,
-              )
-            }
-            onDropCard={(ids) => {
-              setDeckZone(ids, false);
-              setActiveSidebarDropZone(null);
-              setDraggingSidebarCardId(null);
-            }}
-          >
-            {sideboard.length === 0 ? (
-              <EmptySlot message="Arraste cartas aqui" />
-            ) : (
-              <ul className="flex flex-col overflow-hidden rounded-b-[22px] bg-[#14181b]/78 shadow-[0_0_0_1px_rgba(49,69,111,0.34)]">
-                {groupedSideboard.map((group) => (
-                  <CardRow
-                    key={group.key}
-                    card={group.card}
-                    count={group.count}
-                    dragIds={group.ids}
-                    isDragging={group.ids.includes(draggingSidebarCardId ?? "")}
-                    onHover={handleHover}
-                    onHoverEnd={handleHoverEnd}
-                    onOpen={handleOpen}
-                    onDragStateChange={setDraggingSidebarCardId}
-                  />
-                ))}
-              </ul>
-            )}
-          </DeckSection>
-
-          <div className="h-8" />
-        </div>
+        </ScrollArea>
       </aside>
 
       <AnimatePresence>
@@ -396,23 +469,22 @@ export function Sidebar() {
         )}
       </AnimatePresence>
 
-      <AnimatePresence>
-        {viewing && (
-          <CardOverlay card={viewing} onClose={() => setViewing(null)} />
-        )}
-      </AnimatePresence>
+      <CardDialog
+        card={viewing}
+        open={Boolean(viewing)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setViewing(null);
+          }
+        }}
+      />
 
-      <AnimatePresence>
-        {isBasicLandsOpen && (
-          <BasicLandsModal
-            isPending={isPending}
-            onClose={() => setIsBasicLandsOpen(false)}
-            onAdd={(landName, quantity) =>
-              addBasicLandsToKit(landName, quantity)
-            }
-          />
-        )}
-      </AnimatePresence>
+      <BasicLandsSheet
+        open={isBasicLandsOpen}
+        isPending={isPending}
+        onOpenChange={setIsBasicLandsOpen}
+        onAdd={(landName, quantity) => addBasicLandsToKit(landName, quantity)}
+      />
     </>
   );
 }
@@ -453,7 +525,9 @@ const DropZonePanel = forwardRef<HTMLElement, DropZonePanelProps>(
           onDropCard(ids);
         }}
       >
-        <div className="pointer-events-none absolute inset-0 rounded-[24px] bg-gradient-to-b from-white/[0.03] to-transparent" />
+        <Card className="pointer-events-none absolute inset-0 rounded-[24px] border-0 bg-transparent shadow-none">
+          <div className="absolute inset-0 rounded-[24px] bg-gradient-to-b from-white/[0.03] to-transparent" />
+        </Card>
         <div className="relative flex h-16 w-16 items-center justify-center rounded-full border border-dashed border-current bg-white/[0.03] text-3xl opacity-50">
           {icon}
         </div>
@@ -495,9 +569,12 @@ const SectionHeader = forwardRef<HTMLDivElement, SectionHeaderProps>(
         <span className="font-mono text-[8px] font-bold uppercase tracking-[0.16em] text-[#7f95c9]">
           {label}
         </span>
-        <span className="font-mono text-[10px] text-white/38 tabular-nums">
+        <Badge
+          variant="outline"
+          className="border-white/10 bg-white/[0.03] font-mono text-[10px] text-white/60 tabular-nums"
+        >
           {count}
-        </span>
+        </Badge>
       </div>
     );
   },
@@ -848,77 +925,63 @@ function BasicLandRow({
       </div>
 
       <div className="flex items-center gap-1">
-        <button
+        <Button
           type="button"
+          variant="outline"
+          size="xs"
           disabled={disabled}
           onClick={() => onAdd(1)}
-          className="rounded-full border border-[#30476f]/45 bg-[#162032] px-2 py-1 font-mono text-[9px] font-semibold text-[#b7c5e8] transition-colors hover:bg-[#1c2941] disabled:cursor-not-allowed disabled:opacity-45"
+          className="rounded-full border-[#30476f]/45 bg-[#162032] font-mono text-[9px] font-semibold text-[#b7c5e8] hover:bg-[#1c2941]"
           aria-label={`Adicionar 1 ${name}`}
         >
           +1
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
+          variant="outline"
+          size="xs"
           disabled={disabled}
           onClick={() => onAdd(5)}
-          className="rounded-full border border-[#30476f]/45 bg-[#162032] px-2 py-1 font-mono text-[9px] font-semibold text-[#b7c5e8] transition-colors hover:bg-[#1c2941] disabled:cursor-not-allowed disabled:opacity-45"
+          className="rounded-full border-[#30476f]/45 bg-[#162032] font-mono text-[9px] font-semibold text-[#b7c5e8] hover:bg-[#1c2941]"
           aria-label={`Adicionar 5 ${name}`}
         >
           +5
-        </button>
+        </Button>
       </div>
     </div>
   );
 }
 
-function BasicLandsModal({
+function BasicLandsSheet({
+  open,
   isPending,
-  onClose,
+  onOpenChange,
   onAdd,
 }: {
+  open: boolean;
   isPending: boolean;
-  onClose: () => void;
+  onOpenChange: (open: boolean) => void;
   onAdd: (
     landName: "Plains" | "Island" | "Swamp" | "Mountain" | "Forest",
     quantity: number,
   ) => void;
 }) {
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      onClick={onClose}
-      className="fixed inset-0 z-[210000000] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
-    >
-      <motion.div
-        initial={{ opacity: 0, y: 16, scale: 0.98 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, y: 16, scale: 0.98 }}
-        transition={{ duration: 0.16 }}
-        onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-[320px] rounded-[26px] border border-[#30476f]/40 bg-[#101317] p-3 shadow-[0_24px_80px_rgba(0,0,0,0.56),0_0_0_1px_rgba(49,69,111,0.24)]"
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent
+        side="right"
+        className="z-[210000000] w-full max-w-[340px] border-l border-[#30476f]/40 bg-[#101317] p-0 text-white sm:max-w-[340px]"
       >
-        <div className="mb-3 flex items-start justify-between gap-3 px-1">
-          <div>
-            <p className="font-mono text-[8px] font-bold uppercase tracking-[0.22em] text-[#7f95c9]">
-              Terrenos Básicos
-            </p>
-            <p className="mt-1 font-mono text-[10px] text-white/34">
-              Adiciona direto no main deck
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-full border border-[#30476f]/45 bg-[#0f1419] text-sm text-white/55 transition-colors hover:bg-[#15202c] hover:text-white/80"
-            aria-label="Fechar modal de terrenos básicos"
-          >
-            ×
-          </button>
-        </div>
+        <SheetHeader className="border-b border-[#30476f]/30 px-4 py-4">
+          <SheetTitle className="font-mono text-[8px] font-bold uppercase tracking-[0.22em] text-[#7f95c9]">
+            Terrenos Básicos
+          </SheetTitle>
+          <SheetDescription className="font-mono text-[10px] text-white/34">
+            Adiciona direto no main deck
+          </SheetDescription>
+        </SheetHeader>
 
-        <div className="space-y-1.5">
+        <div className="space-y-1.5 p-3">
           {BASIC_LANDS.map((land) => (
             <BasicLandRow
               key={land.name}
@@ -930,8 +993,8 @@ function BasicLandsModal({
             />
           ))}
         </div>
-      </motion.div>
-    </motion.div>
+      </SheetContent>
+    </Sheet>
   );
 }
 
@@ -940,7 +1003,12 @@ function BasicLandsModal({
 function EmptySlot({ message }: { message: string }) {
   return (
     <div className="flex items-center justify-center rounded-b-[22px] bg-[#14181b]/78 px-4 py-8 shadow-[0_0_0_1px_rgba(49,69,111,0.34)]">
-      <p className="text-white/20 text-xs text-center">{message}</p>
+      <Badge
+        variant="outline"
+        className="border-dashed border-white/10 bg-transparent px-3 py-1 text-white/35"
+      >
+        {message}
+      </Badge>
     </div>
   );
 }
@@ -1008,13 +1076,15 @@ const DeckSection = forwardRef<
       {isActive && (
         <div className="pointer-events-none absolute inset-0 rounded-[22px] bg-[linear-gradient(180deg,rgba(77,99,147,0.12),transparent_35%,rgba(77,99,147,0.08))]" />
       )}
-      <SectionHeader
-        label={label}
-        count={count}
-        dataZone={dataZone}
-        isActive={isActive}
-      />
-      {children}
+      <Card className="rounded-[22px] border-0 bg-transparent shadow-none">
+        <SectionHeader
+          label={label}
+          count={count}
+          dataZone={dataZone}
+          isActive={isActive}
+        />
+        {children}
+      </Card>
     </section>
   );
 });
@@ -1183,53 +1253,50 @@ function CardPreviewTooltip({
   );
 }
 
-function CardOverlay({
+function CardDialog({
   card,
-  onClose,
+  open,
+  onOpenChange,
 }: {
-  card: PlacedCardState;
-  onClose: () => void;
+  card: PlacedCardState | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }) {
+  if (!card) {
+    return null;
+  }
+
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      onClick={onClose}
-      className="fixed inset-0 z-[200000000] flex items-center justify-center bg-black/90 p-4 backdrop-blur-md"
-    >
-      <motion.div
-        initial={{ scale: 0.96, y: 16 }}
-        animate={{ scale: 1, y: 0 }}
-        exit={{ scale: 0.96, y: 16 }}
-        onClick={(e) => e.stopPropagation()}
-        className="relative aspect-[2.5/3.5] w-[min(92vw,460px)] overflow-hidden rounded-3xl border border-white/10 bg-[#121212] shadow-[0_0_80px_rgba(0,0,0,0.45)]"
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        showCloseButton={false}
+        className="z-[200000000] max-w-[min(92vw,460px)] overflow-hidden border-white/10 bg-[#121212] p-0 shadow-[0_0_80px_rgba(0,0,0,0.45)]"
       >
-        {card.card.imagePath ? (
-          <Image
-            src={card.card.imagePath}
-            alt={card.card.name}
-            fill
-            priority
-            sizes="460px"
-            className="object-contain"
-          />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center p-6 text-center text-xl font-semibold text-[#a9b9df]">
-            {card.card.name}
-          </div>
-        )}
-        {card.isFoil && (
-          <div className="absolute inset-0 foil-overlay pointer-events-none opacity-60" />
-        )}
-        <button
-          type="button"
-          onClick={onClose}
-          className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-black/40 text-2xl text-white transition-colors hover:bg-black/60"
-        >
-          ×
-        </button>
-      </motion.div>
-    </motion.div>
+        <DialogHeader className="sr-only">
+          <DialogTitle>{card.card.name}</DialogTitle>
+          <DialogDescription>Visualizacao ampliada da carta.</DialogDescription>
+        </DialogHeader>
+
+        <div className="relative aspect-[2.5/3.5] w-full overflow-hidden rounded-3xl bg-[#121212]">
+          {card.card.imagePath ? (
+            <Image
+              src={card.card.imagePath}
+              alt={card.card.name}
+              fill
+              priority
+              sizes="460px"
+              className="object-contain"
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center p-6 text-center text-xl font-semibold text-[#a9b9df]">
+              {card.card.name}
+            </div>
+          )}
+          {card.isFoil && (
+            <div className="absolute inset-0 foil-overlay pointer-events-none opacity-60" />
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
