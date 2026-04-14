@@ -1,8 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import type { CardInstance, GameState } from "@/lib/game/types";
 import { selectCardWithDefinition } from "@/lib/game/selectors";
+import type { CardInstance, GameState } from "@/lib/game/types";
 
 type CardViewProps = {
   card: CardInstance;
@@ -28,7 +28,8 @@ function CardView({ card, state, onHover, onClick }: CardViewProps) {
   const imgUrl = card.faceDown ? null : (cd?.definition.imageUrl ?? null);
 
   return (
-    <div
+    <button
+      type="button"
       className={`relative w-[64px] h-[89px] rounded overflow-hidden cursor-pointer ring-1 ring-zinc-700 transition-all hover:ring-blue-400 hover:scale-105 ${card.tapped ? "rotate-90 origin-bottom-left" : ""}`}
       style={{ flexShrink: 0 }}
       onMouseEnter={() =>
@@ -66,7 +67,7 @@ function CardView({ card, state, onHover, onClick }: CardViewProps) {
             ))}
         </div>
       )}
-    </div>
+    </button>
   );
 }
 

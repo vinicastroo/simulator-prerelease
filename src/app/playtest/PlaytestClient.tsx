@@ -1,18 +1,33 @@
 "use client";
 
-import { type FormEvent, useEffect, useState } from "react";
+import Image from "next/image";
+import {
+  type FormEvent,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { CardBack } from "@/features/playtest/components/CardBack";
 import { Playmat } from "@/features/playtest/components/Playmat";
 import { useDeckLoader } from "@/features/playtest/hooks/useDeckLoader";
 import { useGameStore } from "@/features/playtest/hooks/useGameStore";
 import { GameProvider } from "@/features/playtest/store/GameProvider";
+import { shuffleCardIds } from "@/lib/game/shuffle";
 import type { CardDefinition, CardInstance } from "@/lib/game/types";
 
 type PlaytestInitialDeck = {
   definitions: CardDefinition[];
   instances: CardInstance[];
+};
+
+type OpeningHandCard = {
+  id: string;
+  name: string;
+  imageUrl: string | null;
 };
 
 function DeckLoaderPanel() {
@@ -203,14 +218,213 @@ function DeckLoaderPanel() {
 function PlaytestSurface({
   playerName,
   enableDeckTools,
+  showOpeningHand,
 }: {
   playerName: string;
   enableDeckTools: boolean;
+  showOpeningHand: boolean;
 }) {
+  const { state, dispatch, localPlayerId } = useGameStore();
+  const didPrepareOpeningHandRef = useRef(false);
+  const [isOpeningHandOpen, setIsOpeningHandOpen] = useState(showOpeningHand);
+  const [openingHandIds, setOpeningHandIds] = useState<string[]>([]);
+
+  const openingHandCards = openingHandIds
+    .map((cardId) => {
+      const instance = state.cardInstances[cardId];
+      if (!instance) return null;
+
+      const definition = state.cardDefinitions[instance.definitionId];
+      if (!definition) return null;
+
+      return {
+        id: cardId,
+        name: definition.name,
+        imageUrl: definition.imageUrl,
+      } satisfies OpeningHandCard;
+    })
+    .filter((card): card is OpeningHandCard => card !== null);
+
+  const isPreparingOpeningHand =
+    isOpeningHandOpen && openingHandCards.length === 0;
+
+  const drawOpeningHand = useCallback(
+    (libraryIds: string[]) => {
+      if (libraryIds.length === 0) return;
+
+      setIsOpeningHandOpen(true);
+
+      const shuffledLibrary = shuffleCardIds(libraryIds);
+      const nextOpeningHandIds = shuffledLibrary.slice(0, 7);
+
+      dispatch({
+        type: "zone/shuffle",
+        playerId: localPlayerId,
+        zone: "library",
+        orderedIds: shuffledLibrary,
+      });
+      dispatch({
+        type: "card/draw",
+        playerId: localPlayerId,
+        count: nextOpeningHandIds.length,
+      });
+
+      setOpeningHandIds(nextOpeningHandIds);
+      setIsOpeningHandOpen(true);
+    },
+    [dispatch, localPlayerId],
+  );
+
+  useEffect(() => {
+    if (!showOpeningHand || didPrepareOpeningHandRef.current) return;
+
+    const player = state.players[localPlayerId];
+    if (!player) return;
+    if (player.zones.library.length === 0 || player.zones.hand.length > 0)
+      return;
+
+    didPrepareOpeningHandRef.current = true;
+    drawOpeningHand(player.zones.library);
+  }, [drawOpeningHand, localPlayerId, showOpeningHand, state.players]);
+
+  const handleMulligan = useCallback(() => {
+    const player = state.players[localPlayerId];
+    if (!player) return;
+
+    const handIds = [...player.zones.hand];
+    const nextLibraryIds = [...player.zones.library, ...handIds];
+    if (nextLibraryIds.length === 0) return;
+
+    if (handIds.length > 0) {
+      dispatch({
+        type: "card/moveMany",
+        cardIds: handIds,
+        to: "library",
+        toPlayerId: localPlayerId,
+      });
+    }
+
+    drawOpeningHand(nextLibraryIds);
+  }, [dispatch, drawOpeningHand, localPlayerId, state.players]);
+
+  const handleKeepOpeningHand = useCallback(() => {
+    setIsOpeningHandOpen(false);
+  }, []);
+
   return (
     <div className="relative h-screen w-screen overflow-hidden">
       <Playmat playerName={playerName} />
       {enableDeckTools && <DeckLoaderPanel />}
+      <OpeningHandModal
+        cards={openingHandCards}
+        open={isOpeningHandOpen}
+        preparing={isPreparingOpeningHand}
+        onKeep={handleKeepOpeningHand}
+        onMulligan={handleMulligan}
+      />
+    </div>
+  );
+}
+
+function OpeningHandModal({
+  open,
+  cards,
+  preparing,
+  onMulligan,
+  onKeep,
+}: {
+  open: boolean;
+  cards: OpeningHandCard[];
+  preparing: boolean;
+  onMulligan: () => void;
+  onKeep: () => void;
+}) {
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-[220] flex items-center justify-center bg-black/75 px-4 py-6 backdrop-blur-sm">
+      <div className="w-full max-w-6xl rounded-[1.75rem] border border-white/10 bg-[#0d1017] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.45)] sm:p-6">
+        <div className="flex flex-col gap-2 border-b border-white/10 pb-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-[#91a7da]">
+              Mao inicial
+            </p>
+            <h2 className="mt-2 text-2xl font-black tracking-[-0.04em] text-white">
+              Escolha sua mao de abertura
+            </h2>
+            <p className="mt-1 text-sm text-white/45">
+              {preparing
+                ? "Preparando sua mao inicial..."
+                : `O grimorio ja foi embaralhado. Voce pode ficar com estas ${cards.length} cartas ou pedir mulligan.`}
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-5 flex flex-wrap justify-center gap-3 sm:gap-4">
+          {preparing
+            ? Array.from({ length: 7 }, (_, slot) => slot + 1).map((slot) => (
+                <div
+                  key={`placeholder-${slot}`}
+                  className="flex flex-col items-center gap-2"
+                >
+                  <div className="relative h-[167px] w-[120px] overflow-hidden rounded-[10px] border border-white/10 bg-black/20 shadow-lg sm:h-[209px] sm:w-[150px]">
+                    <CardBack className="h-full w-full rounded-[10px] opacity-70" />
+                  </div>
+                  <span className="max-w-[120px] text-center text-[10px] text-white/30 sm:max-w-[150px]">
+                    Carregando...
+                  </span>
+                </div>
+              ))
+            : cards.map((card) => (
+                <div key={card.id} className="flex flex-col items-center gap-2">
+                  <div className="relative h-[167px] w-[120px] overflow-hidden rounded-[10px] border border-white/10 bg-black/20 shadow-lg sm:h-[209px] sm:w-[150px]">
+                    {card.imageUrl ? (
+                      <Image
+                        src={card.imageUrl}
+                        alt={card.name}
+                        width={150}
+                        height={209}
+                        className="h-full w-full object-cover"
+                        unoptimized
+                      />
+                    ) : (
+                      <CardBack className="h-full w-full rounded-[10px]" />
+                    )}
+                  </div>
+                  <span className="max-w-[120px] text-center text-[10px] text-white/55 sm:max-w-[150px]">
+                    {card.name}
+                  </span>
+                </div>
+              ))}
+        </div>
+
+        {preparing ? (
+          <div className="mt-4 flex items-center justify-center gap-3 text-sm text-white/55">
+            <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/20 border-t-white/80" />
+            <span>Carregando mao inicial...</span>
+          </div>
+        ) : null}
+
+        <div className="mt-6 flex flex-col gap-3 border-t border-white/10 pt-4 sm:flex-row sm:justify-end">
+          <Button
+            type="button"
+            variant="outline"
+            className="border-white/10 bg-white/[0.03] text-white/78 hover:bg-white/[0.08]"
+            onClick={onMulligan}
+            disabled={preparing}
+          >
+            Mulligan
+          </Button>
+          <Button
+            type="button"
+            className="bg-[#4d6393] text-white hover:bg-[#5f77ab]"
+            onClick={onKeep}
+            disabled={preparing}
+          >
+            Ficar com a mao
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -229,6 +443,7 @@ export function PlaytestClient({
       <PlaytestSurface
         playerName={playerName}
         enableDeckTools={enableDeckTools}
+        showOpeningHand={Boolean(initialDeck)}
       />
     </GameProvider>
   );

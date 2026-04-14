@@ -1,10 +1,10 @@
 import type {
+  CardDefinition,
+  CardInstance,
+  CardInstanceId,
   GameState,
   PlayerId,
-  CardInstanceId,
   ZoneName,
-  CardInstance,
-  CardDefinition,
 } from "./types";
 
 export function selectPlayer(state: GameState, playerId: PlayerId) {

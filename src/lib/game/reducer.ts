@@ -412,7 +412,7 @@ function applyAction(state: GameState, action: GameAction): GameState {
       return moveCard(
         state,
         action.cardId,
-        action.from,
+        inst.zone,
         inst.controllerId,
         action.to,
         action.toPlayerId,
@@ -443,7 +443,7 @@ function applyAction(state: GameState, action: GameAction): GameState {
       if (!player) return state;
       const library = [...player.zones.library];
       const drawn = library.splice(0, action.count);
-      let next: GameState = {
+      const next: GameState = {
         ...state,
         players: {
           ...state.players,
@@ -474,7 +474,7 @@ function applyAction(state: GameState, action: GameAction): GameState {
       if (!player) return state;
       const library = [...player.zones.library];
       const milled = library.splice(0, action.count);
-      let next: GameState = {
+      const next: GameState = {
         ...state,
         players: {
           ...state.players,
@@ -567,7 +567,7 @@ function applyAction(state: GameState, action: GameAction): GameState {
 
     case "card/setBattlefieldPosition": {
       const inst = state.cardInstances[action.cardId];
-      if (!inst || !inst.battlefield) return state;
+      if (!inst?.battlefield) return state;
       return {
         ...state,
         cardInstances: {
@@ -646,7 +646,7 @@ function applyAction(state: GameState, action: GameAction): GameState {
     case "card/attach": {
       const source = state.cardInstances[action.sourceId];
       const target = state.cardInstances[action.targetId];
-      if (!source || !target || !target.battlefield) return state;
+      if (!source || !target?.battlefield) return state;
 
       // First, detach from previous host if any
       let next = state;

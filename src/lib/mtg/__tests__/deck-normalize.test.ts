@@ -1,7 +1,7 @@
-import { describe, it, expect } from "vitest";
-import { normalizeDeck } from "../deck-normalize";
+import { describe, expect, it } from "vitest";
 import { generateCardDefId } from "@/lib/game/ids";
 import type { CardDefinition } from "@/lib/game/types";
+import { normalizeDeck } from "../deck-normalize";
 import type { DeckJson } from "../deck-schema";
 
 function makeDef(name: string): CardDefinition {

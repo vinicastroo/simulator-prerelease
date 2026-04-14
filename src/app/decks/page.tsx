@@ -1,18 +1,11 @@
+import Image from "next/image";
 import Link from "next/link";
 import { SignOutButton } from "@/components/SignOutButton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
+import { Card, CardFooter, CardHeader } from "@/components/ui/card";
 import { requireSessionUser } from "@/lib/auth-session";
+import { COLLEGES } from "@/lib/mtg/colleges";
 import { prisma } from "@/lib/prisma";
 
 export default async function DecksPage() {
@@ -25,150 +18,147 @@ export default async function DecksPage() {
       college: true,
       createdAt: true,
       _count: {
-        select: { placedCards: true },
+        select: {
+          placedCards: {
+            where: { isMainDeck: true },
+          },
+        },
       },
     },
   });
 
+  const collegesById = new Map(
+    COLLEGES.map((college) => [college.id, college]),
+  );
+
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#06070a] px-6 py-8 text-white">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(77,99,147,0.22),transparent_24%),radial-gradient(circle_at_75%_10%,rgba(70,85,140,0.18),transparent_22%),linear-gradient(180deg,rgba(255,255,255,0.03),transparent_18%)]" />
-      <div className="relative mx-auto max-w-6xl">
-        <div className="flex flex-col gap-6 pb-10 lg:flex-row lg:items-end lg:justify-between">
-          <div className="space-y-4">
-            <Badge
-              variant="outline"
-              className="border-[#30476f]/55 bg-[#162032]/50 px-3 py-1 text-[#9bb0e0]"
-            >
-              Biblioteca Pessoal
-            </Badge>
-            <div className="space-y-3">
-              <h1 className="max-w-3xl text-5xl font-black tracking-[-0.06em] text-white">
-                seus decks vivem aqui como um arquivo de campanha
+    <main className="h-dvh overflow-hidden bg-[#06070a] text-white">
+      <div className="mx-auto flex h-full max-w-5xl flex-col px-4 py-4 sm:px-6 sm:py-6">
+        <header className="shrink-0 rounded-[1.75rem] border border-white/10 bg-[#0f131a] px-4 py-4 sm:px-6">
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <Badge
+                variant="outline"
+                className="border-white/10 bg-white/[0.03] px-3 py-1 text-white/60"
+              >
+                Arquivo de Decks
+              </Badge>
+
+              <div className="flex flex-wrap items-center gap-3">
+                <Button
+                  asChild
+                  className="rounded-full bg-[#4d6393] px-5 text-white hover:bg-[#5f77ab]"
+                >
+                  <Link href="/">Novo deck</Link>
+                </Button>
+                <SignOutButton />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <h1 className="text-3xl font-black tracking-[-0.05em] text-white sm:text-4xl">
+                seus decks
               </h1>
-              <p className="max-w-2xl text-sm leading-7 text-white/52">
-                Volte para builds antigas, compare faculdades e continue o deck
-                no ponto em que ele parou.
+              <p className="text-sm text-white/50">
+                Abra qualquer deck rapidamente.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-white/10 pt-3 text-sm text-white/45">
+              <p>
+                {kits.length} {kits.length === 1 ? "deck" : "decks"}
+              </p>
+              <p>
+                {kits[0]
+                  ? `Ultimo registro em ${kits[0].createdAt.toLocaleDateString("pt-BR")}`
+                  : "Nenhum registro ainda"}
               </p>
             </div>
           </div>
+        </header>
 
-          <div className="flex items-center gap-3">
-            <Button
-              asChild
-              className="rounded-full bg-[#4d6393] px-5 text-white hover:bg-[#5f77ab]"
-            >
-              <Link href="/">Novo deck</Link>
-            </Button>
-            <SignOutButton />
-          </div>
-        </div>
-
-        <div className="mb-8 grid gap-4 md:grid-cols-3">
-          <div className="rounded-[1.75rem] border border-white/10 bg-white/[0.03] p-5 backdrop-blur-sm">
-            <p className="text-[10px] uppercase tracking-[0.28em] text-white/35">
-              Total de decks
-            </p>
-            <p className="mt-3 text-3xl font-black text-white">{kits.length}</p>
-          </div>
-          <div className="rounded-[1.75rem] border border-white/10 bg-white/[0.03] p-5 backdrop-blur-sm">
-            <p className="text-[10px] uppercase tracking-[0.28em] text-white/35">
-              Ultima atividade
-            </p>
-            <p className="mt-3 text-lg font-black text-white">
-              {kits[0]
-                ? kits[0].createdAt.toLocaleDateString("pt-BR")
-                : "Sem registro"}
-            </p>
-          </div>
-          <div className="rounded-[1.75rem] border border-white/10 bg-white/[0.03] p-5 backdrop-blur-sm">
-            <p className="text-[10px] uppercase tracking-[0.28em] text-white/35">
-              Colecoes
-            </p>
-            <p className="mt-3 text-lg font-black text-white">
-              Strixhaven Archive
-            </p>
-          </div>
-        </div>
-
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {kits.length === 0 ? (
-            <Card className="rounded-[2rem] border-dashed border-white/15 bg-white/[0.03] md:col-span-2 xl:col-span-3">
-              <CardHeader className="px-8 pt-8">
-                <CardTitle className="text-white">Nenhum deck ainda</CardTitle>
-                <CardDescription className="text-white/52">
-                  Crie seu primeiro kit de prerelease para ele aparecer aqui.
-                </CardDescription>
-              </CardHeader>
-              <CardFooter className="border-t border-white/10 bg-white/[0.03] px-8 py-6">
-                <Button
-                  asChild
-                  className="rounded-full bg-[#4d6393] text-white hover:bg-[#5f77ab]"
-                >
-                  <Link href="/">Criar primeiro deck</Link>
-                </Button>
-              </CardFooter>
-            </Card>
-          ) : (
-            kits.map((kit) => (
-              <Card
-                key={kit.id}
-                className="group overflow-hidden rounded-[2rem] border border-white/10 bg-[#10131a]/88 shadow-[0_20px_60px_rgba(0,0,0,0.35)] transition duration-300 hover:-translate-y-1 hover:border-[#4d6393]/40"
-              >
-                <div className="h-1 w-full bg-[linear-gradient(90deg,#4d6393_0%,#90a4da_50%,#4d6393_100%)] opacity-80" />
-                <CardHeader className="space-y-4 px-6 pt-6">
-                  <CardAction>
-                    <Badge className="border-[#30476f]/45 bg-[#162032]/70 text-[#cad7f8]">
-                      {kit.college}
-                    </Badge>
-                  </CardAction>
-                  <CardTitle className="text-2xl font-black tracking-[-0.04em] text-white">
-                    Deck {kit.college.toLowerCase()}
-                  </CardTitle>
-                  <CardDescription className="text-white/45">
-                    Criado em {kit.createdAt.toLocaleDateString("pt-BR")}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-5 px-6 pb-6">
-                  <Separator className="bg-white/10" />
-                  <p className="text-sm leading-7 text-white/55">
-                    {kit._count.placedCards} cartas prontas para continuar no
-                    simulador.
-                  </p>
-                  <div className="flex items-center justify-between rounded-[1.5rem] border border-white/8 bg-white/[0.03] px-4 py-3">
-                    <div>
-                      <p className="text-[10px] uppercase tracking-[0.22em] text-white/32">
-                        Registro
-                      </p>
-                      <p className="mt-1 text-sm font-semibold text-white/78">
-                        {kit.college} collection
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-[10px] uppercase tracking-[0.22em] text-white/32">
-                        Status
-                      </p>
-                      <p className="mt-1 text-sm font-semibold text-[#9ab1e6]">
-                        Disponivel
-                      </p>
-                    </div>
+        <section className="min-h-0 flex-1 pt-4">
+          <div className="h-full overflow-y-auto rounded-[1.75rem] border border-white/10 bg-[#0d1016] p-3 sm:p-4">
+            {kits.length === 0 ? (
+              <Card className="rounded-[1.5rem] border-dashed border-white/15 bg-white/[0.03]">
+                <CardHeader className="px-6 pt-6 sm:px-8 sm:pt-8">
+                  <div className="text-xl font-bold text-white">
+                    Nenhum deck ainda
                   </div>
-                </CardContent>
-                <CardFooter className="justify-between border-t border-white/10 bg-white/[0.03] px-6 py-5">
-                  <span className="text-xs font-medium uppercase tracking-[0.2em] text-white/35">
-                    Abrir simulador
-                  </span>
+                  <p className="text-sm text-white/52">
+                    Crie seu primeiro kit de prerelease para ele aparecer aqui.
+                  </p>
+                </CardHeader>
+                <CardFooter className="border-t border-white/10 bg-white/[0.03] px-6 py-5 sm:px-8 sm:py-6">
                   <Button
                     asChild
-                    className="rounded-full bg-[#4d6393] px-5 text-white hover:bg-[#5f77ab]"
+                    className="rounded-full bg-[#4d6393] text-white hover:bg-[#5f77ab]"
                   >
-                    <Link href={`/simulator/${kit.id}`}>Abrir</Link>
+                    <Link href="/">Criar primeiro deck</Link>
                   </Button>
                 </CardFooter>
               </Card>
-            ))
-          )}
-        </div>
+            ) : (
+              <div className="space-y-3">
+                {kits.map((kit) => (
+                  <article
+                    key={kit.id}
+                    className="flex flex-col gap-4 rounded-[1.5rem] border border-white/10 bg-[#10131a] px-4 py-4 sm:px-5"
+                  >
+                    <div className="flex min-w-0 items-center gap-4">
+                      <div className="flex shrink-0 items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-2 py-2">
+                        {(collegesById.get(kit.college)?.colors ?? []).map(
+                          (color) => (
+                            <div
+                              key={`${kit.id}-${color.code}`}
+                              className="flex h-7 w-7 items-center justify-center rounded-full bg-black/40 ring-1 ring-white/15"
+                            >
+                              <Image
+                                src={color.svgPath}
+                                alt={color.label}
+                                width={20}
+                                height={20}
+                                className="h-5 w-5 object-contain"
+                                unoptimized
+                              />
+                            </div>
+                          ),
+                        )}
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                          <p className="truncate text-base font-bold text-white">
+                            Deck {kit.college.toLowerCase()}
+                          </p>
+                          <p className="text-xs font-mono font-semibold text-white/70">
+                            {kit._count.placedCards}/40
+                          </p>
+                        </div>
+                        <p className="mt-1 text-xs text-white/45">
+                          Criado em {kit.createdAt.toLocaleDateString("pt-BR")}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-3">
+                      <Badge className="rounded-full border-[#30476f]/45 bg-[#162032]/70 text-[#cad7f8]">
+                        {kit.college}
+                      </Badge>
+
+                      <Button
+                        asChild
+                        className="rounded-full bg-[#4d6393] px-5 text-white hover:bg-[#5f77ab]"
+                      >
+                        <Link href={`/simulator/${kit.id}`}>Abrir</Link>
+                      </Button>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
       </div>
     </main>
   );

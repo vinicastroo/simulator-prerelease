@@ -1,10 +1,9 @@
 "use client";
 
-import { useState } from "react";
 import Image from "next/image";
-import type { CardInstance } from "@/lib/game/types";
-import type { GameState } from "@/lib/game/types";
+import { useState } from "react";
 import { selectCardWithDefinition } from "@/lib/game/selectors";
+import type { CardInstance, GameState } from "@/lib/game/types";
 
 type ZonePanelProps = {
   label: string;
@@ -89,8 +88,9 @@ export function ZonePanel({
               : (cd?.definition.imageUrl ?? null);
 
             return (
-              <div
+              <button
                 key={card.id}
+                type="button"
                 className={`relative w-[52px] h-[72px] rounded overflow-hidden cursor-pointer ring-1 ring-zinc-700 transition-transform hover:scale-105 ${hovered === card.id ? "ring-blue-400" : ""}`}
                 onMouseEnter={() => handleMouseEnter(card.id)}
                 onMouseLeave={handleMouseLeave}
@@ -118,7 +118,7 @@ export function ZonePanel({
                         .join(" ")}
                     </div>
                   )}
-              </div>
+              </button>
             );
           })}
         </div>

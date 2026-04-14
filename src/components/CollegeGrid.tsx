@@ -1,38 +1,149 @@
 "use client";
 
 import Image from "next/image";
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { createPrereleaseKit } from "@/actions/kit";
 import { Badge } from "@/components/ui/badge";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { COLLEGES, type CollegeDef } from "@/lib/mtg/colleges";
 import { cn } from "@/lib/utils";
 
 export function CollegeGrid() {
   const [isPending, startTransition] = useTransition();
+  const [selectedCollegeId, setSelectedCollegeId] = useState<string | null>(
+    null,
+  );
+
+  const selectedCollege =
+    COLLEGES.find((college) => college.id === selectedCollegeId) ?? null;
 
   function handleSelect(collegeId: string) {
+    setSelectedCollegeId(collegeId);
+  }
+
+  function handleConfirmSelection() {
+    if (!selectedCollegeId) return;
+
     startTransition(async () => {
-      await createPrereleaseKit(collegeId);
+      await createPrereleaseKit(selectedCollegeId);
     });
   }
 
   return (
-    <ul
-      className="flex h-full w-full flex-col gap-5 overflow-y-auto overflow-x-hidden px-2 pb-6 pt-1 [scrollbar-color:rgba(77,99,147,0.65)_transparent] [scrollbar-width:thin]"
-      style={{ scrollbarGutter: "stable both-edges" }}
-      aria-label="Select your Strixhaven college"
-    >
-      {COLLEGES.map((college) => (
-        <CollegeCard
-          key={college.id}
-          college={college}
-          isPending={isPending}
-          onSelect={handleSelect}
-        />
-      ))}
-    </ul>
+    <>
+      <ul
+        className="grid h-full w-full grid-cols-1 gap-5 overflow-y-auto overflow-x-hidden px-2 pb-6 pt-1 md:grid-cols-2"
+        aria-label="Select your Strixhaven college"
+      >
+        {COLLEGES.map((college) => (
+          <CollegeCard
+            key={college.id}
+            college={college}
+            isPending={isPending}
+            onSelect={handleSelect}
+          />
+        ))}
+      </ul>
+
+      <Dialog
+        open={selectedCollege !== null}
+        onOpenChange={(open) => {
+          if (!open && !isPending) setSelectedCollegeId(null);
+        }}
+      >
+        <DialogContent
+          className="max-w-[min(96vw,1200px)] rounded-[1.75rem] border border-white/10 bg-[#0d1017] p-0 text-white sm:max-w-[min(96vw,1200px)]"
+          showCloseButton={!isPending}
+        >
+          {selectedCollege ? (
+            <>
+              <DialogHeader className="px-6 pt-6 sm:px-8 sm:pt-8">
+                <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-white/40">
+                  Kit de prerelease
+                </p>
+                <DialogTitle
+                  className={cn(
+                    "text-3xl font-black tracking-[-0.05em] text-white",
+                    selectedCollege.theme.accentClass,
+                  )}
+                >
+                  {selectedCollege.name}
+                </DialogTitle>
+                <DialogDescription className="max-w-2xl text-sm leading-7 text-white/50">
+                  Seu kit sera aberto com 6 boosters de Strixhaven antes de ir
+                  para o simulador.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="px-6 pb-6 pt-4 sm:px-8">
+                <div className="overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                  <div className="flex min-w-max justify-center gap-3">
+                    {Array.from({ length: 6 }, (_, index) => ({
+                      boosterId: `booster-${index + 1}`,
+                      number: index + 1,
+                      priority: index < 3,
+                    })).map((booster) => (
+                      <div
+                        key={booster.boosterId}
+                        className={cn(
+                          "w-[150px] shrink-0 transition-all duration-500",
+                          isPending &&
+                            "animate-out fade-out-0 zoom-out-95 slide-out-to-bottom-6",
+                        )}
+                        style={{
+                          animationDelay: isPending
+                            ? `${booster.number * 45}ms`
+                            : undefined,
+                        }}
+                      >
+                        <div className="relative aspect-[0.72] overflow-hidden rounded-[0.9rem]">
+                          <Image
+                            src="/booster-secrets-of-strixhaven.png"
+                            alt={`Booster ${booster.number} de Strixhaven`}
+                            fill
+                            className="object-contain"
+                            priority={booster.priority}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <DialogFooter className="rounded-b-[1.75rem] border-t border-white/10 bg-white/[0.03] px-6 py-4 sm:px-8">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="border-white/10 bg-transparent text-white/70 hover:bg-white/[0.06]"
+                  onClick={() => setSelectedCollegeId(null)}
+                  disabled={isPending}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  type="button"
+                  className="bg-[#4d6393] text-white hover:bg-[#5f77ab]"
+                  onClick={handleConfirmSelection}
+                  disabled={isPending}
+                >
+                  {isPending ? "Abrindo kit..." : "Abrir kit"}
+                </Button>
+              </DialogFooter>
+            </>
+          ) : null}
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
@@ -123,13 +234,6 @@ function CollegeCard({
                   </div>
                 </div>
               </div>
-
-              <Badge
-                variant="outline"
-                className="hidden border-white/10 bg-white/[0.04] px-4 py-2 text-[10px] font-black uppercase tracking-[0.28em] text-white/55 md:inline-flex"
-              >
-                Strixhaven
-              </Badge>
             </div>
           </CardHeader>
 
@@ -172,7 +276,7 @@ function CollegeCard({
         {isPending && (
           <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/80 backdrop-blur-md">
             <div
-              className="w-8 h-8 border-4 border-t-transparent animate-spin rounded-full"
+              className="h-8 w-8 animate-spin rounded-full border-4 border-t-transparent"
               style={{
                 borderColor: theme.gradientFrom,
                 borderTopColor: "transparent",

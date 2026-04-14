@@ -21,7 +21,7 @@ export function TokenModal({
   const [power, setPower] = useState("1");
   const [toughness, setToughness] = useState("1");
   const [type, setType] = useState("Creature — Token");
-  const [color, setColor] = useState("");
+  const [color] = useState("");
   const [imageUrl, setImageUrl] = useState("");
 
   if (!isOpen) return null;

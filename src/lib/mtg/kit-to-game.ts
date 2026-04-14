@@ -1,5 +1,5 @@
-import type { CardDefinition, CardInstance } from "@/lib/game/types";
 import { generateCardDefId, generateCardInstanceId } from "@/lib/game/ids";
+import type { CardDefinition, CardInstance } from "@/lib/game/types";
 
 type KitCard = {
   id: string;
@@ -58,7 +58,8 @@ export function kitToGameData(
       definitions.push(def);
     }
 
-    const def = defByCardId.get(placed.card.id)!;
+    const def = defByCardId.get(placed.card.id);
+    if (!def) continue;
     const zone: CardInstance["zone"] = placed.isMainDeck
       ? "library"
       : "sideboard";

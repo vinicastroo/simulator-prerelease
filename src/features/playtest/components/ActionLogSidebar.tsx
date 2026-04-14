@@ -21,7 +21,7 @@ export function ActionLogSidebar({
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [entries, isOpen]);
+  });
 
   if (!isOpen) return null;
 

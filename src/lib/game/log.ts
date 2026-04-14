@@ -1,6 +1,6 @@
-import type { ActionLogEntry, GameState, PlayerId } from "./types";
 import type { GameAction } from "./actions";
 import { generateLogId } from "./ids";
+import type { ActionLogEntry, GameState, PlayerId } from "./types";
 
 function playerName(state: GameState, playerId: PlayerId): string {
   return state.players[playerId]?.name ?? playerId;

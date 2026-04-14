@@ -1,14 +1,14 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
+  canRedo,
+  canUndo,
   createHistory,
   pushHistory,
-  undoHistory,
   redoHistory,
-  canUndo,
-  canRedo,
+  undoHistory,
 } from "../history";
-import { createInitialGameState } from "../initial-state";
 import { generatePlayerId } from "../ids";
+import { createInitialGameState } from "../initial-state";
 
 function makeState(life: number) {
   const p = { id: generatePlayerId(), name: "Player" };

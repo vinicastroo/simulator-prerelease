@@ -1,6 +1,6 @@
+import { generateCardInstanceId } from "@/lib/game/ids";
 import type { CardDefinition, CardInstance } from "@/lib/game/types";
 import type { DeckJson } from "./deck-schema";
-import { generateCardInstanceId } from "@/lib/game/ids";
 
 export type NormalizedDeck = {
   definitions: CardDefinition[];

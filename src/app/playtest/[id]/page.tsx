@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getKitWithCards } from "@/actions/cards";
-import { PlaytestClient } from "../PlaytestClient";
 import { requireSessionUser } from "@/lib/auth-session";
 import { kitToGameData } from "@/lib/mtg/kit-to-game";
+import { PlaytestClient } from "../PlaytestClient";
 
 type Props = {
   params: { id: string };

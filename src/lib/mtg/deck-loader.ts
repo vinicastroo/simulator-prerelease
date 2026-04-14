@@ -1,7 +1,7 @@
-import { DeckSchema, isAllowedDeckUrl } from "./deck-schema";
 import { buildDefinitionsWithFallback } from "./card-fallback";
-import { normalizeDeck } from "./deck-normalize";
 import type { NormalizedDeck } from "./deck-normalize";
+import { normalizeDeck } from "./deck-normalize";
+import { DeckSchema, isAllowedDeckUrl } from "./deck-schema";
 
 export type DeckLoadResult =
   | { ok: true; deck: NormalizedDeck; name?: string }

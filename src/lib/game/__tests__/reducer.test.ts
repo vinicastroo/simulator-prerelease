@@ -1,11 +1,11 @@
-import { describe, it, expect } from "vitest";
-import { gameReducer } from "../reducer";
-import { createInitialGameState } from "../initial-state";
+import { describe, expect, it } from "vitest";
 import {
-  generatePlayerId,
   generateCardDefId,
   generateCardInstanceId,
+  generatePlayerId,
 } from "../ids";
+import { createInitialGameState } from "../initial-state";
+import { gameReducer } from "../reducer";
 import type { CardDefinition, CardInstance, GameState } from "../types";
 
 function makePlayer(name = "Alice") {

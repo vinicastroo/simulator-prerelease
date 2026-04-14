@@ -1,15 +1,5 @@
-import type { GameState, PlayerState, PlayerId } from "./types";
 import { generateGameId } from "./ids";
-
-const ALL_ZONES = [
-  "library",
-  "hand",
-  "battlefield",
-  "graveyard",
-  "exile",
-  "sideboard",
-  "command",
-] as const;
+import type { GameState, PlayerId, PlayerState } from "./types";
 
 function createPlayerState(id: PlayerId, name: string): PlayerState {
   return {

@@ -1,7 +1,7 @@
+import { generateCardDefId } from "@/lib/game/ids";
 import type { CardDefinition } from "@/lib/game/types";
 import type { DeckCard } from "./deck-schema";
 import { fetchCardsByNames, getCardImageUrl } from "./scryfall";
-import { generateCardDefId } from "@/lib/game/ids";
 
 /**
  * Build CardDefinitions from deck cards that are missing data,

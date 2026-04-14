@@ -72,11 +72,12 @@ export function CardView({
         </div>
       )}
 
-      {card.battlefield?.attachments && card.battlefield.attachments.length > 0 && (
-        <div className="absolute -top-2 -left-2 flex h-4 w-4 items-center justify-center rounded-full bg-orange-600 border border-white/20 text-[8px] text-white shadow-lg">
-          {card.battlefield.attachments.length}
-        </div>
-      )}
+      {card.battlefield?.attachments &&
+        card.battlefield.attachments.length > 0 && (
+          <div className="absolute -top-2 -left-2 flex h-4 w-4 items-center justify-center rounded-full bg-orange-600 border border-white/20 text-[8px] text-white shadow-lg">
+            {card.battlefield.attachments.length}
+          </div>
+        )}
 
       {Object.entries(card.counters).some(([, v]) => v > 0) && (
         <div className="absolute -bottom-1 left-0 right-0 flex flex-wrap gap-0.5 justify-center">

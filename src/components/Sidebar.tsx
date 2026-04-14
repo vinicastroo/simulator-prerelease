@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import Image from "next/image";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { forwardRef, useCallback, useEffect, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -50,6 +50,13 @@ const RARITY_ORDER: Record<string, number> = {
   COMMON: 3,
 };
 
+const SIDEBAR_CARD_NAME_LIMIT = 30;
+
+function truncateSidebarCardName(name: string) {
+  if (name.length <= SIDEBAR_CARD_NAME_LIMIT) return name;
+  return `${name.slice(0, SIDEBAR_CARD_NAME_LIMIT - 3)}...`;
+}
+
 function sortCards(cards: PlacedCardState[]) {
   return [...cards].sort(
     (a, b) =>
@@ -62,6 +69,7 @@ function sortCards(cards: PlacedCardState[]) {
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
 
 export function Sidebar() {
+  const router = useRouter();
   const {
     cards,
     isPending,
@@ -73,6 +81,9 @@ export function Sidebar() {
   } = usePrerelease();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isBasicLandsOpen, setIsBasicLandsOpen] = useState(false);
+  const [sidebarToast, setSidebarToast] = useState<string | null>(null);
+  const [isOversizeDeckDialogOpen, setIsOversizeDeckDialogOpen] =
+    useState(false);
 
   const mainDeck = sortCards(cards.filter((c) => c.isMainDeck === true));
   const sideboard = sortCards(cards.filter((c) => c.isMainDeck === false));
@@ -98,6 +109,30 @@ export function Sidebar() {
   const [draggingSidebarCardId, setDraggingSidebarCardId] = useState<
     string | null
   >(null);
+
+  useEffect(() => {
+    if (!sidebarToast) return;
+
+    const timeoutId = window.setTimeout(() => {
+      setSidebarToast(null);
+    }, 1800);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [sidebarToast]);
+
+  const handlePlaytestClick = useCallback(() => {
+    if (mainDeck.length > 40) {
+      setIsOversizeDeckDialogOpen(true);
+      return;
+    }
+
+    router.push(`/playtest/${kitId}`);
+  }, [kitId, mainDeck.length, router]);
+
+  const handleForcePlaytest = useCallback(() => {
+    setIsOversizeDeckDialogOpen(false);
+    router.push(`/playtest/${kitId}`);
+  }, [kitId, router]);
 
   const handleHover = useCallback((card: PlacedCardState, anchorY: number) => {
     setPreview({ card, anchorY });
@@ -270,11 +305,11 @@ export function Sidebar() {
             </p>
             <div className="mt-3">
               <Button
-                asChild
                 size="sm"
                 className="h-8 rounded-xl border border-[#3c5d8f]/45 bg-[#20304f]/70 text-[#d7e4ff] hover:bg-[#2a3d64]"
+                onClick={handlePlaytestClick}
               >
-                <Link href={`/playtest/${kitId}`}>Playtest</Link>
+                Playtest
               </Button>
             </div>
           </div>
@@ -475,8 +510,56 @@ export function Sidebar() {
         open={isBasicLandsOpen}
         isPending={isPending}
         onOpenChange={setIsBasicLandsOpen}
-        onAdd={(landName, quantity) => addBasicLandsToKit(landName, quantity)}
+        onAdd={(landName, quantity) => {
+          addBasicLandsToKit(landName, quantity);
+          setSidebarToast(
+            `${quantity} ${landName}${quantity > 1 ? "s" : ""} adicionado${quantity > 1 ? "s" : ""} ao deck`,
+          );
+        }}
       />
+
+      <Dialog
+        open={isOversizeDeckDialogOpen}
+        onOpenChange={setIsOversizeDeckDialogOpen}
+      >
+        <DialogContent className="max-w-[420px] border-white/10 bg-[#101317] text-white">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-black tracking-[-0.03em] text-white">
+              Deck com mais de 40 cartas
+            </DialogTitle>
+            <DialogDescription className="text-sm leading-6 text-white/55">
+              Seu deck principal esta com {mainDeck.length} cartas. O
+              recomendado para o playtest eh usar 40 cartas.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex justify-end gap-3 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="border-white/10 bg-transparent text-white/70 hover:bg-white/[0.06]"
+              onClick={() => setIsOversizeDeckDialogOpen(false)}
+            >
+              Voltar e ajustar
+            </Button>
+            <Button
+              type="button"
+              className="bg-[#4d6393] text-white hover:bg-[#5f77ab]"
+              onClick={handleForcePlaytest}
+            >
+              Testar o deck mesmo assim
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {sidebarToast ? (
+        <div className="pointer-events-none fixed inset-x-0 top-6 z-[220000000] flex justify-center px-4">
+          <div className="rounded-xl border border-white/10 bg-[#0e131a]/92 px-4 py-2 text-sm font-medium text-white shadow-2xl backdrop-blur-md">
+            {sidebarToast}
+          </div>
+        </div>
+      ) : null}
     </>
   );
 }
@@ -636,8 +719,8 @@ function CardRow({
           className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${RARITY_DOT[card.card.rarity] ?? "bg-white/20"} ${isDragging ? "opacity-100" : ""}`}
         />
 
-        <div className="flex min-w-0 flex-1 items-center justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-1.5">
+        <div className="flex min-w-0 flex-1 items-center justify-between gap-3 overflow-hidden">
+          <div className="flex min-w-0 flex-1 basis-0 items-center gap-1.5 overflow-hidden">
             {count > 1 && (
               <span
                 className={`font-mono text-[10px] font-semibold leading-none ${isDragging ? "text-[#d5e2ff]" : "text-[#8ea4d6]"}`}
@@ -646,9 +729,10 @@ function CardRow({
               </span>
             )}
             <span
-              className={`truncate text-[12px] leading-none ${isDragging ? "text-white" : "text-white/78"}`}
+              title={card.card.name}
+              className={`block min-w-0 flex-1 basis-0 overflow-hidden text-ellipsis whitespace-nowrap text-[12px] leading-none ${isDragging ? "text-white" : "text-white/78"}`}
             >
-              {card.card.name}
+              {truncateSidebarCardName(card.card.name)}
             </span>
             {card.isFoil && (
               <span

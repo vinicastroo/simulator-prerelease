@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import { loadDeckFromUrl, getDefaultDeckUrl } from "@/lib/mtg/deck-loader";
-import type { GameAction } from "@/lib/game/actions";
 import type { Dispatch } from "react";
+import { useCallback, useState } from "react";
+import type { GameAction } from "@/lib/game/actions";
+import { getDefaultDeckUrl, loadDeckFromUrl } from "@/lib/mtg/deck-loader";
 
 type DeckLoaderState =
   | { status: "idle" }
