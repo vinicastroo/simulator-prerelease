@@ -5,7 +5,6 @@ import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { type Prisma, PrismaClient, Rarity } from "@prisma/client";
 import axios from "axios";
-
 import { Pool } from "pg";
 import type { ScryfallSearchResponse } from "../types/scryfall";
 

@@ -2,6 +2,7 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import Image from "next/image";
+import Link from "next/link";
 import { forwardRef, useCallback, useEffect, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -28,7 +29,6 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   type PlacedCardState,
   usePrerelease,
@@ -65,6 +65,7 @@ export function Sidebar() {
   const {
     cards,
     isPending,
+    kitId,
     draggingCardId,
     setDeckZone,
     setDraggingCard,
@@ -267,6 +268,15 @@ export function Sidebar() {
             <p className="text-white/35 text-[11px] mt-0.5">
               Arraste cartas para adicionar
             </p>
+            <div className="mt-3">
+              <Button
+                asChild
+                size="sm"
+                className="h-8 rounded-xl border border-[#3c5d8f]/45 bg-[#20304f]/70 text-[#d7e4ff] hover:bg-[#2a3d64]"
+              >
+                <Link href={`/playtest/${kitId}`}>Playtest</Link>
+              </Button>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             {isPending && (
@@ -287,81 +297,63 @@ export function Sidebar() {
           </div>
         </div>
 
-        <ScrollArea className="relative mt-3 flex-1">
-          <div className="px-3 pb-3">
-            <Tabs defaultValue="summary">
-              <TabsList className="grid w-full grid-cols-2 rounded-[18px] bg-[#15191d]/88 p-1 shadow-[0_0_0_1px_rgba(49,69,111,0.26)]">
-                <TabsTrigger value="summary">Resumo</TabsTrigger>
-                <TabsTrigger value="curve">Curva</TabsTrigger>
-              </TabsList>
+        <ScrollArea className="relative mt-8 h-0 flex-1 [scrollbar-color:#31456f_transparent] [scrollbar-width:thin]">
+          <div className="min-h-full px-3 pb-3">
+            <Card className="overflow-hidden rounded-[22px] border border-[#30476f]/30 bg-[#15191d]/88 shadow-none ring-0">
+              <CardHeader className="border-b border-[#30476f]/30 pb-2">
+                <CardTitle className="font-mono text-[8px] font-bold uppercase tracking-[0.2em] text-[#7f95c9]">
+                  Resumo do Deck
+                </CardTitle>
+                <CardDescription className="text-[10px] text-white/28">
+                  Estado atual da build principal
+                </CardDescription>
+              </CardHeader>
 
-              <TabsContent value="summary">
-                <Card className="rounded-[22px] border-white/5 bg-[#15191d]/88 shadow-[0_0_0_1px_rgba(49,69,111,0.26)]">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="font-mono text-[8px] font-bold uppercase tracking-[0.2em] text-[#7f95c9]">
-                      Resumo do Deck
-                    </CardTitle>
-                    <CardDescription className="text-[10px] text-white/28">
-                      Estado atual da build principal
-                    </CardDescription>
-                  </CardHeader>
+              <CardContent className="space-y-1.5 pt-3">
+                <SummaryMetricRow
+                  label="Total"
+                  value={`${mainDeck.length}/40`}
+                  accent
+                />
+                <Separator className="bg-[#30476f]/30" />
+                <SummaryMetricRow label="Main" value={mainDeck.length} />
+                <SummaryMetricRow label="Sideboard" value={sideboard.length} />
+                <SummaryMetricRow label="Criaturas" value={creatureCount} />
+                <SummaryMetricRow label="Feitiços" value={spellCount} />
+                <SummaryMetricRow label="Terrenos" value={landCount} />
+              </CardContent>
+            </Card>
 
-                  <CardContent className="space-y-1.5 pt-0">
-                    <SummaryMetricRow
-                      label="Total"
-                      value={`${mainDeck.length}/40`}
-                      accent
+            <Card className="mt-3 overflow-hidden rounded-[22px] border border-[#30476f]/30 bg-[#15191d]/88 shadow-none ring-0">
+              <CardHeader className="border-b border-[#30476f]/30 pb-2">
+                <div className="flex items-center justify-between gap-3">
+                  <CardTitle className="font-mono text-[8px] font-bold uppercase tracking-[0.2em] text-[#7f95c9]">
+                    Curva de Mana
+                  </CardTitle>
+                  <span className="font-mono text-[8px] text-white/25">
+                    Main Deck
+                  </span>
+                </div>
+              </CardHeader>
+
+              <CardContent className="pt-3">
+                <div className="grid grid-cols-7 items-end gap-1.5">
+                  {curveEntries.map((entry) => (
+                    <ManaCurveBar
+                      key={entry.label}
+                      label={entry.label}
+                      value={entry.value}
+                      max={curveEntries.maxValue}
                     />
-                    <Separator className="bg-[#30476f]/30" />
-                    <SummaryMetricRow label="Main" value={mainDeck.length} />
-                    <SummaryMetricRow
-                      label="Sideboard"
-                      value={sideboard.length}
-                    />
-                    <SummaryMetricRow label="Criaturas" value={creatureCount} />
-                    <SummaryMetricRow label="Feitiços" value={spellCount} />
-                    <SummaryMetricRow label="Terrenos" value={landCount} />
-                  </CardContent>
-                </Card>
-              </TabsContent>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
 
-              <TabsContent value="curve">
-                <Card className="rounded-[22px] border-white/5 bg-[#15191d]/88 shadow-[0_0_0_1px_rgba(49,69,111,0.26)]">
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between gap-3">
-                      <CardTitle className="font-mono text-[8px] font-bold uppercase tracking-[0.2em] text-[#7f95c9]">
-                        Curva de Mana
-                      </CardTitle>
-                      <Badge
-                        variant="outline"
-                        className="border-white/10 bg-white/[0.03] text-white/45"
-                      >
-                        Main Deck
-                      </Badge>
-                    </div>
-                  </CardHeader>
-
-                  <CardContent className="pt-0">
-                    <div className="grid grid-cols-7 items-end gap-1.5">
-                      {curveEntries.map((entry) => (
-                        <ManaCurveBar
-                          key={entry.label}
-                          label={entry.label}
-                          value={entry.value}
-                          max={curveEntries.maxValue}
-                        />
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            </Tabs>
-
-            <Button
+            <button
               type="button"
-              variant="outline"
               onClick={() => setIsBasicLandsOpen(true)}
-              className="mt-3 flex h-auto w-full items-center justify-between rounded-[20px] border-white/5 bg-[#15191d]/80 px-3.5 py-3 text-left hover:bg-[#18202a]"
+              className="mt-3 flex w-full items-center justify-between rounded-[20px] bg-[#15191d]/80 px-3.5 py-3 text-left shadow-[0_0_0_1px_rgba(49,69,111,0.26)] transition-colors hover:bg-[#18202a]"
             >
               <div className="min-w-0 text-left">
                 <p className="font-mono text-[8px] font-bold uppercase tracking-[0.2em] text-[#7f95c9]">
@@ -371,10 +363,10 @@ export function Sidebar() {
                   Adiciona direto no main deck
                 </p>
               </div>
-              <Badge className="rounded-full border-[#30476f]/45 bg-[#162032]/75 px-2 text-[#b7c5e8]">
+              <span className="flex h-7 min-w-7 items-center justify-center rounded-full border border-[#30476f]/45 bg-[#162032]/75 px-2 font-mono text-[10px] text-[#b7c5e8]">
                 +
-              </Badge>
-            </Button>
+              </span>
+            </button>
 
             <DeckSection
               ref={mainZoneRef}
@@ -560,10 +552,10 @@ const SectionHeader = forwardRef<HTMLDivElement, SectionHeaderProps>(
         ref={ref}
         data-zone={dataZone}
         data-active="false"
-        className={`sticky top-0 z-10 mt-3 flex items-center justify-between rounded-t-[22px] px-3.5 py-2 backdrop-blur-md transition-colors ${
+        className={`sticky top-0 z-10 flex items-center justify-between rounded-t-[22px] border-b px-3.5 py-2 backdrop-blur-md transition-colors ${
           isActive
-            ? "bg-[#1a2433]/95 shadow-[0_0_0_1px_rgba(77,99,147,0.45)]"
-            : "bg-[#10151b]/95 shadow-[0_0_0_1px_rgba(49,69,111,0.28)]"
+            ? "border-[#4d6393]/35 bg-[#1a2433]/95"
+            : "border-[#30476f]/30 bg-[#10151b]/95"
         }`}
       >
         <span className="font-mono text-[8px] font-bold uppercase tracking-[0.16em] text-[#7f95c9]">
@@ -1002,13 +994,12 @@ function BasicLandsSheet({
 
 function EmptySlot({ message }: { message: string }) {
   return (
-    <div className="flex items-center justify-center rounded-b-[22px] bg-[#14181b]/78 px-4 py-8 shadow-[0_0_0_1px_rgba(49,69,111,0.34)]">
-      <Badge
-        variant="outline"
-        className="border-dashed border-white/10 bg-transparent px-3 py-1 text-white/35"
-      >
-        {message}
-      </Badge>
+    <div className="flex items-center justify-center rounded-b-[22px] bg-[#14181b]/78 px-4 py-8">
+      <div className="flex w-full items-center justify-center rounded-[18px] border border-dashed border-[#30476f]/35 bg-[#10151b]/55 px-4 py-6">
+        <p className="text-center font-mono text-[10px] uppercase tracking-[0.18em] text-white/26">
+          {message}
+        </p>
+      </div>
     </div>
   );
 }
@@ -1043,9 +1034,9 @@ const DeckSection = forwardRef<
       ref={ref}
       aria-label={label}
       data-zone={dataZone}
-      className={`relative rounded-[22px] transition-all duration-150 ${
+      className={`relative mt-3 overflow-hidden rounded-[22px] border border-[#30476f]/34 transition-all duration-150 ${
         isActive
-          ? "scale-[1.01] bg-[#1a2433]/28 shadow-[0_0_0_1px_rgba(77,99,147,0.38),0_12px_24px_rgba(0,0,0,0.18)]"
+          ? "scale-[1.01] border-[#4d6393]/45 bg-[#1a2433]/28 shadow-[0_12px_24px_rgba(0,0,0,0.18)]"
           : ""
       }`}
       onDragOver={(e) => {
@@ -1076,15 +1067,13 @@ const DeckSection = forwardRef<
       {isActive && (
         <div className="pointer-events-none absolute inset-0 rounded-[22px] bg-[linear-gradient(180deg,rgba(77,99,147,0.12),transparent_35%,rgba(77,99,147,0.08))]" />
       )}
-      <Card className="rounded-[22px] border-0 bg-transparent shadow-none">
-        <SectionHeader
-          label={label}
-          count={count}
-          dataZone={dataZone}
-          isActive={isActive}
-        />
-        {children}
-      </Card>
+      <SectionHeader
+        label={label}
+        count={count}
+        dataZone={dataZone}
+        isActive={isActive}
+      />
+      {children}
     </section>
   );
 });

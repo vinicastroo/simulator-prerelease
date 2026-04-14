@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { CollegeGrid } from "@/components/CollegeGrid";
 import { SignOutButton } from "@/components/SignOutButton";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { requireSessionUser } from "@/lib/auth-session";
 
 export const metadata: Metadata = {
@@ -13,83 +15,117 @@ export default async function Home() {
   await requireSessionUser();
 
   return (
-    <main className="relative w-screen h-screen overflow-hidden bg-bg-void flex flex-col">
+    <main className="relative min-h-screen overflow-hidden bg-[#06070a] text-white">
       <div className="fixed inset-0 z-0">
-        <div className="absolute inset-0 bg-gradient-to-b from-bg-void/40 via-bg-void/80 to-bg-void z-10" />
+        <div className="absolute inset-0 z-10 bg-gradient-to-b from-[#06070a]/30 via-[#06070a]/82 to-[#06070a]" />
         <div
           className="absolute inset-0"
           style={{
             background:
-              "radial-gradient(circle at 18% 20%, rgba(77,99,147,0.14), transparent 28%), radial-gradient(circle at 82% 24%, rgba(59,130,246,0.08), transparent 24%), radial-gradient(circle at 50% 78%, rgba(139,92,246,0.07), transparent 26%), linear-gradient(180deg, rgba(255,255,255,0.015), transparent 22%)",
+              "radial-gradient(circle at 14% 18%, rgba(77,99,147,0.22), transparent 26%), radial-gradient(circle at 80% 20%, rgba(59,130,246,0.1), transparent 22%), radial-gradient(circle at 52% 76%, rgba(103,73,154,0.1), transparent 24%), linear-gradient(180deg, rgba(255,255,255,0.025), transparent 20%)",
           }}
         />
         <div
-          className="absolute inset-0 opacity-[0.06]"
+          className="absolute inset-0 opacity-[0.05]"
           style={{
             backgroundImage:
               "linear-gradient(to right, rgba(255,255,255,0.06) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.04) 1px, transparent 1px)",
-            backgroundSize: "48px 48px",
+            backgroundSize: "56px 56px",
           }}
         />
+        <div className="pointer-events-none absolute inset-y-0 left-[8%] w-px bg-white/10" />
+        <div className="pointer-events-none absolute inset-y-0 right-[10%] w-px bg-white/5" />
       </div>
 
-      <div className="relative z-20 flex flex-col h-full w-full max-w-6xl mx-auto px-6">
-        <header className="flex flex-col gap-6 pt-8 pb-8 shrink-0">
+      <div className="relative z-20 mx-auto flex min-h-screen w-full max-w-7xl flex-col px-6 py-8 lg:px-10">
+        <header className="flex flex-col gap-10 pb-8">
           <div className="flex items-center justify-between gap-4">
-            <div />
+            <Badge
+              variant="outline"
+              className="border-[#30476f]/55 bg-[#162032]/50 px-3 py-1 text-[#9bb0e0]"
+            >
+              Selection Chamber
+            </Badge>
 
             <div className="flex items-center gap-3">
-              <Link
-                href="/decks"
-                className="rounded-full border border-white/10 bg-white/[0.05] px-4 py-2 text-[11px] font-bold uppercase tracking-[0.2em] text-white/75 transition hover:bg-white/[0.1]"
+              <Button
+                asChild
+                variant="outline"
+                className="rounded-full border-white/10 bg-white/[0.04] px-4 text-[11px] font-bold uppercase tracking-[0.2em] text-white/80 hover:bg-white/[0.1]"
               >
-                Meus decks
-              </Link>
+                <Link href="/decks">Meus decks</Link>
+              </Button>
               <SignOutButton />
             </div>
           </div>
 
-          <div className="flex flex-col items-center gap-2 text-center">
-            <div className="flex items-center gap-3 mb-1">
-              <div className="h-[1px] w-8 bg-gold-accent/40" />
-              <p className="text-gold-accent text-[10px] uppercase tracking-[0.4em] font-semibold">
+          <section className="grid gap-10 lg:grid-cols-[1.1fr_0.8fr] lg:items-end">
+            <div className="space-y-6">
+              <p className="text-[11px] font-bold uppercase tracking-[0.42em] text-[#8ea4d6]">
                 The Biblioplex
               </p>
-              <div className="h-[1px] w-8 bg-gold-accent/40" />
+              <div className="space-y-5">
+                <h1 className="max-w-4xl text-5xl font-black uppercase tracking-[-0.07em] text-white sm:text-6xl">
+                  escolha a faculdade que vai marcar o seu proximo arquivo de
+                  prerelease
+                </h1>
+                <p className="max-w-2xl text-sm leading-8 text-white/55 md:text-base">
+                  Cada escolha abre um eixo diferente de build. Aqui a selecao
+                  parece um ritual de catalogacao, nao uma grade comum de cards.
+                </p>
+              </div>
             </div>
 
-            <h1 className="text-4xl sm:text-5xl font-black text-white tracking-tighter uppercase">
-              Choose Your <span className="text-gold-accent">College</span>
-            </h1>
-
-            <p className="max-w-2xl text-sm text-white/45 leading-relaxed">
-              Role pela lista das faculdades e escolha a que vai guiar o seu
-              kit.
-            </p>
-          </div>
+            <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
+              <div className="rounded-[1.75rem] border border-white/10 bg-white/[0.03] p-5 backdrop-blur-sm">
+                <p className="text-[10px] uppercase tracking-[0.28em] text-white/35">
+                  Etapa
+                </p>
+                <p className="mt-3 text-2xl font-black text-white">Escolha</p>
+              </div>
+              <div className="rounded-[1.75rem] border border-white/10 bg-white/[0.03] p-5 backdrop-blur-sm">
+                <p className="text-[10px] uppercase tracking-[0.28em] text-white/35">
+                  Resultado
+                </p>
+                <p className="mt-3 text-2xl font-black text-white">Novo kit</p>
+              </div>
+              <div className="rounded-[1.75rem] border border-white/10 bg-white/[0.03] p-5 backdrop-blur-sm">
+                <p className="text-[10px] uppercase tracking-[0.28em] text-white/35">
+                  Fluxo
+                </p>
+                <p className="mt-3 text-2xl font-black text-white">Imediato</p>
+              </div>
+            </div>
+          </section>
         </header>
 
-        <div className="relative flex-1 overflow-hidden mb-4">
-          <div className="pointer-events-none absolute inset-x-0 top-0 z-20 h-10 bg-gradient-to-b from-bg-void via-bg-void/70 to-transparent" />
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 h-10 bg-gradient-to-t from-bg-void via-bg-void/70 to-transparent" />
+        <section className="relative mb-4 flex-1 overflow-hidden rounded-[2.25rem] border border-white/8 bg-[#0c0f15]/62 p-4 shadow-[0_30px_100px_rgba(0,0,0,0.38)] backdrop-blur-xl">
+          <div className="pointer-events-none absolute inset-0 rounded-[2.25rem] bg-[linear-gradient(180deg,rgba(255,255,255,0.03),transparent_24%)]" />
+          <div className="pointer-events-none absolute inset-x-0 top-0 z-20 h-12 bg-gradient-to-b from-[#0c0f15] via-[#0c0f15]/78 to-transparent" />
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 h-12 bg-gradient-to-t from-[#0c0f15] via-[#0c0f15]/78 to-transparent" />
 
-          <div className="mb-3 flex items-center justify-between px-2">
-            <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-gold-accent/55">
-              Scroll Vertically
-            </p>
-            <p className="text-[11px] text-white/30">
-              trackpad, roda do mouse ou arraste a barra
+          <div className="relative mb-4 flex flex-col gap-3 px-2 pb-2 md:flex-row md:items-end md:justify-between">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-[#91a7da]">
+                Active colleges
+              </p>
+              <h2 className="mt-2 text-2xl font-black tracking-[-0.04em] text-white">
+                selecione sua trilha de draft
+              </h2>
+            </div>
+            <p className="text-[11px] leading-6 text-white/35">
+              Role verticalmente e abra o kit direto do card da faculdade.
             </p>
           </div>
 
-          <div className="h-[calc(100%-2rem)] pb-8">
+          <div className="h-[calc(100%-4rem)] pb-6">
             <CollegeGrid />
           </div>
-        </div>
+        </section>
       </div>
 
-      <div className="fixed top-0 left-0 w-24 h-24 border-t border-l border-gold-accent/10 m-4 pointer-events-none" />
-      <div className="fixed bottom-0 right-0 w-24 h-24 border-b border-r border-gold-accent/10 m-4 pointer-events-none" />
+      <div className="pointer-events-none fixed left-0 top-0 m-4 h-24 w-24 border-l border-t border-gold-accent/10" />
+      <div className="pointer-events-none fixed bottom-0 right-0 m-4 h-24 w-24 border-b border-r border-gold-accent/10" />
     </main>
   );
 }

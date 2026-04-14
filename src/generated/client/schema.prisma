@@ -4,9 +4,8 @@
 // Get a free hosted Postgres database in seconds: `npx create-db`
 
 generator client {
-  provider        = "prisma-client-js"
-  previewFeatures = ["driverAdapters"]
-  output          = "../src/generated/client"
+  provider = "prisma-client-js"
+  output   = "../src/generated/client"
 }
 
 datasource db {
@@ -34,23 +33,45 @@ enum College {
   WITHERBLOOM
 }
 
+model User {
+  id           String          @id @default(cuid())
+  name         String
+  email        String          @unique
+  passwordHash String
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  kits         PrereleaseKit[]
+}
+
 model Card {
   id              String          @id @default(cuid())
   name            String
   scryfallId      String          @unique
   rarity          Rarity
   set             String
+  setName         String?
   colors          Json
+  manaCost        String?
   cmc             Int
   typeLine        String
+  oracleText      String?
+  flavorText      String?
+  power           String?
+  toughness       String?
+  loyalty         String?
+  artist          String?
+  releasedAt      String?
   imagePath       String
   collectorNumber String
+  rawData         Json?
   placedCards     PlacedCard[]
   promoInKits     PrereleaseKit[] @relation("PromoCard")
 }
 
 model PrereleaseKit {
   id          String       @id @default(cuid())
+  userId      String?
+  user        User?        @relation(fields: [userId], references: [id], onDelete: Cascade)
   college     College
   createdAt   DateTime     @default(now())
   promoCardId String?

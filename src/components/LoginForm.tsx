@@ -59,56 +59,67 @@ export function LoginForm() {
 
   return (
     <form onSubmit={handleSubmit} className="w-full max-w-md">
-      <Card className="border-white/10 bg-card/95 shadow-2xl shadow-black/35 backdrop-blur-xl">
-        <CardHeader className="space-y-3 text-center">
-          <p className="text-[10px] font-bold uppercase tracking-[0.35em] text-gold-accent/80">
+      <Card className="overflow-hidden rounded-[2rem] border border-white/12 bg-[#11131a]/92 shadow-[0_30px_120px_rgba(0,0,0,0.45)] backdrop-blur-2xl">
+        <div className="h-1 w-full bg-[linear-gradient(90deg,#4d6393_0%,#90a4da_50%,#4d6393_100%)]" />
+        <CardHeader className="space-y-4 px-8 pt-8 text-left">
+          <p className="text-[10px] font-bold uppercase tracking-[0.38em] text-[#91a7da]">
             Strixhaven Drafter
           </p>
-          <div className="space-y-2">
-            <CardTitle className="text-3xl font-black tracking-tight text-white">
+          <div className="space-y-3">
+            <CardTitle className="text-4xl font-black tracking-[-0.05em] text-white">
               Entrar
             </CardTitle>
-            <CardDescription className="text-sm text-muted-foreground">
+            <CardDescription className="max-w-sm text-sm leading-7 text-white/48">
               Acesse sua conta para ver e continuar seus decks.
             </CardDescription>
           </div>
         </CardHeader>
 
-        <CardContent className="space-y-6">
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="login-email">Email</Label>
+        <CardContent className="space-y-7 px-8 pb-8">
+          <div className="space-y-5">
+            <div className="space-y-2.5">
+              <Label
+                htmlFor="login-email"
+                className="text-[11px] uppercase tracking-[0.24em] text-white/55"
+              >
+                Email
+              </Label>
               <Input
                 id="login-email"
                 required
                 type="email"
                 name="email"
                 autoComplete="email"
-                className="h-11 rounded-xl bg-background/40"
+                className="h-12 rounded-2xl border-white/10 bg-black/20 px-4 text-white placeholder:text-white/20"
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="login-password">Senha</Label>
+            <div className="space-y-2.5">
+              <Label
+                htmlFor="login-password"
+                className="text-[11px] uppercase tracking-[0.24em] text-white/55"
+              >
+                Senha
+              </Label>
               <Input
                 id="login-password"
                 required
                 type="password"
                 name="password"
                 autoComplete="current-password"
-                className="h-11 rounded-xl bg-background/40"
+                className="h-12 rounded-2xl border-white/10 bg-black/20 px-4 text-white placeholder:text-white/20"
               />
             </div>
           </div>
 
           {successMessage ? (
-            <div className="rounded-xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-200">
+            <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-200">
               {successMessage}
             </div>
           ) : null}
 
           {error ? (
-            <div className="rounded-xl border border-red-400/20 bg-red-400/10 px-4 py-3 text-sm text-red-200">
+            <div className="rounded-2xl border border-red-400/20 bg-red-400/10 px-4 py-3 text-sm text-red-200">
               {error}
             </div>
           ) : null}
@@ -116,18 +127,18 @@ export function LoginForm() {
           <Button
             type="submit"
             disabled={isPending}
-            className="h-11 w-full rounded-xl bg-primary text-primary-foreground"
+            className="h-12 w-full rounded-2xl bg-[#4d6393] text-white shadow-[0_12px_30px_rgba(77,99,147,0.28)] hover:bg-[#5f77ab]"
           >
             {isPending ? "Entrando..." : "Entrar"}
           </Button>
 
           <Separator className="bg-white/10" />
 
-          <p className="text-center text-sm text-muted-foreground">
+          <p className="text-center text-sm text-white/42">
             Ainda nao tem conta?{" "}
             <Link
               href="/register"
-              className="font-semibold text-primary transition hover:text-primary/80"
+              className="font-semibold text-[#9ab1e6] transition hover:text-white"
             >
               Criar conta
             </Link>

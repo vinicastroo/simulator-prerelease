@@ -120,21 +120,41 @@ exports.Prisma.TransactionIsolationLevel = makeStrictEnum({
   Serializable: 'Serializable'
 });
 
+exports.Prisma.UserScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  email: 'email',
+  passwordHash: 'passwordHash',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
 exports.Prisma.CardScalarFieldEnum = {
   id: 'id',
   name: 'name',
   scryfallId: 'scryfallId',
   rarity: 'rarity',
   set: 'set',
+  setName: 'setName',
   colors: 'colors',
+  manaCost: 'manaCost',
   cmc: 'cmc',
   typeLine: 'typeLine',
+  oracleText: 'oracleText',
+  flavorText: 'flavorText',
+  power: 'power',
+  toughness: 'toughness',
+  loyalty: 'loyalty',
+  artist: 'artist',
+  releasedAt: 'releasedAt',
   imagePath: 'imagePath',
-  collectorNumber: 'collectorNumber'
+  collectorNumber: 'collectorNumber',
+  rawData: 'rawData'
 };
 
 exports.Prisma.PrereleaseKitScalarFieldEnum = {
   id: 'id',
+  userId: 'userId',
   college: 'college',
   createdAt: 'createdAt',
   promoCardId: 'promoCardId'
@@ -157,6 +177,11 @@ exports.Prisma.SortOrder = {
 };
 
 exports.Prisma.JsonNullValueInput = {
+  JsonNull: Prisma.JsonNull
+};
+
+exports.Prisma.NullableJsonNullValueInput = {
+  DbNull: Prisma.DbNull,
   JsonNull: Prisma.JsonNull
 };
 
@@ -191,6 +216,7 @@ exports.College = exports.$Enums.College = {
 };
 
 exports.Prisma.ModelName = {
+  User: 'User',
   Card: 'Card',
   PrereleaseKit: 'PrereleaseKit',
   PlacedCard: 'PlacedCard'
