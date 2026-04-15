@@ -8,6 +8,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { GameSettingsMenu } from "@/components/GameSettingsMenu";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -224,10 +225,17 @@ function PlaytestSurface({
   enableDeckTools: boolean;
   showOpeningHand: boolean;
 }) {
-  const { state, dispatch, localPlayerId } = useGameStore();
+  const { state, dispatch, localPlayerId, reset } = useGameStore();
   const didPrepareOpeningHandRef = useRef(false);
   const [isOpeningHandOpen, setIsOpeningHandOpen] = useState(showOpeningHand);
   const [openingHandIds, setOpeningHandIds] = useState<string[]>([]);
+
+  const handleReset = useCallback(() => {
+    didPrepareOpeningHandRef.current = false;
+    setOpeningHandIds([]);
+    setIsOpeningHandOpen(showOpeningHand);
+    reset();
+  }, [reset, showOpeningHand]);
 
   const openingHandCards = openingHandIds
     .map((cardId) => {
@@ -315,6 +323,7 @@ function PlaytestSurface({
     <div className="relative h-screen w-screen overflow-hidden">
       <Playmat playerName={playerName} />
       {enableDeckTools && <DeckLoaderPanel />}
+      <GameSettingsMenu onReset={handleReset} />
       <OpeningHandModal
         cards={openingHandCards}
         open={isOpeningHandOpen}

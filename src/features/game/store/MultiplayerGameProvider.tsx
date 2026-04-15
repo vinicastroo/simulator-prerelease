@@ -13,6 +13,7 @@ import {
 } from "react";
 import type { GameAction } from "@/lib/game/actions";
 import { gameReducer } from "@/lib/game/reducer";
+import { getGameSetup } from "@/lib/game/setup";
 import type { GameState } from "@/lib/game/types";
 import { getPusherClient } from "@/lib/pusher-client";
 
@@ -21,6 +22,8 @@ import { getPusherClient } from "@/lib/pusher-client";
 type MultiplayerGameContextValue = {
   state: GameState;
   dispatch: Dispatch<GameAction>;
+  requestReset: () => Promise<void>;
+  keepOpeningHand: () => Promise<void>;
   localPlayerId: string;
   opponentPlayerId: string;
   roomId: string;
@@ -28,6 +31,13 @@ type MultiplayerGameContextValue = {
   myRole: "host" | "guest";
   myUserId: string;
   activePings: Set<string>;
+  hostResetAccepted: boolean;
+  guestResetAccepted: boolean;
+  isResetPending: boolean;
+  stateVersion: number;
+  resetSyncVersion: number;
+  isFirstPlayerRollActive: boolean;
+  firstPlayerRollWinnerId: string | null;
 };
 
 const MultiplayerGameContext =
@@ -44,6 +54,8 @@ type MultiplayerGameProviderProps = {
   opponentPlayerId: string;
   myRole: "host" | "guest";
   myUserId: string;
+  initialHostResetAccepted: boolean;
+  initialGuestResetAccepted: boolean;
 };
 
 export function MultiplayerGameProvider({
@@ -55,6 +67,8 @@ export function MultiplayerGameProvider({
   opponentPlayerId,
   myRole,
   myUserId,
+  initialHostResetAccepted,
+  initialGuestResetAccepted,
 }: MultiplayerGameProviderProps) {
   const [state, setState] = useReducer(
     (_prev: GameState, next: GameState) => next,
@@ -64,6 +78,7 @@ export function MultiplayerGameProvider({
   stateRef.current = state;
 
   const versionRef = useRef(initialStateVersion);
+  const [stateVersion, setStateVersion] = useState(initialStateVersion);
 
   const [isConnected, setIsConnected] = useReducer(
     (_: boolean, next: boolean) => next,
@@ -71,6 +86,18 @@ export function MultiplayerGameProvider({
   );
 
   const [activePings, setActivePings] = useState<Set<string>>(new Set());
+  const [hostResetAccepted, setHostResetAccepted] = useState(
+    initialHostResetAccepted,
+  );
+  const [guestResetAccepted, setGuestResetAccepted] = useState(
+    initialGuestResetAccepted,
+  );
+  const [isResetPending, setIsResetPending] = useState(false);
+  const [resetSyncVersion, setResetSyncVersion] = useState(0);
+  const [isFirstPlayerRollActive, setIsFirstPlayerRollActive] = useState(false);
+  const [firstPlayerRollWinnerId, setFirstPlayerRollWinnerId] = useState<
+    string | null
+  >(null);
 
   const addPing = useCallback((cardId: string) => {
     setActivePings((prev) => new Set([...prev, cardId]));
@@ -106,6 +133,7 @@ export function MultiplayerGameProvider({
         if (res.ok) {
           const data = (await res.json()) as { seq: number };
           versionRef.current = data.seq;
+          setStateVersion(data.seq);
         } else {
           // Resync on any error (version conflict, etc.)
           const sync = await fetch(`/api/game/${roomId}/state`);
@@ -114,8 +142,10 @@ export function MultiplayerGameProvider({
               gameState: GameState;
               stateVersion: number;
             };
+            stateRef.current = data.gameState;
             setState(data.gameState);
             versionRef.current = data.stateVersion;
+            setStateVersion(data.stateVersion);
           }
         }
       } catch {
@@ -128,16 +158,62 @@ export function MultiplayerGameProvider({
     processingRef.current = false;
   }, [roomId]);
 
+  const resyncState = useCallback(async () => {
+    const res = await fetch(`/api/game/${roomId}/state`);
+    if (!res.ok) return;
+
+    const data = (await res.json()) as {
+      gameState: GameState;
+      stateVersion: number;
+      hostReady: boolean;
+      guestReady: boolean;
+    };
+
+    actionQueueRef.current = [];
+    processingRef.current = false;
+    stateRef.current = data.gameState;
+    setState(data.gameState);
+    versionRef.current = data.stateVersion;
+    setStateVersion(data.stateVersion);
+    setHostResetAccepted(Boolean(data.hostReady));
+    setGuestResetAccepted(Boolean(data.guestReady));
+  }, [roomId]);
+
   const dispatch = useCallback(
     (action: GameAction) => {
-      // Apply optimistically immediately
-      setState(gameReducer(stateRef.current, action));
+      // Apply optimistically immediately — update ref first so chained
+      // dispatches (e.g. shuffle then draw) build on each other correctly.
+      const nextState = gameReducer(stateRef.current, action);
+      stateRef.current = nextState;
+      setState(nextState);
       // Enqueue and drain serially so versions never conflict
       actionQueueRef.current.push(action);
       void processQueue();
     },
     [processQueue],
   );
+
+  const requestReset = useCallback(async () => {
+    setIsResetPending(true);
+
+    try {
+      const res = await fetch(`/api/game/${roomId}/reset`, {
+        method: "POST",
+      });
+
+      if (!res.ok) {
+        return;
+      }
+    } finally {
+      setIsResetPending(false);
+    }
+  }, [roomId]);
+
+  const keepOpeningHand = useCallback(async () => {
+    await fetch(`/api/game/${roomId}/keep-hand`, {
+      method: "POST",
+    });
+  }, [roomId]);
 
   // Pusher subscription
   useEffect(() => {
@@ -157,16 +233,38 @@ export function MultiplayerGameProvider({
           addPing(data.action.cardId);
           return;
         }
-        setState(gameReducer(stateRef.current, data.action));
+        const nextState = gameReducer(stateRef.current, data.action);
+        stateRef.current = nextState;
+        setState(nextState);
+      },
+    );
+
+    channel.bind("state-updated", () => {
+      void resyncState().then(() => {
+        if (getGameSetup(stateRef.current).mulligan.stage === "mulligan") {
+          setIsFirstPlayerRollActive(false);
+          setFirstPlayerRollWinnerId(null);
+        }
+        setResetSyncVersion((current) => current + 1);
+      });
+    });
+
+    channel.bind(
+      "first-player-roll-started",
+      (data: { winnerId: string; durationMs: number }) => {
+        setFirstPlayerRollWinnerId(data.winnerId);
+        setIsFirstPlayerRollActive(true);
+        window.setTimeout(() => {
+          setIsFirstPlayerRollActive(false);
+        }, data.durationMs);
       },
     );
 
     channel.bind(
-      "state-sync",
-      (data: { gameState: GameState; stateVersion: number }) => {
-        setState(data.gameState);
-        if (data.stateVersion !== undefined)
-          versionRef.current = data.stateVersion;
+      "reset-vote-updated",
+      (data: { hostReady: boolean; guestReady: boolean }) => {
+        setHostResetAccepted(data.hostReady);
+        setGuestResetAccepted(data.guestReady);
       },
     );
 
@@ -175,16 +273,7 @@ export function MultiplayerGameProvider({
     // Reconnect → resync
     client.connection.bind("connected", () => {
       setIsConnected(true);
-      void fetch(`/api/game/${roomId}/state`).then(async (res) => {
-        if (res.ok) {
-          const data = (await res.json()) as {
-            gameState: GameState;
-            stateVersion: number;
-          };
-          setState(data.gameState);
-          versionRef.current = data.stateVersion;
-        }
-      });
+      void resyncState();
     });
 
     client.connection.bind("disconnected", () => setIsConnected(false));
@@ -193,13 +282,15 @@ export function MultiplayerGameProvider({
       channel.unbind_all();
       client.unsubscribe(`game-${roomId}`);
     };
-  }, [roomId, myUserId, addPing]);
+  }, [roomId, myUserId, addPing, resyncState]);
 
   return (
     <MultiplayerGameContext.Provider
       value={{
         state,
         dispatch,
+        requestReset,
+        keepOpeningHand,
         localPlayerId,
         opponentPlayerId,
         roomId,
@@ -207,6 +298,13 @@ export function MultiplayerGameProvider({
         myRole,
         myUserId,
         activePings,
+        hostResetAccepted,
+        guestResetAccepted,
+        isResetPending,
+        stateVersion,
+        resetSyncVersion,
+        isFirstPlayerRollActive,
+        firstPlayerRollWinnerId,
       }}
     >
       {children}

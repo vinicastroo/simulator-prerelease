@@ -11,6 +11,10 @@ type Props = {
   myPlayerId: string;
   myUserId: string;
   myRole: "host" | "guest";
+  hostName: string;
+  guestName: string;
+  hostResetAccepted: boolean;
+  guestResetAccepted: boolean;
 };
 
 export function MultiplayerPlaytestClient({
@@ -20,6 +24,10 @@ export function MultiplayerPlaytestClient({
   myPlayerId,
   myUserId,
   myRole,
+  hostName,
+  guestName,
+  hostResetAccepted,
+  guestResetAccepted,
 }: Props) {
   const playerOrder = initialGameState.playerOrder;
   const opponentPlayerId =
@@ -34,8 +42,14 @@ export function MultiplayerPlaytestClient({
       opponentPlayerId={opponentPlayerId}
       myRole={myRole}
       myUserId={myUserId}
+      initialHostResetAccepted={hostResetAccepted}
+      initialGuestResetAccepted={guestResetAccepted}
     >
-      <MultiplayerPlaymat myRole={myRole} />
+      <MultiplayerPlaymat
+        myRole={myRole}
+        hostName={hostName}
+        guestName={guestName}
+      />
     </MultiplayerGameProvider>
   );
 }

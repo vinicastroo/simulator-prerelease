@@ -67,6 +67,13 @@ export async function POST(
         throw new Error("PLAYER_NOT_FOUND");
       }
 
+      if (
+        action.type === "turn/passTurn" &&
+        currentState.activePlayerId !== actorPlayerId
+      ) {
+        throw new Error("NOT_ACTIVE_PLAYER");
+      }
+
       const nextState = gameReducer(currentState, action);
       const nextVersion = room.stateVersion + 1;
 
@@ -87,11 +94,13 @@ export async function POST(
         ? 404
         : result.error === "FORBIDDEN"
           ? 403
-          : result.error === "VERSION_CONFLICT"
+          : result.error === "NOT_ACTIVE_PLAYER"
             ? 409
-            : result.error === "GAME_NOT_ACTIVE"
+            : result.error === "VERSION_CONFLICT"
               ? 409
-              : 500;
+              : result.error === "GAME_NOT_ACTIVE"
+                ? 409
+                : 500;
     return NextResponse.json({ error: result.error }, { status });
   }
 

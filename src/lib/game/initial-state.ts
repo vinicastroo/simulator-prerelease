@@ -1,4 +1,5 @@
 import { generateGameId } from "./ids";
+import { createInitialGameSetup } from "./setup";
 import type { GameState, PlayerId, PlayerState } from "./types";
 
 function createPlayerState(id: PlayerId, name: string): PlayerState {
@@ -47,5 +48,6 @@ export function createInitialGameState(
     cardDefinitions: {},
     cardInstances: {},
     log: [],
+    setup: createInitialGameSetup(),
   };
 }

@@ -151,6 +151,15 @@ export function Sidebar() {
     setViewing(card);
   }, []);
 
+  // Close the overview when the viewed card leaves the deck (dragged to canvas).
+  useEffect(() => {
+    if (!viewing) return;
+    const stillInDeck = cards.some(
+      (c) => c.id === viewing.id && c.isMainDeck !== null,
+    );
+    if (!stillInDeck) setViewing(null);
+  }, [cards, viewing]);
+
   // ── Zone highlight during drag ──
   // pointer events are captured by the dragged card, so CSS :hover doesn't work.
   // We use a global pointermove listener to manually set data-active on zones.
@@ -402,9 +411,18 @@ export function Sidebar() {
                 <p className="font-mono text-[8px] font-bold uppercase tracking-[0.2em] text-[#7f95c9]">
                   Terrenos Básicos
                 </p>
-                <p className="mt-1 text-[10px] text-white/28">
-                  Adiciona direto no main deck
-                </p>
+                <div className="mt-1.5 flex items-center gap-1">
+                  {["W", "U", "B", "R", "G"].map((c) => (
+                    <img
+                      key={c}
+                      src={`/${c}.svg`}
+                      alt={c}
+                      width={12}
+                      height={12}
+                      className="opacity-70"
+                    />
+                  ))}
+                </div>
               </div>
               <span className="flex h-7 min-w-7 items-center justify-center rounded-full border border-[#30476f]/45 bg-[#162032]/75 px-2 font-mono text-[10px] text-[#b7c5e8]">
                 +
@@ -417,6 +435,7 @@ export function Sidebar() {
               count={mainDeck.length}
               dataZone="main"
               isActive={activeSidebarDropZone === "main"}
+              isDragging={!!draggingSidebarCardId}
               onActivate={() => setActiveSidebarDropZone("main")}
               onDeactivate={() =>
                 setActiveSidebarDropZone((prev) =>
@@ -458,6 +477,7 @@ export function Sidebar() {
               count={sideboard.length}
               dataZone="side"
               isActive={activeSidebarDropZone === "side"}
+              isDragging={!!draggingSidebarCardId}
               onActivate={() => setActiveSidebarDropZone("side")}
               onDeactivate={() =>
                 setActiveSidebarDropZone((prev) =>
@@ -1103,6 +1123,7 @@ const DeckSection = forwardRef<
     count: number;
     dataZone: "main" | "side";
     isActive: boolean;
+    isDragging?: boolean;
     onActivate: () => void;
     onDeactivate: () => void;
     onDropCard: (ids: string[]) => void;
@@ -1114,6 +1135,7 @@ const DeckSection = forwardRef<
     count,
     dataZone,
     isActive,
+    isDragging = false,
     onActivate,
     onDeactivate,
     onDropCard,
@@ -1126,10 +1148,12 @@ const DeckSection = forwardRef<
       ref={ref}
       aria-label={label}
       data-zone={dataZone}
-      className={`relative mt-3 overflow-hidden rounded-[22px] border border-[#30476f]/34 transition-all duration-150 ${
+      className={`relative mt-3 overflow-hidden rounded-[22px] border transition-all duration-150 ${
         isActive
-          ? "scale-[1.01] border-[#4d6393]/45 bg-[#1a2433]/28 shadow-[0_12px_24px_rgba(0,0,0,0.18)]"
-          : ""
+          ? "scale-[1.01] border-[#4d93e8]/55 bg-[#1a2433]/40 shadow-[0_0_0_1px_rgba(77,147,232,0.18),0_12px_24px_rgba(0,0,0,0.18)]"
+          : isDragging
+            ? "border-[#4d6393]/60 bg-[#151c28]/30 shadow-[0_0_0_1px_rgba(77,99,147,0.12)]"
+            : "border-[#30476f]/34"
       }`}
       onDragOver={(e) => {
         if (hasDraggedPlacedCards(e.dataTransfer)) {
@@ -1157,7 +1181,10 @@ const DeckSection = forwardRef<
       }}
     >
       {isActive && (
-        <div className="pointer-events-none absolute inset-0 rounded-[22px] bg-[linear-gradient(180deg,rgba(77,99,147,0.12),transparent_35%,rgba(77,99,147,0.08))]" />
+        <div className="pointer-events-none absolute inset-0 rounded-[22px] bg-[linear-gradient(180deg,rgba(77,147,232,0.14),transparent_40%,rgba(77,147,232,0.06))]" />
+      )}
+      {isDragging && !isActive && (
+        <div className="pointer-events-none absolute inset-0 rounded-[22px] bg-[linear-gradient(180deg,rgba(77,99,147,0.07),transparent_50%)]" />
       )}
       <SectionHeader
         label={label}

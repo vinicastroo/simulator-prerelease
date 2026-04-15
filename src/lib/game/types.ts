@@ -95,6 +95,19 @@ export type ActionLogEntry = {
   actionType: string;
 };
 
+export type GameSetupState = {
+  mulligan:
+    | {
+        stage: "mulligan";
+        keptPlayerIds: PlayerId[];
+      }
+    | {
+        stage: "ready";
+        keptPlayerIds: PlayerId[];
+        firstPlayerId: PlayerId;
+      };
+};
+
 export type GameState = {
   id: string;
   createdAt: number;
@@ -107,4 +120,5 @@ export type GameState = {
   cardDefinitions: Record<CardDefId, CardDefinition>;
   cardInstances: Record<CardInstanceId, CardInstance>;
   log: ActionLogEntry[];
+  setup?: GameSetupState;
 };

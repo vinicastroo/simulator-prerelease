@@ -79,7 +79,13 @@ const PHASE_ORDER: TurnPhase[] = [
   "cleanup",
 ];
 
-export function Playmat({ playerName = "Você" }: { playerName?: string }) {
+export function Playmat({
+  playerName = "Você",
+  isRollingForFirstTurn = false,
+}: {
+  playerName?: string;
+  isRollingForFirstTurn?: boolean;
+}) {
   const {
     state,
     dispatch,
@@ -591,7 +597,10 @@ export function Playmat({ playerName = "Você" }: { playerName?: string }) {
     onTap: handleTapFocusedBattlefieldCard,
     onDraw: handleDraw,
     onShuffle: handleShuffle,
-    onAdvancePhase: () => dispatch({ type: "turn/passTurn" }),
+    onAdvancePhase: () => {
+      if (state.activePlayerId !== localPlayerId) return;
+      dispatch({ type: "turn/passTurn" });
+    },
     onRetreatPhase: handleRetreatPhase,
     onUndo: undo,
     onRedo: redo,
@@ -758,7 +767,8 @@ export function Playmat({ playerName = "Você" }: { playerName?: string }) {
             isActiveDropTarget={battlefieldDrop.isOver}
             isAnyDragActive={isAnyDragActive}
             interactive={true}
-            isActiveTurn={true}
+            isActiveTurn={state.activePlayerId === localPlayerId}
+            isRollingForFirstTurn={isRollingForFirstTurn}
             orientation="bottom"
             playerName={playerName}
             life={life}

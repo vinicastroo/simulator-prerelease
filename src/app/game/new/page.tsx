@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { requireSessionUser } from "@/lib/auth-session";
 import { prisma } from "@/lib/prisma";
+import { pusherServer } from "@/lib/pusher-server";
 import { NewGameForm } from "./NewGameForm";
 
 export default async function NewGamePage() {
@@ -25,6 +26,7 @@ export default async function NewGamePage() {
       data: { hostUserId: sessionUser.id },
       select: { id: true },
     });
+    await pusherServer.trigger("lobby", "room-opened", { id: room.id });
     redirect(`/game/${room.id}`);
   }
 

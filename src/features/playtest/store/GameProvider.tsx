@@ -31,6 +31,7 @@ export type GameContextValue = {
   dispatch: Dispatch<GameAction>;
   undo: () => void;
   redo: () => void;
+  reset: () => void;
   canUndo: boolean;
   canRedo: boolean;
   localPlayerId: string;
@@ -60,56 +61,66 @@ export function GameProvider({
   const localPlayerIdRef = useRef(generatePlayerId());
   const localPlayerId = localPlayerIdRef.current;
 
-  const baseState = createInitialGameState([
-    { id: localPlayerId, name: playerName },
-  ]);
+  const initialStateRef = useRef<GameState | null>(null);
 
-  // Apply the deck immediately into the initial state (no dispatch needed)
-  const initialState: GameState = initialDeck
-    ? (() => {
-        const defs = Object.fromEntries(
-          initialDeck.definitions.map((d) => [d.id, d]),
-        );
-        const normalizedInstances = initialDeck.instances.map((i) => ({
-          ...i,
-          ownerId: localPlayerId,
-          controllerId: localPlayerId,
-        }));
-        const insts = Object.fromEntries(
-          normalizedInstances.map((i) => [i.id, i]),
-        );
-        const libraryIds = normalizedInstances
-          .filter((i) => i.zone === "library")
-          .map((i) => i.id);
-        const sideboardIds = normalizedInstances
-          .filter((i) => i.zone === "sideboard")
-          .map((i) => i.id);
-        return {
-          ...baseState,
-          cardDefinitions: defs,
-          cardInstances: insts,
-          players: {
-            ...baseState.players,
-            [localPlayerId]: {
-              ...baseState.players[localPlayerId],
-              zones: {
-                ...baseState.players[localPlayerId].zones,
-                library: libraryIds,
-                sideboard: sideboardIds,
+  if (!initialStateRef.current) {
+    const baseState = createInitialGameState([
+      { id: localPlayerId, name: playerName },
+    ]);
+
+    initialStateRef.current = initialDeck
+      ? (() => {
+          const defs = Object.fromEntries(
+            initialDeck.definitions.map((d) => [d.id, d]),
+          );
+          const normalizedInstances = initialDeck.instances.map((i) => ({
+            ...i,
+            ownerId: localPlayerId,
+            controllerId: localPlayerId,
+          }));
+          const insts = Object.fromEntries(
+            normalizedInstances.map((i) => [i.id, i]),
+          );
+          const libraryIds = normalizedInstances
+            .filter((i) => i.zone === "library")
+            .map((i) => i.id);
+          const sideboardIds = normalizedInstances
+            .filter((i) => i.zone === "sideboard")
+            .map((i) => i.id);
+          return {
+            ...baseState,
+            cardDefinitions: defs,
+            cardInstances: insts,
+            players: {
+              ...baseState.players,
+              [localPlayerId]: {
+                ...baseState.players[localPlayerId],
+                zones: {
+                  ...baseState.players[localPlayerId].zones,
+                  library: libraryIds,
+                  sideboard: sideboardIds,
+                },
               },
             },
-          },
-        };
-      })()
-    : baseState;
+          };
+        })()
+      : baseState;
+  }
+
+  const initialState = initialStateRef.current;
 
   const [history, setHistory] = useReducer(
     (
       prev: GameHistory,
-      action: GameAction | { type: "__undo" } | { type: "__redo" },
+      action:
+        | GameAction
+        | { type: "__undo" }
+        | { type: "__redo" }
+        | { type: "__reset" },
     ) => {
       if (action.type === "__undo") return undoHistory(prev);
       if (action.type === "__redo") return redoHistory(prev);
+      if (action.type === "__reset") return createHistory(initialState);
       const next = gameReducer(prev.present, action as GameAction);
       return pushHistory(prev, next);
     },
@@ -122,6 +133,7 @@ export function GameProvider({
 
   const undo = useCallback(() => setHistory({ type: "__undo" }), []);
   const redo = useCallback(() => setHistory({ type: "__redo" }), []);
+  const reset = useCallback(() => setHistory({ type: "__reset" }), []);
 
   return (
     <GameContext.Provider
@@ -130,6 +142,7 @@ export function GameProvider({
         dispatch,
         undo,
         redo,
+        reset,
         canUndo: canUndo(history),
         canRedo: canRedo(history),
         localPlayerId,

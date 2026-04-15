@@ -53,6 +53,10 @@ export function GameRoomPage({
         myPlayerId={myPlayerId}
         myUserId={myUserId}
         myRole={myRole}
+        hostName={hostUser?.name ?? "Host"}
+        guestName={guestUser?.name ?? "Oponente"}
+        hostResetAccepted={hostReady}
+        guestResetAccepted={guestReady}
       />
     );
   }

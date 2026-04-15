@@ -21,6 +21,7 @@ type BattlefieldAreaProps = {
   isAnyDragActive: boolean;
   interactive: boolean;
   isActiveTurn: boolean;
+  isRollingForFirstTurn?: boolean;
   orientation: "top" | "bottom";
   playerName: string;
   life: number;
@@ -45,6 +46,7 @@ export function BattlefieldArea({
   isAnyDragActive,
   interactive,
   isActiveTurn,
+  isRollingForFirstTurn = false,
   orientation,
   playerName,
   life,
@@ -67,9 +69,11 @@ export function BattlefieldArea({
     <div
       ref={setRefs}
       className={`relative h-full w-full overflow-hidden rounded-2xl border bg-black/10 transition-colors ${
-        isActiveTurn
-          ? "border-cyan-400/60 shadow-[0_0_0_1px_rgba(34,211,238,0.25)]"
-          : "border-dashed border-white/15"
+        isRollingForFirstTurn
+          ? "animate-pulse border-violet-300 shadow-[0_0_0_2px_rgba(196,181,253,0.5),0_0_34px_rgba(168,85,247,0.35)]"
+          : isActiveTurn
+            ? "border-cyan-400/60 shadow-[0_0_0_1px_rgba(34,211,238,0.25)]"
+            : "border-dashed border-white/15"
       } ${
         interactive && isAnyDragActive
           ? isActiveDropTarget

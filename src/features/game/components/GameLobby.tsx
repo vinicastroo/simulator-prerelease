@@ -42,6 +42,7 @@ export function GameLobby({
   const [hostReady, setHostReady] = useState(initialHostReady);
   const [guestReady, setGuestReady] = useState(initialGuestReady);
   const [guestJoined, setGuestJoined] = useState(guestUser !== null);
+  const [guestName, setGuestName] = useState<string | null>(guestUser?.name ?? null);
   const [selectedKitId, setSelectedKitId] = useState<string>(myKitId ?? "");
   const [kitSaved, setKitSaved] = useState(false);
   const [isPendingKit, startKitTransition] = useTransition();
@@ -56,8 +57,9 @@ export function GameLobby({
     const client = getPusherClient();
     const channel = client.subscribe(`game-${roomId}`);
 
-    channel.bind("player-joined", () => {
+    channel.bind("player-joined", (data: { userId: string; name: string }) => {
       setGuestJoined(true);
+      setGuestName(data.name);
     });
 
     channel.bind("player-ready", (data: { role: "host" | "guest" }) => {
@@ -66,7 +68,7 @@ export function GameLobby({
     });
 
     channel.bind("game-started", () => {
-      router.refresh();
+      window.location.reload();
     });
 
     return () => {
@@ -144,7 +146,7 @@ export function GameLobby({
           />
           <PlayerCard
             label="Convidado"
-            user={guestJoined ? guestUser : null}
+            user={guestJoined ? (guestName ? { id: "", name: guestName } : guestUser) : null}
             kit={initialGuestKit}
             ready={guestReady}
             waiting={!guestJoined}

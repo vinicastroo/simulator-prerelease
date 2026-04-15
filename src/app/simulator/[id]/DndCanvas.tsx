@@ -200,10 +200,10 @@ function ZoomControls({
       <button
         type="button"
         title="Selecionar (V)"
-        disabled={!isCanvasView}
+        disabled={viewMode === "gallery"}
         onClick={() => setToolMode("select")}
         className={`w-10 h-10 flex items-center justify-center rounded-lg transition-colors ${
-          !isCanvasView
+          viewMode === "gallery"
             ? "text-white/20 cursor-not-allowed"
             : toolMode === "select"
               ? "bg-[#233455]/55 text-[#b8c6e6]"
@@ -215,10 +215,10 @@ function ZoomControls({
       <button
         type="button"
         title="Mover canvas (H)"
-        disabled={!isCanvasView}
+        disabled={viewMode === "gallery"}
         onClick={() => setToolMode(toolMode === "hand" ? "select" : "hand")}
         className={`w-10 h-10 flex items-center justify-center rounded-lg transition-colors text-base ${
-          !isCanvasView
+          viewMode === "gallery"
             ? "text-white/20 cursor-not-allowed"
             : toolMode === "hand"
               ? "bg-[#233455]/55 text-[#b8c6e6]"
@@ -265,7 +265,7 @@ export function DndCanvas() {
 
   const [scale, setScale] = useState(1);
   const [toolMode, setToolMode] = useState<ToolMode>("select");
-  const [viewMode, setViewMode] = useState<ViewMode>("canvas");
+  const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [gallerySortMode, setGallerySortMode] = useState<CanvasSortMode>("cmc");
   const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(
     new Set(),
@@ -669,10 +669,33 @@ export function DndCanvas() {
             />
           </motion.div>
         </div>
-      ) : viewMode === "gallery" ? (
-        <GalleryView cards={galleryCards} onOpenOverview={handleOpenOverview} />
       ) : (
-        <ListView cards={galleryCards} sortMode={gallerySortMode} toolMode={toolMode} onOpenOverview={handleOpenOverview} />
+        // Gallery / List — drop here = remove from deck, card returns to canvas
+        <div
+          className="h-full w-full"
+          onDragOver={(e) => {
+            if (
+              e.dataTransfer.types.includes("application/x-placed-card-id") ||
+              e.dataTransfer.types.includes("application/x-placed-card-ids")
+            ) {
+              e.preventDefault();
+              e.dataTransfer.dropEffect = "move";
+            }
+          }}
+          onDrop={(e) => {
+            const ids = getDraggedPlacedCardIds(e.dataTransfer);
+            if (ids.length === 0) return;
+            e.preventDefault();
+            setDeckZone(ids, null);
+            setDraggingCard(null);
+          }}
+        >
+          {viewMode === "gallery" ? (
+            <GalleryView cards={galleryCards} onOpenOverview={handleOpenOverview} />
+          ) : (
+            <ListView cards={galleryCards} sortMode={gallerySortMode} toolMode={toolMode} selectedIds={selectedIds} onSelect={handleCardSelect} onOpenOverview={handleOpenOverview} />
+          )}
+        </div>
       )}
 
       <ZoomControls
@@ -879,42 +902,71 @@ const PREVIEW_OFFSET_X = 18;
 function ListView({
   cards,
   toolMode,
+  selectedIds,
+  onSelect,
   onOpenOverview,
 }: {
   cards: PlacedCardState[];
   sortMode: CanvasSortMode;
   toolMode: ToolMode;
+  selectedIds: ReadonlySet<string>;
+  onSelect: (id: string, multi: boolean) => void;
   onOpenOverview: (placed: PlacedCardState) => void;
 }) {
   const { setDraggingCard } = usePrerelease();
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // ── Pan support ──
+  // ── Pan support (transform-based, works regardless of overflow) ──
   const isPanning = useRef(false);
-  const panStart = useRef({ x: 0, y: 0, sl: 0, st: 0 });
+  const panStart = useRef({ x: 0, y: 0, ox: 0, oy: 0 });
+  const panOffset = useRef({ x: 155, y: -7 });
+  const innerRef = useRef<HTMLDivElement>(null);
   const toolModeRef = useRef(toolMode);
   useEffect(() => { toolModeRef.current = toolMode; }, [toolMode]);
 
-  const onPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    if (toolModeRef.current !== "hand") return;
+  useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-    e.preventDefault();
-    isPanning.current = true;
-    panStart.current = { x: e.clientX, y: e.clientY, sl: el.scrollLeft, st: el.scrollTop };
-    el.setPointerCapture(e.pointerId);
-  }, []);
 
-  const onPointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    if (!isPanning.current) return;
-    const el = containerRef.current;
-    if (!el) return;
-    el.scrollLeft = panStart.current.sl - (e.clientX - panStart.current.x);
-    el.scrollTop  = panStart.current.st - (e.clientY - panStart.current.y);
-  }, []);
+    // Apply default pan offset on mount
+    if (innerRef.current) {
+      const { x, y } = panOffset.current;
+      innerRef.current.style.transform = `translate(${x}px, ${y}px)`;
+    }
 
-  const onPointerUp = useCallback(() => {
-    isPanning.current = false;
+    const onDown = (e: PointerEvent) => {
+      if (toolModeRef.current !== "hand") return;
+      e.preventDefault();
+      isPanning.current = true;
+      panStart.current = { x: e.clientX, y: e.clientY, ox: panOffset.current.x, oy: panOffset.current.y };
+      el.setPointerCapture(e.pointerId);
+    };
+
+    const onMove = (e: PointerEvent) => {
+      if (!isPanning.current) return;
+      const nx = panStart.current.ox + (e.clientX - panStart.current.x);
+      const ny = panStart.current.oy + (e.clientY - panStart.current.y);
+      panOffset.current = { x: nx, y: ny };
+      if (innerRef.current) {
+        innerRef.current.style.transform = `translate(${nx}px, ${ny}px)`;
+      }
+    };
+
+    const onUp = () => {
+      isPanning.current = false;
+      console.log("[ListView pan]", panOffset.current);
+    };
+
+    el.addEventListener("pointerdown", onDown);
+    el.addEventListener("pointermove", onMove);
+    el.addEventListener("pointerup", onUp);
+    el.addEventListener("pointercancel", onUp);
+    return () => {
+      el.removeEventListener("pointerdown", onDown);
+      el.removeEventListener("pointermove", onMove);
+      el.removeEventListener("pointerup", onUp);
+      el.removeEventListener("pointercancel", onUp);
+    };
   }, []);
 
   // ── Hover preview ──
@@ -975,13 +1027,10 @@ function ListView({
     <>
       <div
         ref={containerRef}
-        className="h-full w-full overflow-x-auto overflow-y-auto [scrollbar-color:#31456f_transparent] [scrollbar-width:thin] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#31456f]/80 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar]:h-1.5"
+        className="h-full w-full overflow-hidden"
         style={{ cursor: isHand ? "grab" : "default" }}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
       >
-        <div className="flex h-full min-w-max items-start gap-4 px-8 py-8">
+        <div ref={innerRef} className="flex min-w-max items-start gap-4 px-8 py-8" style={{ willChange: "transform" }}>
           {columns.map(({ key, items }) => {
             const label = key === "Multi" ? "Multi" : key === "Incolor" ? "Incolor" : key === "Terra" ? "Terra" : (COLOR_LABEL[key] ?? key);
             const accent = LIST_COLUMN_ACCENT[key] ?? "#7f95c9";
@@ -1008,19 +1057,26 @@ function ListView({
                 <div className="relative" style={{ height: stackH }}>
                   {items.map((placed, i) => {
                     const isLast = i === items.length - 1;
+                    const isCardSelected = selectedIds.has(placed.id);
                     return (
                       <button
                         key={placed.id}
                         type="button"
                         draggable
-                        onClick={() => onOpenOverview(placed)}
+                        onClick={(e) => {
+                          onSelect(placed.id, e.ctrlKey || e.metaKey || e.shiftKey);
+                        }}
+                        onDoubleClick={() => onOpenOverview(placed)}
                         onMouseEnter={(e) => setPreview({ placed, cx: e.clientX, cy: e.clientY })}
                         onMouseMove={(e) => setPreview((p) => p?.placed.id === placed.id ? { placed, cx: e.clientX, cy: e.clientY } : p)}
                         onMouseLeave={hidePreview}
                         onDragStart={(e) => {
                           hidePreview();
-                          e.dataTransfer.setData("application/x-placed-card-id", placed.id);
-                          e.dataTransfer.setData("application/x-placed-card-ids", JSON.stringify([placed.id]));
+                          const ids = isCardSelected && selectedIds.size > 1
+                            ? Array.from(selectedIds)
+                            : [placed.id];
+                          e.dataTransfer.setData("application/x-placed-card-id", ids[0]);
+                          e.dataTransfer.setData("application/x-placed-card-ids", JSON.stringify(ids));
                           e.dataTransfer.effectAllowed = "move";
                           setDraggingCard(placed.id);
                         }}
@@ -1032,6 +1088,7 @@ function ListView({
                           width: CARD_W,
                           height: isLast ? CARD_H : STACK_OFFSET,
                           overflow: isLast ? "visible" : "hidden",
+                          pointerEvents: isHand ? "none" : undefined,
                         }}
                       >
                         <div
@@ -1060,6 +1117,15 @@ function ListView({
                               style={{ background: RARITY_COLOR[placed.card.rarity] ?? "#64748b" }}
                             />
                           )}
+                          {/* Selection highlight */}
+                          <div
+                            className="absolute inset-0 pointer-events-none transition-opacity duration-75"
+                            style={{
+                              borderRadius: 10,
+                              boxShadow: "0 0 0 2px #4d6393, 0 0 14px 2px rgba(77,99,147,0.45)",
+                              opacity: isCardSelected ? 1 : 0,
+                            }}
+                          />
                         </div>
                       </button>
                     );
