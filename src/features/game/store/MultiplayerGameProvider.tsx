@@ -137,25 +137,10 @@ export function MultiplayerGameProvider({
         });
 
         if (res.ok) {
+          // State already applied optimistically in dispatch — just update version.
           const data = (await res.json()) as { seq: number };
-          const sync = await fetch(`/api/game/${roomId}/state`);
-          if (sync.ok) {
-            const synced = (await sync.json()) as {
-              gameState: GameState;
-              stateVersion: number;
-              hostReady: boolean;
-              guestReady: boolean;
-            };
-            stateRef.current = synced.gameState;
-            setState(synced.gameState);
-            versionRef.current = synced.stateVersion;
-            setStateVersion(synced.stateVersion);
-            setHostResetAccepted(Boolean(synced.hostReady));
-            setGuestResetAccepted(Boolean(synced.guestReady));
-          } else {
-            versionRef.current = data.seq;
-            setStateVersion(data.seq);
-          }
+          versionRef.current = data.seq;
+          setStateVersion(data.seq);
         } else {
           // Resync on any error (version conflict, etc.)
           const sync = await fetch(`/api/game/${roomId}/state`);
@@ -163,11 +148,15 @@ export function MultiplayerGameProvider({
             const data = (await sync.json()) as {
               gameState: GameState;
               stateVersion: number;
+              hostReady: boolean;
+              guestReady: boolean;
             };
             stateRef.current = data.gameState;
             setState(data.gameState);
             versionRef.current = data.stateVersion;
             setStateVersion(data.stateVersion);
+            setHostResetAccepted(Boolean(data.hostReady));
+            setGuestResetAccepted(Boolean(data.guestReady));
           }
         }
       } catch {
@@ -204,7 +193,11 @@ export function MultiplayerGameProvider({
 
   const dispatch = useCallback(
     (action: GameAction) => {
-      // Enqueue and let the server-confirmed result update local state.
+      // Apply immediately (optimistic) — same reducer the server uses.
+      const nextState = gameReducer(stateRef.current, action);
+      stateRef.current = nextState;
+      setState(nextState);
+
       actionQueueRef.current.push(action);
       setPendingActionCount((current) => current + 1);
       void processQueue();

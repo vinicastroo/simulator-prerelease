@@ -26,18 +26,8 @@ export async function POST(
     return NextResponse.json({ error: "action required" }, { status: 400 });
   }
 
-  // card/ping is UI-only — skip DB write and broadcast directly
+  // card/ping is UI-only — skip DB write, broadcast immediately (session already validates user)
   if (action.type === "card/ping") {
-    const room = await prisma.gameRoom.findUnique({
-      where: { id: roomId },
-      select: { hostUserId: true, guestUserId: true, status: true },
-    });
-    if (!room || room.status !== "ACTIVE") {
-      return NextResponse.json({ error: "GAME_NOT_ACTIVE" }, { status: 409 });
-    }
-    if (room.hostUserId !== userId && room.guestUserId !== userId) {
-      return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
-    }
     await pusherServer.trigger(`game-${roomId}`, "game-action", {
       action,
       actorUserId: userId,
