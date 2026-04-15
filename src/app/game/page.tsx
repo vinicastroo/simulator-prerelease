@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { TopNav } from "@/components/TopNav";
 import { RoomListClient } from "@/features/game/components/RoomListClient";
 import { requireSessionUser } from "@/lib/auth-session";
 import { prisma } from "@/lib/prisma";
@@ -38,14 +39,9 @@ export default async function GameListPage() {
     <div className="min-h-screen bg-[#08090d] text-white">
       <div className="mx-auto flex min-h-screen w-full max-w-3xl flex-col px-6 py-8 lg:px-8">
         {/* Header */}
-        <header className="flex items-center justify-between gap-4 border-b border-white/8 pb-5">
-          <Link
-            href="/"
-            className="font-mono text-[10px] uppercase tracking-[0.28em] text-white/40 hover:text-white/70 transition-colors"
-          >
-            ← Início
-          </Link>
-          <div className="flex items-center gap-3">
+        <header className="pb-5">
+          <TopNav activePage="game" />
+          <div className="mt-4 flex items-center justify-end gap-3">
             {myActiveRoom && (
               <Link
                 href={`/game/${myActiveRoom.id}`}

@@ -1,4 +1,6 @@
-import PusherJs from "pusher-js";
+import * as PusherJsModule from "pusher-js";
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const PusherJs = ((PusherJsModule as any).default ?? PusherJsModule) as typeof import("pusher-js").default;
 
 const globalForPusher = globalThis as unknown as { pusherClient: PusherJs };
 

@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { SignOutButton } from "@/components/SignOutButton";
+import { TopNav } from "@/components/TopNav";
 import { Button } from "@/components/ui/button";
 import { requireSessionUser } from "@/lib/auth-session";
 import { COLLEGES } from "@/lib/mtg/colleges";
@@ -29,7 +29,8 @@ export default async function DecksPage() {
     <main className="h-dvh overflow-hidden bg-[#06070a] text-white">
       <div className="mx-auto flex h-full max-w-5xl flex-col px-4 py-4 sm:px-6 sm:py-6">
         <header className="shrink-0 px-1 pb-4">
-          <div className="flex flex-wrap items-end justify-between gap-4">
+          <TopNav activePage="decks" />
+          <div className="mt-6 flex flex-wrap items-end justify-between gap-4">
             <div>
               <p className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.38em] text-white/35">
                 {kits.length} {kits.length === 1 ? "deck" : "decks"}
@@ -46,7 +47,6 @@ export default async function DecksPage() {
               >
                 <Link href="/">Novo deck</Link>
               </Button>
-              <SignOutButton />
             </div>
           </div>
         </header>
