@@ -189,7 +189,7 @@ export function MultiplayerPlaymat({
     !opponentHasKeptOpeningHand;
   const isRollingFirstPlayer = multiCtx.isFirstPlayerRollActive;
 
-  const [opponentBattlefieldZoom, setOpponentBattlefieldZoom] = useState(1);
+  const [opponentBattlefieldZoom, setOpponentBattlefieldZoom] = useState(BATTLEFIELD_ZOOM_MIN);
   const [opponentZonePreview, setOpponentZonePreview] =
     useState<OpponentZonePreview>(null);
   const [opponentPreviewCard, setOpponentPreviewCard] =

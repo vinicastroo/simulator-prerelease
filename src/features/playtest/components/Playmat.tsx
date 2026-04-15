@@ -135,7 +135,7 @@ export function Playmat({
   const [focusedBattlefieldCardId, setFocusedBattlefieldCardId] = useState<
     string | null
   >(null);
-  const [battlefieldZoom, setBattlefieldZoom] = useState(1);
+  const [battlefieldZoom, setBattlefieldZoom] = useState(BATTLEFIELD_ZOOM_MIN);
 
   const [activeDrag, setActiveDrag] = useState<ActiveDragState | null>(null);
   const [centerToast, setCenterToast] = useState<CenterToast | null>(null);
