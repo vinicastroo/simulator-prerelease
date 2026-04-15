@@ -14,7 +14,7 @@ import {
 import type { GameAction } from "@/lib/game/actions";
 import { gameReducer } from "@/lib/game/reducer";
 import type { GameState } from "@/lib/game/types";
-import { pusherClient } from "@/lib/pusher-client";
+import { getPusherClient } from "@/lib/pusher-client";
 
 // ─── Context types ────────────────────────────────────────────────────────────
 
@@ -141,7 +141,8 @@ export function MultiplayerGameProvider({
 
   // Pusher subscription
   useEffect(() => {
-    const channel = pusherClient.subscribe(`game-${roomId}`);
+    const client = getPusherClient();
+    const channel = client.subscribe(`game-${roomId}`);
 
     channel.bind("pusher:subscription_succeeded", () => setIsConnected(true));
     channel.bind("pusher:subscription_error", () => setIsConnected(false));
@@ -172,7 +173,7 @@ export function MultiplayerGameProvider({
     setIsConnected(true);
 
     // Reconnect → resync
-    pusherClient.connection.bind("connected", () => {
+    client.connection.bind("connected", () => {
       setIsConnected(true);
       void fetch(`/api/game/${roomId}/state`).then(async (res) => {
         if (res.ok) {
@@ -186,11 +187,11 @@ export function MultiplayerGameProvider({
       });
     });
 
-    pusherClient.connection.bind("disconnected", () => setIsConnected(false));
+    client.connection.bind("disconnected", () => setIsConnected(false));
 
     return () => {
       channel.unbind_all();
-      pusherClient.unsubscribe(`game-${roomId}`);
+      client.unsubscribe(`game-${roomId}`);
     };
   }, [roomId, myUserId, addPing]);
 

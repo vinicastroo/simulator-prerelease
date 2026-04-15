@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
-import { pusherClient } from "@/lib/pusher-client";
+import { getPusherClient } from "@/lib/pusher-client";
 
 type Kit = { id: string; college: string } | null;
 type UserInfo = { id: string; name: string } | null;
@@ -53,7 +53,8 @@ export function GameLobby({
 
   // Pusher subscriptions
   useEffect(() => {
-    const channel = pusherClient.subscribe(`game-${roomId}`);
+    const client = getPusherClient();
+    const channel = client.subscribe(`game-${roomId}`);
 
     channel.bind("player-joined", () => {
       setGuestJoined(true);
@@ -70,7 +71,7 @@ export function GameLobby({
 
     return () => {
       channel.unbind_all();
-      pusherClient.unsubscribe(`game-${roomId}`);
+      client.unsubscribe(`game-${roomId}`);
     };
   }, [roomId, router]);
 

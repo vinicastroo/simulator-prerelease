@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { pusherClient } from "@/lib/pusher-client";
+import { getPusherClient } from "@/lib/pusher-client";
 
 type RoomRow = {
   id: string;
@@ -27,14 +27,15 @@ export function RoomListClient({ initialRooms }: { initialRooms: RoomRow[] }) {
   const router = useRouter();
 
   useEffect(() => {
-    const channel = pusherClient.subscribe("lobby");
+    const client = getPusherClient();
+    const channel = client.subscribe("lobby");
 
     channel.bind("room-opened", () => router.refresh());
     channel.bind("room-closed", () => router.refresh());
 
     return () => {
       channel.unbind_all();
-      pusherClient.unsubscribe("lobby");
+      client.unsubscribe("lobby");
     };
   }, [router]);
 
