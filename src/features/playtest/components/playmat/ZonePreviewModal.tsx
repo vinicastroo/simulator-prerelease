@@ -14,12 +14,17 @@ type ZonePreviewModalProps = {
   zone: "graveyard" | "exile" | null;
   cards: ZonePreviewCard[];
   onClose: () => void;
+  onHoverCard?: (
+    info: { name: string; imageUrl: string | null } | null,
+    target: HTMLElement | null,
+  ) => void;
 };
 
 export function ZonePreviewModal({
   zone,
   cards,
   onClose,
+  onHoverCard,
 }: ZonePreviewModalProps) {
   useEffect(() => {
     if (!zone) return;
@@ -62,7 +67,16 @@ export function ZonePreviewModal({
         ) : (
           <div className="flex flex-wrap gap-3">
             {cards.map((card) => (
-              <div key={card.id} className="flex flex-col items-center gap-1">
+              <div
+                key={card.id}
+                className="flex flex-col items-center gap-1"
+                onMouseEnter={
+                  onHoverCard
+                    ? (e) => onHoverCard({ name: card.name, imageUrl: card.imageUrl }, e.currentTarget)
+                    : undefined
+                }
+                onMouseLeave={onHoverCard ? () => onHoverCard(null, null) : undefined}
+              >
                 <div className="relative h-[209px] w-[150px] overflow-hidden rounded-[8px] border border-white/10">
                   {card.imageUrl ? (
                     <Image

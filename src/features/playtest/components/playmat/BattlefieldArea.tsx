@@ -16,45 +16,61 @@ type BattlefieldDisplayCard = {
 };
 
 type BattlefieldAreaProps = {
-  setRefs: (node: HTMLDivElement | null) => void;
+  setRefs?: (node: HTMLDivElement | null) => void;
   isActiveDropTarget: boolean;
   isAnyDragActive: boolean;
+  interactive: boolean;
+  isActiveTurn: boolean;
+  orientation: "top" | "bottom";
   playerName: string;
   life: number;
   turnLabel: string;
   battlefieldZoom: number;
   battlefieldCards: BattlefieldDisplayCard[];
-  onWheel: (event: WheelEvent<HTMLDivElement>) => void;
-  onChangeLife: (delta: number) => void;
-  onAdjustZoom: (delta: number) => void;
-  onHoverCard: (
+  activePings?: Set<string>;
+  onWheel?: (event: WheelEvent<HTMLDivElement>) => void;
+  onChangeLife?: (delta: number) => void;
+  onAdjustZoom?: (delta: number) => void;
+  onHoverCard?: (
     cardId: string,
     info: CardHoverInfo | null,
     target: HTMLElement | null,
   ) => void;
-  onTapCard: (card: CardInstance) => void;
+  onPingCard?: (cardId: string) => void;
 };
 
 export function BattlefieldArea({
   setRefs,
   isActiveDropTarget,
   isAnyDragActive,
+  interactive,
+  isActiveTurn,
+  orientation,
   playerName,
   life,
   turnLabel,
   battlefieldZoom,
   battlefieldCards,
+  activePings,
   onWheel,
   onChangeLife,
   onAdjustZoom,
   onHoverCard,
-  onTapCard,
+  onPingCard,
 }: BattlefieldAreaProps) {
+  const hudPosition = orientation === "top"
+    ? "absolute left-3 bottom-3 z-20"
+    : "absolute left-3 top-3 z-20";
+
   return (
     <div
       ref={setRefs}
-      className={`relative h-full min-h-0 w-full overflow-hidden rounded-2xl border border-dashed border-white/25 bg-black/10 ${
-        isAnyDragActive
+      className={`relative h-full w-full overflow-hidden rounded-2xl border bg-black/10 transition-colors ${
+        isActiveTurn
+          ? "border-cyan-400/60 shadow-[0_0_0_1px_rgba(34,211,238,0.25)]"
+          : "border-dashed border-white/15"
+      } ${
+        interactive && isAnyDragActive
           ? isActiveDropTarget
             ? "ring-2 ring-cyan-400/80 bg-cyan-500/10"
             : "ring-1 ring-cyan-300/40 bg-cyan-500/5"
@@ -62,69 +78,75 @@ export function BattlefieldArea({
       }`}
       onWheel={onWheel}
     >
-      <div className="absolute left-3 top-3 z-20 flex items-center gap-3 rounded-xl border border-white/15 bg-black/35 px-3 py-2 backdrop-blur-sm">
+      {/* HUD */}
+      <div className={`${hudPosition} flex items-center gap-3 rounded-xl border border-white/15 bg-black/35 px-3 py-2 backdrop-blur-sm`}>
         <div>
           <p className="font-mono text-[9px] uppercase tracking-[0.3em] text-white/40">
-            Jogador
+            {interactive ? "Jogador" : "Oponente"}
           </p>
           <p className="text-sm font-bold text-white">{playerName}</p>
         </div>
 
         <div className="flex items-center gap-1.5">
+          {interactive && onChangeLife ? (
+            <>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                className="text-white/90 hover:bg-white/10 hover:text-white"
+                onClick={() => onChangeLife(-1)}
+              >
+                -
+              </Button>
+              <span className="min-w-8 text-center text-2xl font-black tabular-nums text-white">
+                {life}
+              </span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                className="text-white/90 hover:bg-white/10 hover:text-white"
+                onClick={() => onChangeLife(1)}
+              >
+                +
+              </Button>
+            </>
+          ) : (
+            <span className="min-w-8 text-center text-2xl font-black tabular-nums text-white">
+              {life}
+            </span>
+          )}
+        </div>
+
+      </div>
+
+      {/* Zoom controls */}
+      {onAdjustZoom && (
+        <div className="absolute right-3 top-3 z-20 flex items-center gap-1 text-[10px] font-semibold text-white/80">
           <Button
             type="button"
             variant="ghost"
             size="icon-sm"
             className="text-white/90 hover:bg-white/10 hover:text-white"
-            onClick={() => onChangeLife(-1)}
+            onClick={() => onAdjustZoom(-BATTLEFIELD_ZOOM_STEP)}
           >
             -
           </Button>
-          <span className="min-w-8 text-center text-2xl font-black tabular-nums text-white">
-            {life}
-          </span>
+          <div className="pointer-events-none rounded-md border border-white/15 bg-black/35 px-2 py-1 text-[10px] uppercase tracking-[0.2em] text-white/80">
+            Zoom ({Math.round(battlefieldZoom * 100)}%)
+          </div>
           <Button
             type="button"
             variant="ghost"
             size="icon-sm"
             className="text-white/90 hover:bg-white/10 hover:text-white"
-            onClick={() => onChangeLife(1)}
+            onClick={() => onAdjustZoom(BATTLEFIELD_ZOOM_STEP)}
           >
             +
           </Button>
         </div>
-
-        <div className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5">
-          <p className="font-mono text-[9px] uppercase tracking-[0.3em] text-white/40">
-            Turno
-          </p>
-          <p className="text-xs font-semibold text-white/90">{turnLabel}</p>
-        </div>
-      </div>
-
-      <div className="absolute right-3 top-3 z-20 flex items-center gap-1 text-[10px] font-semibold text-white/80">
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          className="text-white/90 hover:bg-white/10 hover:text-white"
-          onClick={() => onAdjustZoom(-BATTLEFIELD_ZOOM_STEP)}
-        >
-          -
-        </Button>
-        <div className="pointer-events-none rounded-md border border-white/15 bg-black/35 px-2 py-1 text-[10px] uppercase tracking-[0.2em] text-white/80">
-          Zoom ({Math.round(battlefieldZoom * 100)}%)
-        </div>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          className="text-white/90 hover:bg-white/10 hover:text-white"
-          onClick={() => onAdjustZoom(BATTLEFIELD_ZOOM_STEP)}
-        >
-          +
-        </Button>
-      </div>
+      )}
 
       <div
         className="relative h-full w-full"
@@ -156,8 +178,13 @@ export function BattlefieldArea({
               cardType={cardType}
               power={power}
               toughness={toughness}
-              onHover={(info, target) => onHoverCard(card.id, info, target)}
-              onTap={() => onTapCard(card)}
+              onHover={
+                onHoverCard
+                  ? (info, target) => onHoverCard(card.id, info, target)
+                  : () => {}
+              }
+              isPinged={activePings?.has(card.id)}
+              onPing={onPingCard ? () => onPingCard(card.id) : undefined}
             />
           ),
         )}

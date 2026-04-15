@@ -847,6 +847,10 @@ function applyAction(state: GameState, action: GameAction): GameState {
       };
     }
 
+    case "card/ping":
+      // UI-only signal — no state change; broadcast via Pusher for opponent to react
+      return state;
+
     default:
       return state;
   }

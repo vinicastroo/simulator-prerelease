@@ -40,6 +40,8 @@ model User {
   createdAt    DateTime        @default(now())
   updatedAt    DateTime        @updatedAt
   kits         PrereleaseKit[]
+  hostedRooms  GameRoom[]      @relation("HostRooms")
+  guestRooms   GameRoom[]      @relation("GuestRooms")
 }
 
 model Card {
@@ -74,8 +76,40 @@ model PrereleaseKit {
   college     College
   createdAt   DateTime     @default(now())
   promoCardId String?
-   promoCard   Card?        @relation("PromoCard", fields: [promoCardId], references: [id])
-   placedCards PlacedCard[]
+  promoCard   Card?        @relation("PromoCard", fields: [promoCardId], references: [id])
+  placedCards PlacedCard[]
+  hostedRooms GameRoom[]   @relation("HostKit")
+  guestRooms  GameRoom[]   @relation("GuestKit")
+}
+
+enum GameRoomStatus {
+  WAITING
+  LOBBY
+  READY
+  ACTIVE
+  FINISHED
+}
+
+model GameRoom {
+  id            String         @id @default(cuid())
+  status        GameRoomStatus @default(WAITING)
+  stateVersion  Int            @default(0)
+  hostUserId    String
+  hostKitId     String?
+  hostPlayerId  String?
+  hostReady     Boolean        @default(false)
+  guestUserId   String?
+  guestKitId    String?
+  guestPlayerId String?
+  guestReady    Boolean        @default(false)
+  gameState     Json?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  hostUser  User           @relation("HostRooms", fields: [hostUserId],  references: [id])
+  guestUser User?          @relation("GuestRooms", fields: [guestUserId], references: [id])
+  hostKit   PrereleaseKit? @relation("HostKit",   fields: [hostKitId],   references: [id])
+  guestKit  PrereleaseKit? @relation("GuestKit",  fields: [guestKitId],  references: [id])
 }
 
 model PlacedCard {

@@ -1,7 +1,7 @@
 import { useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import Image from "next/image";
-import { memo, useMemo } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import type { CardInstance } from "@/lib/game/types";
 import { CardBack } from "../CardBack";
 import { BATTLEFIELD_CARD_HEIGHT, BATTLEFIELD_CARD_WIDTH } from "./constants";
@@ -18,7 +18,10 @@ type BattlefieldCardProps = {
   power: string | null;
   toughness: string | null;
   onHover: (info: CardHoverInfo | null, target: HTMLElement | null) => void;
-  onTap: () => void;
+  /** Called on click so the parent can broadcast a ping to the opponent */
+  onPing?: () => void;
+  /** True when the opponent pinged this card (received via Pusher) */
+  isPinged?: boolean;
 };
 
 export const BattlefieldCard = memo(function BattlefieldCard({
@@ -30,8 +33,21 @@ export const BattlefieldCard = memo(function BattlefieldCard({
   power,
   toughness,
   onHover,
-  onTap,
+  onPing,
+  isPinged = false,
 }: BattlefieldCardProps) {
+  const [pinged, setPinged] = useState(false);
+
+  const handleClick = useCallback(() => {
+    setPinged(true);
+    onPing?.();
+  }, [onPing]);
+
+  useEffect(() => {
+    if (!pinged) return;
+    const t = setTimeout(() => setPinged(false), 500);
+    return () => clearTimeout(t);
+  }, [pinged]);
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({
       id: card.id,
@@ -70,7 +86,7 @@ export const BattlefieldCard = memo(function BattlefieldCard({
       onMouseEnter={(event) => onHover({ name, imageUrl }, event.currentTarget)}
       onMouseMove={(event) => onHover({ name, imageUrl }, event.currentTarget)}
       onMouseLeave={() => onHover(null, null)}
-      onClick={onTap}
+      onClick={handleClick}
       onContextMenu={(event) => event.preventDefault()}
       {...listeners}
       {...attributes}
@@ -82,6 +98,13 @@ export const BattlefieldCard = memo(function BattlefieldCard({
           height: `${BATTLEFIELD_CARD_HEIGHT}px`,
         }}
       >
+        {pinged && (
+          <div
+            className="pointer-events-none absolute inset-0 z-[60] animate-ping rounded-[4px] ring-2 ring-yellow-400/80 bg-yellow-400/15"
+            style={{ animationDuration: "0.5s" }}
+          />
+        )}
+
         <ManaCostBadges cardId={card.id} symbols={symbols} />
 
         {imageUrl ? (

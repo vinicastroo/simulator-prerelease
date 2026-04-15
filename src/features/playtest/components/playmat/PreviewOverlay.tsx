@@ -17,11 +17,13 @@ function getPreviewScale(viewportWidth: number) {
 type PreviewOverlayProps = {
   previewCard: CardHoverInfo | null;
   previewAnchor: PreviewAnchor | null;
+  preferBelow?: boolean;
 };
 
 export function PreviewOverlay({
   previewCard,
   previewAnchor,
+  preferBelow = false,
 }: PreviewOverlayProps) {
   if (!previewCard || !previewAnchor) return null;
 
@@ -39,9 +41,25 @@ export function PreviewOverlay({
   const availableLeft = previewAnchor.x - PREVIEW_MARGIN;
 
   let left = previewAnchor.x - verticalOffset;
-  let top = previewAnchor.y - previewHeight - PREVIEW_GAP;
+  let top = preferBelow
+    ? previewAnchor.y + PREVIEW_GAP
+    : previewAnchor.y - previewHeight - PREVIEW_GAP;
 
-  if (availableAbove >= previewHeight) {
+  if (preferBelow) {
+    if (availableBelow >= previewHeight) {
+      left = previewAnchor.x - verticalOffset;
+      top = previewAnchor.y + PREVIEW_GAP;
+    } else if (availableRight >= previewWidth) {
+      left = previewAnchor.x + PREVIEW_GAP;
+      top = previewAnchor.y - previewHeight / 2;
+    } else if (availableLeft >= previewWidth) {
+      left = previewAnchor.x - previewWidth - PREVIEW_GAP;
+      top = previewAnchor.y - previewHeight / 2;
+    } else {
+      left = previewAnchor.x - verticalOffset;
+      top = previewAnchor.y - previewHeight - PREVIEW_GAP;
+    }
+  } else if (availableAbove >= previewHeight) {
     left = previewAnchor.x - verticalOffset;
     top = previewAnchor.y - previewHeight - PREVIEW_GAP;
   } else if (availableRight >= previewWidth) {

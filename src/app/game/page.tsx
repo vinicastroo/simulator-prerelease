@@ -1,0 +1,113 @@
+import Link from "next/link";
+import { requireSessionUser } from "@/lib/auth-session";
+import { prisma } from "@/lib/prisma";
+import { RoomListClient } from "@/features/game/components/RoomListClient";
+
+export const dynamic = "force-dynamic";
+
+function collegeLabel(college: string) {
+  return college.charAt(0) + college.slice(1).toLowerCase();
+}
+
+function relativeTime(date: Date) {
+  const diffMs = Date.now() - date.getTime();
+  const diffMin = Math.floor(diffMs / 60_000);
+  if (diffMin < 1) return "agora mesmo";
+  if (diffMin === 1) return "1 min atrás";
+  if (diffMin < 60) return `${diffMin} min atrás`;
+  const diffH = Math.floor(diffMin / 60);
+  return `${diffH}h atrás`;
+}
+
+export default async function GameListPage() {
+  const user = await requireSessionUser();
+
+  const [rooms, myActiveRoom] = await Promise.all([
+    prisma.gameRoom.findMany({
+      where: { status: "WAITING", guestUserId: null },
+      include: {
+        hostUser: { select: { id: true, name: true } },
+        hostKit: { select: { college: true } },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+    }),
+    prisma.gameRoom.findFirst({
+      where: {
+        status: "ACTIVE",
+        OR: [{ hostUserId: user.id }, { guestUserId: user.id }],
+      },
+      select: { id: true },
+      orderBy: { updatedAt: "desc" },
+    }),
+  ]);
+
+  const myOpenRoom = rooms.find((r) => r.hostUserId === user.id);
+
+  return (
+    <div className="min-h-screen bg-[#08090d] text-white">
+      <div className="mx-auto flex min-h-screen w-full max-w-3xl flex-col px-6 py-8 lg:px-8">
+        {/* Header */}
+        <header className="flex items-center justify-between gap-4 border-b border-white/8 pb-5">
+          <Link
+            href="/"
+            className="font-mono text-[10px] uppercase tracking-[0.28em] text-white/40 hover:text-white/70 transition-colors"
+          >
+            ← Início
+          </Link>
+          <div className="flex items-center gap-3">
+            {myActiveRoom && (
+              <Link
+                href={`/game/${myActiveRoom.id}`}
+                className="rounded-full border border-green-500/40 bg-green-500/10 px-4 py-1.5 text-[11px] font-bold uppercase tracking-[0.2em] text-green-300 hover:bg-green-500/20 transition-colors"
+              >
+                ↩ Continuar partida
+              </Link>
+            )}
+            {myOpenRoom ? (
+              <Link
+                href={`/game/${myOpenRoom.id}`}
+                className="rounded-full border border-cyan-500/40 bg-cyan-500/10 px-4 py-1.5 text-[11px] font-bold uppercase tracking-[0.2em] text-cyan-300 hover:bg-cyan-500/20 transition-colors"
+              >
+                Minha sala
+              </Link>
+            ) : (
+              !myActiveRoom && (
+                <Link
+                  href="/game/new"
+                  className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-1.5 text-[11px] font-bold uppercase tracking-[0.2em] text-white/70 hover:bg-white/[0.08] transition-colors"
+                >
+                  + Nova sala
+                </Link>
+              )
+            )}
+          </div>
+        </header>
+
+        {/* Title */}
+        <div className="mt-8 mb-6">
+          <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-[#91a7da]">
+            Multiplayer
+          </p>
+          <h1 className="mt-2 text-3xl font-black tracking-[-0.04em] text-white">
+            Salas abertas
+          </h1>
+          <p className="mt-1 text-sm text-white/40">
+            Escolha uma sala para entrar ou crie a sua.
+          </p>
+        </div>
+
+        {/* Live-updating list */}
+        <RoomListClient
+          initialRooms={rooms.map((r) => ({
+            id: r.id,
+            hostName: r.hostUser.name,
+            hostCollege: r.hostKit ? collegeLabel(r.hostKit.college) : null,
+            createdAt: r.createdAt.toISOString(),
+            isOwn: r.hostUserId === user.id,
+          }))}
+        />
+      </div>
+    </div>
+  );
+}

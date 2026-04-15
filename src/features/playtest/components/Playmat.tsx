@@ -23,7 +23,7 @@ import {
 } from "react";
 import { selectCardWithDefinition } from "@/lib/game/selectors";
 import { shuffleCardIds } from "@/lib/game/shuffle";
-import type { CardInstance } from "@/lib/game/types";
+import type { CardInstance, TurnPhase } from "@/lib/game/types";
 import { useGameStore } from "../hooks/useGameStore";
 import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
 import { CardBack } from "./CardBack";
@@ -64,6 +64,21 @@ type CenterToast = {
   message: string;
 };
 
+const PHASE_ORDER: TurnPhase[] = [
+  "untap",
+  "upkeep",
+  "draw",
+  "main1",
+  "beginCombat",
+  "declareAttackers",
+  "declareBlockers",
+  "combatDamage",
+  "endCombat",
+  "main2",
+  "end",
+  "cleanup",
+];
+
 export function Playmat({ playerName = "Você" }: { playerName?: string }) {
   const {
     state,
@@ -74,6 +89,7 @@ export function Playmat({ playerName = "Você" }: { playerName?: string }) {
     player,
     allZones,
     zoneCount,
+    activePings,
   } = useGameStore();
 
   const sensors = useSensors(
@@ -311,17 +327,6 @@ export function Playmat({ playerName = "Você" }: { playerName?: string }) {
       adjustBattlefieldZoom(delta);
     },
     [adjustBattlefieldZoom],
-  );
-
-  const handleCardTap = useCallback(
-    (card: CardInstance) => {
-      dispatch({
-        type: "card/setTapped",
-        cardId: card.id,
-        tapped: !card.tapped,
-      });
-    },
-    [dispatch],
   );
 
   const handleTapFocusedBattlefieldCard = useCallback(() => {
@@ -574,17 +579,39 @@ export function Playmat({ playerName = "Você" }: { playerName?: string }) {
     ],
   );
 
+  const handleRetreatPhase = useCallback(() => {
+    const idx = PHASE_ORDER.indexOf(state.phase);
+    if (idx <= 0) return;
+    dispatch({ type: "turn/setPhase", phase: PHASE_ORDER[idx - 1]! });
+  }, [dispatch, state.phase]);
+
   useKeyboardShortcuts({
     onTap: handleTapFocusedBattlefieldCard,
     onDraw: handleDraw,
     onShuffle: handleShuffle,
     onAdvancePhase: () => dispatch({ type: "turn/passTurn" }),
+    onRetreatPhase: handleRetreatPhase,
     onUndo: undo,
     onRedo: redo,
   });
 
   const life = player?.life ?? 20;
   const turnLabel = `Turno ${state.turnNumber}`;
+
+  const PHASE_LABELS: Record<string, string> = {
+    untap: "Desvira",
+    upkeep: "Manutenção",
+    draw: "Compra",
+    main1: "Principal 1",
+    beginCombat: "Início do Combate",
+    declareAttackers: "Atacantes",
+    declareBlockers: "Bloqueadores",
+    combatDamage: "Dano",
+    endCombat: "Fim do Combate",
+    main2: "Principal 2",
+    end: "Final",
+    cleanup: "Limpeza",
+  };
 
   const handCards = allZones.hand.map((card) => {
     const selected = selectCardWithDefinition(state, card.id);
@@ -730,7 +757,12 @@ export function Playmat({ playerName = "Você" }: { playerName?: string }) {
         id="player-battlefield"
         className="flex flex-col gap-4 rounded-2xl h-full  flex-1"
       >
-        <div id="battlefield" className="flex flex-col h-full">
+        {/* Local player battlefield */}
+        <div
+          id="battlefield"
+          className="min-h-0 overflow-hidden"
+          style={{ flex: "1 1 0" }}
+        >
           <BattlefieldArea
             setRefs={(node) => {
               battlefieldRef.current = node;
@@ -738,22 +770,26 @@ export function Playmat({ playerName = "Você" }: { playerName?: string }) {
             }}
             isActiveDropTarget={battlefieldDrop.isOver}
             isAnyDragActive={isAnyDragActive}
+            interactive={true}
+            isActiveTurn={true}
+            orientation="bottom"
             playerName={playerName}
             life={life}
             turnLabel={turnLabel}
             battlefieldZoom={battlefieldZoom}
             battlefieldCards={battlefieldCards}
+            activePings={activePings}
             onWheel={handleBattlefieldWheel}
             onChangeLife={handleChangeLife}
             onAdjustZoom={adjustBattlefieldZoom}
             onHoverCard={handleBattlefieldHover}
-            onTapCard={handleCardTap}
+            onPingCard={(cardId) => dispatch({ type: "card/ping", cardId })}
           />
         </div>
 
         <div
           id="player-side-zone"
-          className="flex flex-row items-end justify-end gap-4"
+          className="flex flex-row items-end justify-end gap-4 -mb-16 relative z-10"
         >
           <HandZone
             setRefs={(node) => {
@@ -818,6 +854,7 @@ export function Playmat({ playerName = "Você" }: { playerName?: string }) {
             : exilePreviewCards
         }
         onClose={() => setZonePreview(null)}
+        onHoverCard={handleHoverWithAnchor}
       />
 
       <TokenModal

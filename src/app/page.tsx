@@ -34,6 +34,13 @@ export default async function Home() {
               >
                 <Link href="/decks">Meus decks</Link>
               </Button>
+              <Button
+                asChild
+                variant="outline"
+                className="rounded-full border-white/10 bg-transparent px-4 text-[11px] font-bold uppercase tracking-[0.2em] text-white/70 hover:bg-white/[0.06]"
+              >
+                <Link href="/game">Jogar</Link>
+              </Button>
               <SignOutButton />
             </div>
           </div>

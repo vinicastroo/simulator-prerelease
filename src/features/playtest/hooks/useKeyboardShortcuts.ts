@@ -9,6 +9,7 @@ type ShortcutHandlers = {
   onRedo?: () => void;
   onShuffle?: () => void;
   onAdvancePhase?: () => void;
+  onRetreatPhase?: () => void;
   disabled?: boolean;
 };
 
@@ -43,7 +44,15 @@ export function useKeyboardShortcuts(handlers: ShortcutHandlers) {
 
       if (e.ctrlKey || e.metaKey) return;
 
-      switch (key) {
+      switch (e.key) {
+        case "Tab":
+          e.preventDefault();
+          if (e.ctrlKey) {
+            handlers.onRetreatPhase?.();
+          } else {
+            handlers.onAdvancePhase?.();
+          }
+          break;
         case "t":
           handlers.onTap?.();
           break;

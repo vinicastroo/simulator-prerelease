@@ -304,7 +304,7 @@ function LibraryZone({
                 <Button
                   type="button"
                   variant="ghost"
-                  className="relative flex h-full w-full items-center justify-center rounded-2xl p-0 hover:bg-white/[0.04]"
+                  className="relative flex h-full w-full items-start justify-start rounded-2xl p-0 hover:bg-white/[0.04]"
                   onClick={onDraw}
                 >
                   <Image
@@ -312,7 +312,7 @@ function LibraryZone({
                     alt="Pilha do deck"
                     width={150}
                     height={209}
-                    className={`h-[209px] w-[150px] rounded-[8px] object-cover ${count === 0 ? "opacity-30" : ""}`}
+                    className={`h-[209px] w-[150px] rounded-[8px]  ${count === 0 ? "opacity-30" : ""}`}
                     draggable={false}
                     priority={false}
                   />
@@ -374,7 +374,7 @@ function LibraryZone({
                 </div>
                 <div
                   ref={setBottomRef}
-                  className={`absolute inset-x-3 bottom-3 z-10 flex h-[calc(50%-1rem)] items-end justify-center rounded-xl border px-2 py-2 text-[10px] font-bold uppercase tracking-[0.22em] transition ${
+                  className={`absolute inset-x-3 bottom-3 z-10 flex h-[calc(50%-1rem)] items-start justify-center rounded-xl border px-2 py-2 text-[10px] font-bold uppercase tracking-[0.22em] transition ${
                     isOverBottom
                       ? "border-[#9ab1e6] bg-[#4d6393]/30 text-white"
                       : "border-white/15 bg-black/30 text-white/55"
@@ -382,7 +382,6 @@ function LibraryZone({
                 >
                   Fundo
                 </div>
-                <div className="pointer-events-none absolute inset-x-6 top-1/2 z-10 h-3 -translate-y-1/2 rounded-full bg-black/55 ring-1 ring-white/8" />
               </>
             )}
           </div>

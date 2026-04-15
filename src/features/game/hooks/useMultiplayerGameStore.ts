@@ -10,13 +10,19 @@ import {
   selectPlayer,
   selectZoneCount,
 } from "@/lib/game/selectors";
-
 import type { ZoneName } from "@/lib/game/types";
-import { useGameContext } from "../store/GameProvider";
+import { useMultiplayerGameContext } from "../store/MultiplayerGameProvider";
 
-export function useGameStore() {
-  const { state, dispatch, undo, redo, canUndo, canRedo, localPlayerId, activePings } =
-    useGameContext();
+export function useMultiplayerGameStore() {
+  const {
+    state,
+    dispatch,
+    localPlayerId,
+    opponentPlayerId,
+    roomId,
+    isConnected,
+    myRole,
+  } = useMultiplayerGameContext();
 
   const player = selectPlayer(state, localPlayerId);
   const activePlayer = selectActivePlayer(state);
@@ -39,11 +45,13 @@ export function useGameStore() {
   return {
     state,
     dispatch,
-    undo,
-    redo,
-    canUndo,
-    canRedo,
+    // Undo/redo are no-ops in multiplayer
+    undo: () => {},
+    redo: () => {},
+    canUndo: false,
+    canRedo: false,
     localPlayerId,
+    opponentPlayerId,
     player,
     activePlayer,
     allZones,
@@ -52,6 +60,9 @@ export function useGameStore() {
     zoneCount,
     cardWithDef,
     cardName,
-    activePings,
+    // Multiplayer-specific extras
+    roomId,
+    isConnected,
+    myRole,
   };
 }

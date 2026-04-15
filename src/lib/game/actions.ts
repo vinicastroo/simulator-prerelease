@@ -131,4 +131,5 @@ export type GameAction =
       defId: CardDefId;
       power: string | null;
       toughness: string | null;
-    };
+    }
+  | { type: "card/ping"; cardId: CardInstanceId };

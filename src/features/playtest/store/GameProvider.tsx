@@ -26,7 +26,7 @@ import type { CardDefinition, CardInstance, GameState } from "@/lib/game/types";
 
 // ─── Context types ────────────────────────────────────────────────────────────
 
-type GameContextValue = {
+export type GameContextValue = {
   state: GameState;
   dispatch: Dispatch<GameAction>;
   undo: () => void;
@@ -34,9 +34,11 @@ type GameContextValue = {
   canUndo: boolean;
   canRedo: boolean;
   localPlayerId: string;
+  /** Card IDs that received a remote ping (opponent clicked) */
+  activePings: Set<string>;
 };
 
-const GameContext = createContext<GameContextValue | null>(null);
+export const GameContext = createContext<GameContextValue | null>(null);
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
@@ -116,7 +118,6 @@ export function GameProvider({
 
   const dispatch = useCallback((action: GameAction) => {
     setHistory(action);
-    // TODO: broadcast action to other players
   }, []);
 
   const undo = useCallback(() => setHistory({ type: "__undo" }), []);
@@ -132,6 +133,7 @@ export function GameProvider({
         canUndo: canUndo(history),
         canRedo: canRedo(history),
         localPlayerId,
+        activePings: new Set<string>(),
       }}
     >
       {children}
