@@ -19,6 +19,7 @@ type MultiplayerResetStatus = {
   currentPlayerLabel: string;
   opponentLabel: string;
   pending: boolean;
+  onCancel?: () => void | Promise<void>;
 };
 
 type GameSettingsMenuProps = {
@@ -53,7 +54,11 @@ export function GameSettingsMenu({
     const isOpen = Boolean(multiplayerReset?.open);
 
     if (!previousResetOpenRef.current && isOpen) {
+      // Vote just opened (opponent initiated) — show dialog
       setHasSeenResetVote(true);
+    } else if (!isOpen) {
+      // Vote closed (reset completed or cancelled) — reset guard
+      setHasSeenResetVote(false);
     }
 
     previousResetOpenRef.current = isOpen;
@@ -137,7 +142,21 @@ export function GameSettingsMenu({
               />
             </div>
 
-            <DialogFooter className="border-white/10 bg-white/[0.02]">
+            <DialogFooter className="flex gap-2 border-white/10 bg-white/[0.02]">
+              {multiplayerReset.onCancel && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="text-white/60 hover:bg-white/8 hover:text-white"
+                  onClick={() => {
+                    setHasSeenResetVote(false);
+                    void multiplayerReset.onCancel?.();
+                  }}
+                  disabled={isSubmitting || multiplayerReset.pending}
+                >
+                  Cancelar
+                </Button>
+              )}
               <Button
                 type="button"
                 className="bg-[#4d6393] text-white hover:bg-[#5f77ab]"

@@ -4,6 +4,48 @@ import { buildRoomGameState } from "@/lib/game/build-room-game-state";
 import { prisma } from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher-server";
 
+export async function DELETE(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { id: roomId } = await params;
+  const userId = session.user.id;
+
+  const room = await prisma.gameRoom.findUnique({
+    where: { id: roomId },
+    select: { hostUserId: true, guestUserId: true, status: true },
+  });
+
+  if (!room) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (room.status !== "ACTIVE") {
+    return NextResponse.json({ error: "GAME_NOT_ACTIVE" }, { status: 409 });
+  }
+
+  const isHost = room.hostUserId === userId;
+  const isGuest = room.guestUserId === userId;
+  if (!isHost && !isGuest) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  // Either player cancelling aborts the entire vote — reset both flags.
+  await prisma.gameRoom.update({
+    where: { id: roomId },
+    data: { hostReady: false, guestReady: false },
+  });
+
+  await pusherServer.trigger(`game-${roomId}`, "reset-vote-updated", {
+    hostReady: false,
+    guestReady: false,
+  });
+
+  return NextResponse.json({ ok: true });
+}
+
 const cardSelect = {
   id: true,
   name: true,

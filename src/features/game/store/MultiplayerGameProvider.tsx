@@ -23,6 +23,7 @@ type MultiplayerGameContextValue = {
   state: GameState;
   dispatch: Dispatch<GameAction>;
   requestReset: () => Promise<void>;
+  cancelReset: () => Promise<void>;
   keepOpeningHand: () => Promise<void>;
   localPlayerId: string;
   opponentPlayerId: string;
@@ -221,6 +222,10 @@ export function MultiplayerGameProvider({
     }
   }, [roomId]);
 
+  const cancelReset = useCallback(async () => {
+    await fetch(`/api/game/${roomId}/reset`, { method: "DELETE" });
+  }, [roomId]);
+
   const keepOpeningHand = useCallback(async () => {
     await fetch(`/api/game/${roomId}/keep-hand`, {
       method: "POST",
@@ -323,6 +328,7 @@ export function MultiplayerGameProvider({
         state,
         dispatch,
         requestReset,
+        cancelReset,
         keepOpeningHand,
         localPlayerId,
         opponentPlayerId,

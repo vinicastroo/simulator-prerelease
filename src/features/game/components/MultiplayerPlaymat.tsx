@@ -361,6 +361,7 @@ export function MultiplayerPlaymat({
               multiCtx.myRole === "host" ? hostName : guestName,
             opponentLabel: multiCtx.myRole === "host" ? guestName : hostName,
             pending: multiCtx.isResetPending,
+            onCancel: multiCtx.cancelReset,
           }}
         />
 
