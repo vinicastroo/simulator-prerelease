@@ -7,6 +7,17 @@ import { kitToGameData } from "@/lib/mtg/kit-to-game";
 import { prisma } from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher-server";
 
+const cardSelect = {
+  id: true,
+  name: true,
+  imagePath: true,
+  manaCost: true,
+  typeLine: true,
+  oracleText: true,
+  power: true,
+  toughness: true,
+} as const;
+
 export async function POST(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -19,39 +30,34 @@ export async function POST(
   const { id: roomId } = await params;
   const userId = session.user.id;
 
-  const cardSelect = {
-    id: true,
-    name: true,
-    imagePath: true,
-    manaCost: true,
-    typeLine: true,
-    oracleText: true,
-    power: true,
-    toughness: true,
-  } as const;
+  // ── 1. Fetch room + kit data OUTSIDE the transaction ─────────────────────
+  // Heavy query (kit cards) must not hold a DB lock — it would blow the
+  // 5 s interactive-transaction timeout before the atomic writes even run.
+  const room = await prisma.gameRoom.findUnique({
+    where: { id: roomId },
+    include: {
+      hostUser: { select: { id: true, name: true } },
+      guestUser: { select: { id: true, name: true } },
+      hostKit: { include: { placedCards: { include: { card: { select: cardSelect } } } } },
+      guestKit: { include: { placedCards: { include: { card: { select: cardSelect } } } } },
+    },
+  });
 
-  const updated = await prisma.$transaction(async (tx) => {
-    const room = await tx.gameRoom.findUnique({
-      where: { id: roomId },
-      include: {
-        hostUser: { select: { id: true, name: true } },
-        guestUser: { select: { id: true, name: true } },
-        hostKit: { include: { placedCards: { include: { card: { select: cardSelect } } } } },
-        guestKit: { include: { placedCards: { include: { card: { select: cardSelect } } } } },
-      },
-    });
+  if (!room) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-    if (!room) throw new Error("NOT_FOUND");
+  const isHost = room.hostUserId === userId;
+  const isGuest = room.guestUserId === userId;
+  if (!isHost && !isGuest) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
-    const isHost = room.hostUserId === userId;
-    const isGuest = room.guestUserId === userId;
-    if (!isHost && !isGuest) throw new Error("FORBIDDEN");
-
-    // Mark this player ready
+  // ── 2. Short transaction: mark ready + claim ACTIVE atomically ────────────
+  // Only fast DB writes here — no kit data queries, no CPU-heavy work.
+  const claimed = await prisma.$transaction(async (tx) => {
     const data = isHost ? { hostReady: true } : { guestReady: true };
     await tx.gameRoom.update({ where: { id: roomId }, data });
 
-    // Re-read fresh state so we see any concurrent ready updates
+    // Re-read to see concurrent ready updates
     const fresh = await tx.gameRoom.findUnique({
       where: { id: roomId },
       select: { hostReady: true, guestReady: true, guestUserId: true, status: true },
@@ -63,17 +69,21 @@ export async function POST(
       fresh.guestUserId !== null &&
       fresh.status !== "ACTIVE";
 
-    if (!bothReady) return { gameState: null };
+    if (!bothReady) return false;
 
-    // Atomically claim the activation — only one concurrent request wins
-    const claimed = await tx.gameRoom.updateMany({
+    // Atomically claim activation — only one concurrent request wins
+    const result = await tx.gameRoom.updateMany({
       where: { id: roomId, status: { not: "ACTIVE" } },
       data: { status: "ACTIVE" },
     });
 
-    if (claimed.count === 0) return { gameState: null };
+    return result.count > 0;
+  });
 
-    // Build game state
+  const channel = `game-${roomId}`;
+
+  // ── 3. If we won the claim, build and save game state ─────────────────────
+  if (claimed) {
     const hostPlayerId = room.hostPlayerId ?? generatePlayerId();
     const guestPlayerId = room.guestPlayerId ?? generatePlayerId();
 
@@ -134,26 +144,17 @@ export async function POST(
       };
     }
 
-    await tx.gameRoom.update({
+    await prisma.gameRoom.update({
       where: { id: roomId },
       data: { hostPlayerId, guestPlayerId, gameState: gameState as object, stateVersion: 1 },
     });
 
-    return { gameState };
-  });
-
-  const channel = `game-${roomId}`;
-
-  if (updated.gameState) {
     await Promise.all([
-      pusherServer.trigger(channel, "game-started", {
-        gameState: updated.gameState,
-      }),
+      pusherServer.trigger(channel, "game-started", { gameState }),
       pusherServer.trigger("lobby", "room-closed", { id: roomId }),
     ]);
   } else {
-    const room = await prisma.gameRoom.findUnique({ where: { id: roomId }, select: { hostUserId: true } });
-    const role = room?.hostUserId === userId ? "host" : "guest";
+    const role = isHost ? "host" : "guest";
     await pusherServer.trigger(channel, "player-ready", { role });
   }
 
