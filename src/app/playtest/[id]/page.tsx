@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getKitWithCards } from "@/actions/cards";
 import { requireSessionUser } from "@/lib/auth-session";
+import { fetchKitWithCards } from "@/lib/data/kit";
 import { kitToGameData } from "@/lib/mtg/kit-to-game";
 import { PlaytestClient } from "../PlaytestClient";
 
@@ -10,7 +10,7 @@ type Props = {
 };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const kit = await getKitWithCards(params.id);
+  const kit = await fetchKitWithCards(params.id);
 
   if (!kit) {
     return { title: "Playtest" };
@@ -26,7 +26,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function PlaytestKitPage({ params }: Props) {
   await requireSessionUser();
 
-  const kit = await getKitWithCards(params.id);
+  // fetchKitWithCards is React.cache-wrapped — the result from generateMetadata
+  // above is reused here, so no second DB round-trip happens.
+  const kit = await fetchKitWithCards(params.id);
   if (!kit) notFound();
 
   const initialDeck = kitToGameData(

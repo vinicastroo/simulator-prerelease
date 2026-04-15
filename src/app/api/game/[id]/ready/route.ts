@@ -19,52 +19,25 @@ export async function POST(
   const { id: roomId } = await params;
   const userId = session.user.id;
 
+  const cardSelect = {
+    id: true,
+    name: true,
+    imagePath: true,
+    manaCost: true,
+    typeLine: true,
+    oracleText: true,
+    power: true,
+    toughness: true,
+  } as const;
+
   const updated = await prisma.$transaction(async (tx) => {
     const room = await tx.gameRoom.findUnique({
       where: { id: roomId },
       include: {
         hostUser: { select: { id: true, name: true } },
         guestUser: { select: { id: true, name: true } },
-        hostKit: {
-          include: {
-            placedCards: {
-              include: {
-                card: {
-                  select: {
-                    id: true,
-                    name: true,
-                    imagePath: true,
-                    manaCost: true,
-                    typeLine: true,
-                    oracleText: true,
-                    power: true,
-                    toughness: true,
-                  },
-                },
-              },
-            },
-          },
-        },
-        guestKit: {
-          include: {
-            placedCards: {
-              include: {
-                card: {
-                  select: {
-                    id: true,
-                    name: true,
-                    imagePath: true,
-                    manaCost: true,
-                    typeLine: true,
-                    oracleText: true,
-                    power: true,
-                    toughness: true,
-                  },
-                },
-              },
-            },
-          },
-        },
+        hostKit: { include: { placedCards: { include: { card: { select: cardSelect } } } } },
+        guestKit: { include: { placedCards: { include: { card: { select: cardSelect } } } } },
       },
     });
 
@@ -74,106 +47,87 @@ export async function POST(
     const isGuest = room.guestUserId === userId;
     if (!isHost && !isGuest) throw new Error("FORBIDDEN");
 
+    // Mark this player ready
     const data = isHost ? { hostReady: true } : { guestReady: true };
-    const next = await tx.gameRoom.update({ where: { id: roomId }, data });
+    await tx.gameRoom.update({ where: { id: roomId }, data });
 
-    const hostReady = isHost ? true : room.hostReady;
-    const guestReady = isGuest ? true : room.guestReady;
+    // Re-read fresh state so we see any concurrent ready updates
+    const fresh = await tx.gameRoom.findUnique({
+      where: { id: roomId },
+      select: { hostReady: true, guestReady: true, guestUserId: true, status: true },
+    });
+
     const bothReady =
-      hostReady &&
-      guestReady &&
-      room.guestUserId !== null &&
-      next.status !== "ACTIVE";
+      !!fresh?.hostReady &&
+      !!fresh?.guestReady &&
+      fresh.guestUserId !== null &&
+      fresh.status !== "ACTIVE";
 
-    if (!bothReady) return { room: next, gameState: null };
+    if (!bothReady) return { gameState: null };
 
-    // Generate stable player IDs stored in GameRoom
+    // Atomically claim the activation — only one concurrent request wins
+    const claimed = await tx.gameRoom.updateMany({
+      where: { id: roomId, status: { not: "ACTIVE" } },
+      data: { status: "ACTIVE" },
+    });
+
+    if (claimed.count === 0) return { gameState: null };
+
+    // Build game state
     const hostPlayerId = room.hostPlayerId ?? generatePlayerId();
     const guestPlayerId = room.guestPlayerId ?? generatePlayerId();
 
-    const hostName = room.hostUser.name;
-    const guestName = room.guestUser?.name ?? "Oponente";
-
     const baseState = createInitialGameState([
-      { id: hostPlayerId, name: hostName },
-      { id: guestPlayerId, name: guestName },
+      { id: hostPlayerId, name: room.hostUser.name },
+      { id: guestPlayerId, name: room.guestUser?.name ?? "Oponente" },
     ]);
 
-    // Inject host deck
     let gameState: GameState = baseState;
+
     if (room.hostKit) {
       const { definitions, instances } = kitToGameData(
-        room.hostKit.placedCards.map((pc) => ({
-          id: pc.id,
-          isMainDeck: pc.isMainDeck,
-          card: pc.card,
-        })),
+        room.hostKit.placedCards.map((pc) => ({ id: pc.id, isMainDeck: pc.isMainDeck, card: pc.card })),
         hostPlayerId,
       );
-      const defs = Object.fromEntries(definitions.map((d) => [d.id, d]));
-      const insts = Object.fromEntries(instances.map((i) => [i.id, i]));
-      const libraryIds = instances
-        .filter((i) => i.zone === "library")
-        .map((i) => i.id);
-      const sideboardIds = instances
-        .filter((i) => i.zone === "sideboard")
-        .map((i) => i.id);
       const hostPlayer = gameState.players[hostPlayerId];
-      if (!hostPlayer) {
-        throw new Error("HOST_PLAYER_NOT_FOUND");
-      }
+      if (!hostPlayer) throw new Error("HOST_PLAYER_NOT_FOUND");
       gameState = {
         ...gameState,
-        cardDefinitions: { ...gameState.cardDefinitions, ...defs },
-        cardInstances: { ...gameState.cardInstances, ...insts },
+        cardDefinitions: { ...gameState.cardDefinitions, ...Object.fromEntries(definitions.map((d) => [d.id, d])) },
+        cardInstances: { ...gameState.cardInstances, ...Object.fromEntries(instances.map((i) => [i.id, i])) },
         players: {
           ...gameState.players,
           [hostPlayerId]: {
             ...hostPlayer,
             zones: {
               ...hostPlayer.zones,
-              library: libraryIds,
-              sideboard: sideboardIds,
+              library: instances.filter((i) => i.zone === "library").map((i) => i.id),
+              sideboard: instances.filter((i) => i.zone === "sideboard").map((i) => i.id),
             },
           },
         },
       };
     }
 
-    // Inject guest deck
     if (room.guestKit) {
       const { definitions, instances } = kitToGameData(
-        room.guestKit.placedCards.map((pc) => ({
-          id: pc.id,
-          isMainDeck: pc.isMainDeck,
-          card: pc.card,
-        })),
+        room.guestKit.placedCards.map((pc) => ({ id: pc.id, isMainDeck: pc.isMainDeck, card: pc.card })),
         guestPlayerId,
       );
-      const defs = Object.fromEntries(definitions.map((d) => [d.id, d]));
-      const insts = Object.fromEntries(instances.map((i) => [i.id, i]));
-      const libraryIds = instances
-        .filter((i) => i.zone === "library")
-        .map((i) => i.id);
-      const sideboardIds = instances
-        .filter((i) => i.zone === "sideboard")
-        .map((i) => i.id);
       const guestPlayer = gameState.players[guestPlayerId];
-      if (!guestPlayer) {
-        throw new Error("GUEST_PLAYER_NOT_FOUND");
-      }
+      if (!guestPlayer) throw new Error("GUEST_PLAYER_NOT_FOUND");
       gameState = {
         ...gameState,
-        cardDefinitions: { ...gameState.cardDefinitions, ...defs },
-        cardInstances: { ...gameState.cardInstances, ...insts },
+        cardDefinitions: { ...gameState.cardDefinitions, ...Object.fromEntries(definitions.map((d) => [d.id, d])) },
+        cardInstances: { ...gameState.cardInstances, ...Object.fromEntries(instances.map((i) => [i.id, i])) },
         players: {
           ...gameState.players,
           [guestPlayerId]: {
             ...guestPlayer,
             zones: {
               ...guestPlayer.zones,
-              library: libraryIds,
-              sideboard: sideboardIds,
+              library: instances.filter((i) => i.zone === "library").map((i) => i.id),
+              sideboard: instances.filter((i) => i.zone === "sideboard").map((i) => i.id),
             },
           },
         },
@@ -182,16 +136,10 @@ export async function POST(
 
     await tx.gameRoom.update({
       where: { id: roomId },
-      data: {
-        status: "ACTIVE",
-        hostPlayerId,
-        guestPlayerId,
-        gameState: gameState as object,
-        stateVersion: 1,
-      },
+      data: { hostPlayerId, guestPlayerId, gameState: gameState as object, stateVersion: 1 },
     });
 
-    return { room: next, gameState };
+    return { gameState };
   });
 
   const channel = `game-${roomId}`;
@@ -201,11 +149,11 @@ export async function POST(
       pusherServer.trigger(channel, "game-started", {
         gameState: updated.gameState,
       }),
-      // Remove room from public lobby list
       pusherServer.trigger("lobby", "room-closed", { id: roomId }),
     ]);
   } else {
-    const role = updated.room.hostUserId === userId ? "host" : "guest";
+    const room = await prisma.gameRoom.findUnique({ where: { id: roomId }, select: { hostUserId: true } });
+    const role = room?.hostUserId === userId ? "host" : "guest";
     await pusherServer.trigger(channel, "player-ready", { role });
   }
 

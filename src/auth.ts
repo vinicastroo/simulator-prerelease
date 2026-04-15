@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import type { NextAuthOptions } from "next-auth";
 import { getServerSession } from "next-auth";
 import NextAuth from "next-auth/next";
+import { cache } from "react";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { prisma } from "@/lib/prisma";
 
@@ -81,7 +82,9 @@ export const authOptions: NextAuthOptions = {
   },
 };
 
-export const auth = () => getServerSession(authOptions);
+// React.cache deduplicates getServerSession calls within a single request —
+// multiple server components/actions calling auth() hit the JWT only once.
+export const auth = cache(() => getServerSession(authOptions));
 
 const authHandler = NextAuth(authOptions);
 

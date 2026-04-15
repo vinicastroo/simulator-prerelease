@@ -778,6 +778,14 @@ export function Playmat({ playerName = "Você" }: { playerName?: string }) {
           id="player-side-zone"
           className="flex flex-row items-end justify-end gap-4 -mb-16 relative z-10"
         >
+          <button
+            type="button"
+            onClick={() => setIsTokenModalOpen(true)}
+            className="mb-1 self-end rounded-xl border border-white/10 bg-white/[0.06] px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/60 backdrop-blur-sm transition hover:border-white/20 hover:bg-white/[0.1] hover:text-white/90"
+          >
+            + Token
+          </button>
+
           <HandZone
             setRefs={(node) => {
               handRef.current = node;

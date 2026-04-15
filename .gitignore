@@ -45,3 +45,6 @@ next-env.d.ts
 /src/generated/prisma
 
 /generated/prisma
+
+# card backup (gerado por pnpm db:backup — não versionar)
+scripts/cards-backup.json

@@ -10,7 +10,10 @@
     "format": "biome format --write .",
     "check": "biome check .",
     "db:generate": "prisma generate",
-    "db:migrate": "prisma migrate dev"
+    "db:migrate": "prisma migrate dev",
+    "db:seed": "tsx scripts/seed-mtg.ts",
+    "db:backup": "tsx scripts/backup-cards.ts",
+    "db:restore": "tsx scripts/restore-cards.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.901.0",

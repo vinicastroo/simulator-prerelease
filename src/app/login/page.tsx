@@ -11,47 +11,43 @@ export default async function LoginPage() {
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#06070a] text-white">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(77,99,147,0.28),transparent_26%),radial-gradient(circle_at_80%_20%,rgba(112,75,149,0.18),transparent_24%),linear-gradient(180deg,rgba(255,255,255,0.03),transparent_20%)]" />
-      <div className="pointer-events-none absolute inset-y-0 left-[9%] w-px bg-white/10" />
-      <div className="pointer-events-none absolute inset-y-0 right-[12%] w-px bg-white/5" />
+      {/* Luz de fundo atrás do form */}
+      <div className="pointer-events-none absolute right-[120px] top-[10%] h-[500px] w-[500px] rounded-full bg-[#4d6393] opacity-40 blur-[130px]" />
+      <div className="pointer-events-none absolute bottom-[5%] right-[180px] h-[380px] w-[380px] rounded-full bg-[#7c3aed] opacity-25 blur-[110px]" />
+      <div className="pointer-events-none absolute right-[380px] top-[35%] h-[260px] w-[260px] rounded-full bg-[#2563eb] opacity-20 blur-[90px]" />
 
-      <div className="relative mx-auto grid min-h-screen w-full max-w-7xl items-center gap-16 px-6 py-12 lg:grid-cols-[1.1fr_420px] lg:px-10">
+      <div className="relative mx-auto grid min-h-screen w-full max-w-7xl items-center gap-16 px-6 py-12 lg:grid-cols-[1fr_420px] lg:px-10">
         <section className="hidden lg:block">
-          <div className="max-w-2xl space-y-8">
-            <p className="text-[11px] font-bold uppercase tracking-[0.42em] text-[#8ea4d6]">
-              Strixhaven Archive
+          <div className="max-w-xl space-y-8">
+            <p className="text-[11px] font-bold uppercase tracking-[0.42em] text-white/30">
+              Draft Simulator
             </p>
 
-            <div className="space-y-6">
-              <h1 className="max-w-3xl text-6xl font-black uppercase tracking-[-0.06em] text-white">
-                retome seus decks como quem abre um grimorio marcado
-              </h1>
-              <p className="max-w-xl text-base leading-8 text-white/55">
-                Seu acervo de builds, sideboards e experimentos de prerelease em
-                um painel com cara de sala de estudo arcana, nao de tela
-                generica de login.
-              </p>
-            </div>
+            <h1 className="text-6xl font-black uppercase leading-[0.92] tracking-[-0.04em] text-white">
+              monte seu deck. bata seus oponentes.
+            </h1>
 
-            <div className="grid max-w-xl grid-cols-3 gap-4">
-              <div className="rounded-[1.75rem] border border-white/10 bg-white/[0.03] p-4 backdrop-blur-sm">
-                <p className="text-[10px] uppercase tracking-[0.28em] text-white/35">
-                  Biblioteca
-                </p>
-                <p className="mt-3 text-2xl font-black text-white">Decks</p>
-              </div>
-              <div className="rounded-[1.75rem] border border-white/10 bg-white/[0.03] p-4 backdrop-blur-sm">
-                <p className="text-[10px] uppercase tracking-[0.28em] text-white/35">
-                  Sessao
-                </p>
-                <p className="mt-3 text-2xl font-black text-white">Privada</p>
-              </div>
-              <div className="rounded-[1.75rem] border border-white/10 bg-white/[0.03] p-4 backdrop-blur-sm">
-                <p className="text-[10px] uppercase tracking-[0.28em] text-white/35">
-                  Fluxo
-                </p>
-                <p className="mt-3 text-2xl font-black text-white">Rapido</p>
-              </div>
+            <p className="text-base leading-8 text-white/45">
+              Simule drafts de Magic: The Gathering, construa seu deck e teste
+              suas linhas antes de sentar na mesa.
+            </p>
+
+            <div className="space-y-3 pt-2">
+              {[
+                { label: "Draft simulado", desc: "Escolha suas cartas booster a booster" },
+                { label: "Deckbuilder integrado", desc: "Monte main deck e sideboard em tempo real" },
+                { label: "Playtest", desc: "Teste suas linhas contra a mão simulada" },
+              ].map((item) => (
+                <div key={item.label} className="flex items-start gap-3">
+                  <div className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-white/25" />
+                  <div>
+                    <span className="text-sm font-semibold text-white/80">
+                      {item.label}
+                    </span>
+                    <span className="text-sm text-white/35"> — {item.desc}</span>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </section>

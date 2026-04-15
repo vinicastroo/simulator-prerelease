@@ -110,6 +110,14 @@ export function Sidebar() {
     string | null
   >(null);
 
+  // Prefetch the playtest route while the user is still on the simulator so
+  // the navigation feels instant when they click the Playtest button.
+  useEffect(() => {
+    if (kitId) {
+      router.prefetch(`/playtest/${kitId}`);
+    }
+  }, [kitId, router]);
+
   useEffect(() => {
     if (!sidebarToast) return;
 

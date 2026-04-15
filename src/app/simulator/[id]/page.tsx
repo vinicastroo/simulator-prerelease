@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getKitWithCards } from "@/actions/cards";
 import { AppShell } from "@/components/AppShell";
 import { Sidebar } from "@/components/Sidebar";
 import {
@@ -8,12 +7,13 @@ import {
   PrereleaseProvider,
 } from "@/context/PrereleaseContext";
 import { requireSessionUser } from "@/lib/auth-session";
+import { fetchKitWithCards } from "@/lib/data/kit";
 import { DndCanvas } from "./DndCanvas";
 
 type Props = { params: { id: string } };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const kit = await getKitWithCards(params.id);
+  const kit = await fetchKitWithCards(params.id);
   if (!kit) return { title: "Kit not found" };
   const college = kit.college.charAt(0) + kit.college.slice(1).toLowerCase();
   return {
@@ -24,7 +24,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function SimulatorPage({ params }: Props) {
   await requireSessionUser();
-  const kit = await getKitWithCards(params.id);
+  // fetchKitWithCards is React.cache-wrapped — reuses the result from generateMetadata.
+  const kit = await fetchKitWithCards(params.id);
   if (!kit) notFound();
 
   const initialCards: PlacedCardState[] = kit.placedCards.map((p) => ({

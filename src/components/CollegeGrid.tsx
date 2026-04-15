@@ -4,8 +4,7 @@ import Image from "next/image";
 import { useState, useTransition } from "react";
 import { createPrereleaseKit } from "@/actions/kit";
 import { Badge } from "@/components/ui/badge";
-import { Button, buttonVariants } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -41,7 +40,7 @@ export function CollegeGrid() {
   return (
     <>
       <ul
-        className="grid h-full w-full grid-cols-1 gap-5 overflow-y-auto overflow-x-hidden px-2 pb-6 pt-1 md:grid-cols-2"
+        className="grid h-full w-full grid-cols-1 items-stretch gap-4 overflow-y-auto overflow-x-hidden px-2 pb-6 pt-1 md:grid-cols-2"
         aria-label="Select your Strixhaven college"
       >
         {COLLEGES.map((college) => (
@@ -159,18 +158,18 @@ function CollegeCard({
   const { theme } = college;
 
   return (
-    <li className="w-full">
+    <li className="flex w-full">
       <button
         type="button"
         disabled={isPending}
         onClick={() => onSelect(college.id)}
-        className={`block w-full text-left transition-all duration-500 ${isPending ? "cursor-wait opacity-50 scale-[0.985]" : "hover:-translate-y-1"}`}
+        className={`flex w-full text-left transition-all duration-500 ${isPending ? "cursor-wait opacity-50 scale-[0.985]" : "hover:-translate-y-1"}`}
       >
-        <Card
+        <div
           className={`
-            group relative min-h-[24rem] overflow-hidden rounded-[28px]
-            border border-white/8 bg-[#0f0f0f]/90 text-left shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-md
-            transition-all duration-500 md:min-h-[26rem]
+            group relative flex w-full flex-col overflow-hidden rounded-[28px]
+            bg-[#0f0f0f]/90 text-left shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-md
+            transition-all duration-500
             ${isPending ? "" : "hover:shadow-[0_24px_70px_rgba(0,0,0,0.42)]"}
           `}
         >
@@ -193,85 +192,64 @@ function CollegeCard({
             />
           </div>
 
-          <CardHeader className="relative z-20 px-6 py-6 md:px-8 md:py-8">
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="relative h-20 w-20 shrink-0 drop-shadow-[0_5px_15px_rgba(0,0,0,0.5)] transition-transform duration-700 group-hover:scale-110">
-                  <Image
-                    src={college.logoPath}
-                    alt={`${college.name} Logo`}
-                    fill
-                    className="object-contain"
-                    priority
-                  />
-                </div>
-
-                <div>
-                  <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.35em] text-white/25">
-                    {college.school}
-                  </p>
-                  <div className="flex items-center gap-3">
-                    <CardTitle
-                      className={`text-3xl font-black tracking-tighter uppercase drop-shadow-sm md:text-4xl ${theme.accentClass}`}
-                    >
-                      {college.name}
-                    </CardTitle>
-                    <div className="flex gap-1">
-                      {college.colors.map((color) => (
-                        <div
-                          key={color.code}
-                          className="relative h-5 w-5 drop-shadow-md md:h-6 md:w-6"
-                        >
-                          <Image
-                            src={color.svgPath}
-                            alt={color.label}
-                            fill
-                            className="object-contain"
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
+          {/* Header */}
+          <div className="relative z-20 flex items-center gap-4 px-6 pt-6 md:px-8 md:pt-8">
+            <div className="relative h-20 w-20 shrink-0 drop-shadow-[0_5px_15px_rgba(0,0,0,0.5)] transition-transform duration-700 group-hover:scale-110">
+              <Image
+                src={college.logoPath}
+                alt={`${college.name} Logo`}
+                fill
+                className="object-contain"
+                priority
+              />
             </div>
-          </CardHeader>
-
-          <CardContent className="relative z-20 flex h-full flex-col justify-between px-6 pb-6 md:px-8 md:pb-8">
-            <div className="grid flex-1 gap-6 lg:grid-cols-[1.2fr_0.9fr]">
-              <p className="max-w-xl text-sm leading-7 text-white/65 md:text-[15px]">
-                {college.tagline}
+            <div>
+              <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.35em] text-white/25">
+                {college.school}
               </p>
-
-              <div className="flex flex-wrap content-start gap-2">
-                {college.keywords.map((kw) => (
-                  <Badge
-                    key={kw}
-                    variant="outline"
-                    className="border-white/10 bg-white/[0.04] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.22em] text-white/45"
-                  >
-                    {kw}
-                  </Badge>
-                ))}
+              <div className="flex items-center gap-3">
+                <p
+                  className={`text-3xl font-black tracking-tighter uppercase drop-shadow-sm md:text-4xl ${theme.accentClass}`}
+                >
+                  {college.name}
+                </p>
+                <div className="flex gap-1">
+                  {college.colors.map((color) => (
+                    <div
+                      key={color.code}
+                      className="relative h-5 w-5 drop-shadow-md md:h-6 md:w-6"
+                    >
+                      <Image
+                        src={color.svgPath}
+                        alt={color.label}
+                        fill
+                        className="object-contain"
+                      />
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
+          </div>
 
-            <div className="mt-6 flex items-end justify-between gap-4 border-t border-white/8 pt-5">
-              <div className="text-[11px] uppercase tracking-[0.28em] text-white/25">
-                Choose your path
-              </div>
-
-              <div
-                className={cn(
-                  buttonVariants({ variant: "outline", size: "lg" }),
-                  `rounded-2xl border-white/8 bg-white/[0.06] px-5 py-3 text-[10px] font-black uppercase tracking-[0.24em] text-white transition-all duration-300 hover:bg-white/[0.1] ${theme.accentClass}`,
-                )}
+          {/* Badges */}
+          <div className="relative z-20 flex flex-row gap-2 px-6 pb-6 pt-4 md:px-8 md:pb-8">
+            {college.keywords.map((kw) => (
+              <Badge
+                key={kw}
+                variant="outline"
+                className="border px-3 py-1 text-[10px] font-bold uppercase tracking-[0.22em]"
+                style={{
+                  borderColor: `${theme.gradientFrom}50`,
+                  backgroundColor: `${theme.gradientFrom}18`,
+                  color: theme.gradientFrom,
+                }}
               >
-                Enroll Now
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+                {kw}
+              </Badge>
+            ))}
+          </div>
+        </div>
 
         {isPending && (
           <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/80 backdrop-blur-md">
