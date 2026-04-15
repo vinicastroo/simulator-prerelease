@@ -582,7 +582,9 @@ export function Playmat({ playerName = "Você" }: { playerName?: string }) {
   const handleRetreatPhase = useCallback(() => {
     const idx = PHASE_ORDER.indexOf(state.phase);
     if (idx <= 0) return;
-    dispatch({ type: "turn/setPhase", phase: PHASE_ORDER[idx - 1]! });
+    const previousPhase = PHASE_ORDER[idx - 1];
+    if (!previousPhase) return;
+    dispatch({ type: "turn/setPhase", phase: previousPhase });
   }, [dispatch, state.phase]);
 
   useKeyboardShortcuts({
@@ -597,21 +599,6 @@ export function Playmat({ playerName = "Você" }: { playerName?: string }) {
 
   const life = player?.life ?? 20;
   const turnLabel = `Turno ${state.turnNumber}`;
-
-  const PHASE_LABELS: Record<string, string> = {
-    untap: "Desvira",
-    upkeep: "Manutenção",
-    draw: "Compra",
-    main1: "Principal 1",
-    beginCombat: "Início do Combate",
-    declareAttackers: "Atacantes",
-    declareBlockers: "Bloqueadores",
-    combatDamage: "Dano",
-    endCombat: "Fim do Combate",
-    main2: "Principal 2",
-    end: "Final",
-    cleanup: "Limpeza",
-  };
 
   const handCards = allZones.hand.map((card) => {
     const selected = selectCardWithDefinition(state, card.id);

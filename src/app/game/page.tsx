@@ -1,22 +1,12 @@
 import Link from "next/link";
+import { RoomListClient } from "@/features/game/components/RoomListClient";
 import { requireSessionUser } from "@/lib/auth-session";
 import { prisma } from "@/lib/prisma";
-import { RoomListClient } from "@/features/game/components/RoomListClient";
 
 export const dynamic = "force-dynamic";
 
 function collegeLabel(college: string) {
   return college.charAt(0) + college.slice(1).toLowerCase();
-}
-
-function relativeTime(date: Date) {
-  const diffMs = Date.now() - date.getTime();
-  const diffMin = Math.floor(diffMs / 60_000);
-  if (diffMin < 1) return "agora mesmo";
-  if (diffMin === 1) return "1 min atrás";
-  if (diffMin < 60) return `${diffMin} min atrás`;
-  const diffH = Math.floor(diffMin / 60);
-  return `${diffH}h atrás`;
 }
 
 export default async function GameListPage() {

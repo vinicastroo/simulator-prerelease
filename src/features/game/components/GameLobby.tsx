@@ -204,7 +204,11 @@ export function GameLobby({
             disabled={myReady || !canReady || isPendingReady}
             onClick={handleReady}
           >
-            {myReady ? "Pronto!" : isPendingReady ? "Aguarde..." : "Estou pronto"}
+            {myReady
+              ? "Pronto!"
+              : isPendingReady
+                ? "Aguarde..."
+                : "Estou pronto"}
           </Button>
         </div>
       </div>
@@ -244,9 +248,7 @@ function PlayerCard({
       )}
       <div
         className={`mt-2 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-          ready
-            ? "bg-green-900/40 text-green-300"
-            : "bg-white/5 text-white/30"
+          ready ? "bg-green-900/40 text-green-300" : "bg-white/5 text-white/30"
         }`}
       >
         {ready ? "Pronto" : "Aguardando"}

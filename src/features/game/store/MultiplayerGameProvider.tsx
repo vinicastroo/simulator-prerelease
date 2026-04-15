@@ -92,7 +92,8 @@ export function MultiplayerGameProvider({
     processingRef.current = true;
 
     while (actionQueueRef.current.length > 0) {
-      const action = actionQueueRef.current[0]!;
+      const action = actionQueueRef.current[0];
+      if (!action) break;
       const sentVersion = versionRef.current;
 
       try {
@@ -103,13 +104,16 @@ export function MultiplayerGameProvider({
         });
 
         if (res.ok) {
-          const data = await res.json() as { seq: number };
+          const data = (await res.json()) as { seq: number };
           versionRef.current = data.seq;
         } else {
           // Resync on any error (version conflict, etc.)
           const sync = await fetch(`/api/game/${roomId}/state`);
           if (sync.ok) {
-            const data = await sync.json() as { gameState: GameState; stateVersion: number };
+            const data = (await sync.json()) as {
+              gameState: GameState;
+              stateVersion: number;
+            };
             setState(data.gameState);
             versionRef.current = data.stateVersion;
           }
@@ -156,10 +160,14 @@ export function MultiplayerGameProvider({
       },
     );
 
-    channel.bind("state-sync", (data: { gameState: GameState; stateVersion: number }) => {
-      setState(data.gameState);
-      if (data.stateVersion !== undefined) versionRef.current = data.stateVersion;
-    });
+    channel.bind(
+      "state-sync",
+      (data: { gameState: GameState; stateVersion: number }) => {
+        setState(data.gameState);
+        if (data.stateVersion !== undefined)
+          versionRef.current = data.stateVersion;
+      },
+    );
 
     setIsConnected(true);
 
@@ -168,7 +176,10 @@ export function MultiplayerGameProvider({
       setIsConnected(true);
       void fetch(`/api/game/${roomId}/state`).then(async (res) => {
         if (res.ok) {
-          const data = await res.json() as { gameState: GameState; stateVersion: number };
+          const data = (await res.json()) as {
+            gameState: GameState;
+            stateVersion: number;
+          };
           setState(data.gameState);
           versionRef.current = data.stateVersion;
         }

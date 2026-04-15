@@ -15,8 +15,16 @@ import type { ZoneName } from "@/lib/game/types";
 import { useGameContext } from "../store/GameProvider";
 
 export function useGameStore() {
-  const { state, dispatch, undo, redo, canUndo, canRedo, localPlayerId, activePings } =
-    useGameContext();
+  const {
+    state,
+    dispatch,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
+    localPlayerId,
+    activePings,
+  } = useGameContext();
 
   const player = selectPlayer(state, localPlayerId);
   const activePlayer = selectActivePlayer(state);

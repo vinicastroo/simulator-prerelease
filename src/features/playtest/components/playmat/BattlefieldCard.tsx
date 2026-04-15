@@ -44,6 +44,11 @@ export const BattlefieldCard = memo(function BattlefieldCard({
   }, [onPing]);
 
   useEffect(() => {
+    if (!isPinged) return;
+    setPinged(true);
+  }, [isPinged]);
+
+  useEffect(() => {
     if (!pinged) return;
     const t = setTimeout(() => setPinged(false), 500);
     return () => clearTimeout(t);

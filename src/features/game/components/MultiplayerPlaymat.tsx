@@ -16,8 +16,8 @@ import type {
   PreviewAnchor,
 } from "@/features/playtest/components/playmat/types";
 import {
-  ZonePreviewModal,
   type ZonePreviewCard,
+  ZonePreviewModal,
 } from "@/features/playtest/components/playmat/ZonePreviewModal";
 import type { GameContextValue } from "@/features/playtest/store/GameProvider";
 import { GameContext } from "@/features/playtest/store/GameProvider";
@@ -25,18 +25,38 @@ import {
   selectAllCardsByZone,
   selectCardWithDefinition,
 } from "@/lib/game/selectors";
+import type { CardInstance } from "@/lib/game/types";
 import { useMultiplayerGameContext } from "../store/MultiplayerGameProvider";
 
-// GameContextValue is exported as a named type from GameProvider but we need
-// to re-declare to access it — we read it via the context itself.
+type MultiplayerPlaymatProps = {
+  myRole: "host" | "guest";
+};
 
-export function MultiplayerPlaymat({ myRole }: { myRole: "host" | "guest" }) {
+type OpponentZonePreview = "graveyard" | "exile" | null;
+
+type OpponentStackInfo = {
+  topName: string;
+  topImageUrl: string | null;
+};
+
+type OpponentBattlefieldCard = {
+  card: CardInstance;
+  name: string;
+  imageUrl: string | null;
+  manaCost: string;
+  cardType: string;
+  power: string | null;
+  toughness: string | null;
+};
+
+export function MultiplayerPlaymat({
+  myRole: _myRole,
+}: MultiplayerPlaymatProps) {
   const multiCtx = useMultiplayerGameContext();
 
   const [opponentBattlefieldZoom, setOpponentBattlefieldZoom] = useState(1);
-  const [opponentZonePreview, setOpponentZonePreview] = useState<
-    "graveyard" | "exile" | null
-  >(null);
+  const [opponentZonePreview, setOpponentZonePreview] =
+    useState<OpponentZonePreview>(null);
   const [opponentPreviewCard, setOpponentPreviewCard] =
     useState<CardHoverInfo | null>(null);
   const [opponentPreviewAnchor, setOpponentPreviewAnchor] =
@@ -106,28 +126,34 @@ export function MultiplayerPlaymat({ myRole }: { myRole: "host" | "guest" }) {
   const opponentZones = selectAllCardsByZone(state, opponentPlayerId);
   const opponentPlayer = state.players[opponentPlayerId] ?? null;
 
-  const opponentBattlefieldCards = opponentZones.battlefield.map((card) => {
-    const selected = selectCardWithDefinition(state, card.id);
-    const definitionType = selected?.definition.type ?? "";
-    const cardType = card.tokenData?.type ?? definitionType;
-    const power = card.tokenData?.power ?? selected?.definition.power ?? null;
-    const toughness =
-      card.tokenData?.toughness ?? selected?.definition.toughness ?? null;
-    return {
-      card,
-      name: selected?.definition.name ?? "carta",
-      imageUrl: card.faceDown ? null : (selected?.definition.imageUrl ?? null),
-      manaCost: selected?.definition.manaCost ?? "",
-      cardType,
-      power,
-      toughness,
-    };
-  });
+  const opponentBattlefieldCards: OpponentBattlefieldCard[] =
+    opponentZones.battlefield.map((card) => {
+      const selected = selectCardWithDefinition(state, card.id);
+      const definitionType = selected?.definition.type ?? "";
+      const cardType = card.tokenData?.type ?? definitionType;
+      const power = card.tokenData?.power ?? selected?.definition.power ?? null;
+      const toughness =
+        card.tokenData?.toughness ?? selected?.definition.toughness ?? null;
+
+      return {
+        card,
+        name: selected?.definition.name ?? "carta",
+        imageUrl: card.faceDown
+          ? null
+          : (selected?.definition.imageUrl ?? null),
+        manaCost: selected?.definition.manaCost ?? "",
+        cardType,
+        power,
+        toughness,
+      };
+    });
 
   const opponentGraveyardTop = opponentZones.graveyard.at(-1);
   const opponentExileTop = opponentZones.exile.at(-1);
 
-  const opponentGraveyardTopInfo = opponentGraveyardTop
+  const emptyStackInfo: OpponentStackInfo = { topName: "", topImageUrl: null };
+
+  const opponentGraveyardTopInfo: OpponentStackInfo = opponentGraveyardTop
     ? (() => {
         const sel = selectCardWithDefinition(state, opponentGraveyardTop.id);
         return {
@@ -135,9 +161,9 @@ export function MultiplayerPlaymat({ myRole }: { myRole: "host" | "guest" }) {
           topImageUrl: sel?.definition.imageUrl ?? null,
         };
       })()
-    : { topName: "", topImageUrl: null };
+    : emptyStackInfo;
 
-  const opponentExileTopInfo = opponentExileTop
+  const opponentExileTopInfo: OpponentStackInfo = opponentExileTop
     ? (() => {
         const sel = selectCardWithDefinition(state, opponentExileTop.id);
         return {
@@ -145,7 +171,7 @@ export function MultiplayerPlaymat({ myRole }: { myRole: "host" | "guest" }) {
           topImageUrl: sel?.definition.imageUrl ?? null,
         };
       })()
-    : { topName: "", topImageUrl: null };
+    : emptyStackInfo;
 
   const opponentGraveyardPreviewCards: ZonePreviewCard[] =
     opponentZones.graveyard.map((card) => {
@@ -195,7 +221,7 @@ export function MultiplayerPlaymat({ myRole }: { myRole: "host" | "guest" }) {
           style={{ height: "15vh" }}
         >
           <OpponentSidePanel
-            graveyard={{
+            graveyard={{ 
               ...opponentGraveyardTopInfo,
               count: opponentZones.graveyard.length,
             }}

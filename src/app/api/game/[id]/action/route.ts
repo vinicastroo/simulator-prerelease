@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import type { GameAction } from "@/lib/game/actions";
 import { gameReducer } from "@/lib/game/reducer";
@@ -45,39 +45,41 @@ export async function POST(
     return NextResponse.json({ ok: true });
   }
 
-  const result = await prisma.$transaction(async (tx) => {
-    const room = await tx.gameRoom.findUnique({ where: { id: roomId } });
-    if (!room) throw new Error("NOT_FOUND");
-    if (room.status !== "ACTIVE") throw new Error("GAME_NOT_ACTIVE");
+  const result = await prisma
+    .$transaction(async (tx) => {
+      const room = await tx.gameRoom.findUnique({ where: { id: roomId } });
+      if (!room) throw new Error("NOT_FOUND");
+      if (room.status !== "ACTIVE") throw new Error("GAME_NOT_ACTIVE");
 
-    const isHost = room.hostUserId === userId;
-    const isGuest = room.guestUserId === userId;
-    if (!isHost && !isGuest) throw new Error("FORBIDDEN");
+      const isHost = room.hostUserId === userId;
+      const isGuest = room.guestUserId === userId;
+      if (!isHost && !isGuest) throw new Error("FORBIDDEN");
 
-    // Optimistic lock — reject if client version is stale
-    if (clientVersion !== undefined && clientVersion !== room.stateVersion) {
-      throw new Error("VERSION_CONFLICT");
-    }
+      // Optimistic lock — reject if client version is stale
+      if (clientVersion !== undefined && clientVersion !== room.stateVersion) {
+        throw new Error("VERSION_CONFLICT");
+      }
 
-    const currentState = room.gameState as unknown as GameState;
-    const actorPlayerId = isHost ? room.hostPlayerId : room.guestPlayerId;
+      const currentState = room.gameState as unknown as GameState;
+      const actorPlayerId = isHost ? room.hostPlayerId : room.guestPlayerId;
 
-    if (!actorPlayerId || !currentState.players[actorPlayerId]) {
-      throw new Error("PLAYER_NOT_FOUND");
-    }
+      if (!actorPlayerId || !currentState.players[actorPlayerId]) {
+        throw new Error("PLAYER_NOT_FOUND");
+      }
 
-    const nextState = gameReducer(currentState, action);
-    const nextVersion = room.stateVersion + 1;
+      const nextState = gameReducer(currentState, action);
+      const nextVersion = room.stateVersion + 1;
 
-    await tx.gameRoom.update({
-      where: { id: roomId },
-      data: { gameState: nextState as object, stateVersion: nextVersion },
+      await tx.gameRoom.update({
+        where: { id: roomId },
+        data: { gameState: nextState as object, stateVersion: nextVersion },
+      });
+
+      return { nextVersion, actorPlayerId };
+    })
+    .catch((err: Error) => {
+      return { error: err.message };
     });
-
-    return { nextVersion, actorPlayerId };
-  }).catch((err: Error) => {
-    return { error: err.message };
-  });
 
   if ("error" in result) {
     const status =

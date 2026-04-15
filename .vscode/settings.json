@@ -1,10 +1,11 @@
 {
   "prisma.pinToPrisma6": false,
+  "files.autoSave": "afterDelay",
   "editor.defaultFormatter": "biomejs.biome",
   "editor.formatOnSave": true,
   "editor.codeActionsOnSave": {
-    "source.organizeImports.biome": "explicit",
-    "source.fixAll.biome": "explicit"
+    "source.organizeImports.biome": "always",
+    "source.fixAll.biome": "always"
   },
   "[javascript]": {
     "editor.defaultFormatter": "biomejs.biome"

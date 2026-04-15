@@ -1,5 +1,4 @@
 import Image from "next/image";
-import { CardBack } from "../CardBack";
 import type { CardHoverInfo } from "./types";
 
 // ─── Types ───────────────────────────────────────────────────────────────────

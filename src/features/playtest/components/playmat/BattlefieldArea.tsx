@@ -48,7 +48,7 @@ export function BattlefieldArea({
   orientation,
   playerName,
   life,
-  turnLabel,
+  turnLabel: _turnLabel,
   battlefieldZoom,
   battlefieldCards,
   activePings,
@@ -58,9 +58,10 @@ export function BattlefieldArea({
   onHoverCard,
   onPingCard,
 }: BattlefieldAreaProps) {
-  const hudPosition = orientation === "top"
-    ? "absolute left-3 bottom-3 z-20"
-    : "absolute left-3 top-3 z-20";
+  const hudPosition =
+    orientation === "top"
+      ? "absolute left-3 bottom-3 z-20"
+      : "absolute left-3 top-3 z-20";
 
   return (
     <div
@@ -79,7 +80,9 @@ export function BattlefieldArea({
       onWheel={onWheel}
     >
       {/* HUD */}
-      <div className={`${hudPosition} flex items-center gap-3 rounded-xl border border-white/15 bg-black/35 px-3 py-2 backdrop-blur-sm`}>
+      <div
+        className={`${hudPosition} flex items-center gap-3 rounded-xl border border-white/15 bg-black/35 px-3 py-2 backdrop-blur-sm`}
+      >
         <div>
           <p className="font-mono text-[9px] uppercase tracking-[0.3em] text-white/40">
             {interactive ? "Jogador" : "Oponente"}
@@ -118,7 +121,6 @@ export function BattlefieldArea({
             </span>
           )}
         </div>
-
       </div>
 
       {/* Zoom controls */}

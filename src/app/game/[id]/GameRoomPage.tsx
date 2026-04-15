@@ -2,8 +2,8 @@
 
 import type { GameRoomStatus } from "@prisma/client";
 import { GameLobby } from "@/features/game/components/GameLobby";
-import { MultiplayerPlaytestClient } from "./MultiplayerPlaytestClient";
 import type { GameState } from "@/lib/game/types";
+import { MultiplayerPlaytestClient } from "./MultiplayerPlaytestClient";
 
 type Kit = { id: string; college: string } | null;
 type UserInfo = { id: string; name: string } | null;

@@ -18,5 +18,4 @@ function createPusherClient() {
 export const pusherClient =
   globalForPusher.pusherClient ?? createPusherClient();
 
-if (typeof window !== "undefined")
-  globalForPusher.pusherClient = pusherClient;
+if (typeof window !== "undefined") globalForPusher.pusherClient = pusherClient;

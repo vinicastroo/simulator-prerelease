@@ -1,7 +1,7 @@
 "use client";
 
-import { MultiplayerGameProvider } from "@/features/game/store/MultiplayerGameProvider";
 import { MultiplayerPlaymat } from "@/features/game/components/MultiplayerPlaymat";
+import { MultiplayerGameProvider } from "@/features/game/store/MultiplayerGameProvider";
 import type { GameState } from "@/lib/game/types";
 
 type Props = {

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { generatePlayerId } from "@/lib/game/ids";
 import { createInitialGameState } from "@/lib/game/initial-state";
@@ -118,6 +118,10 @@ export async function POST(
       const sideboardIds = instances
         .filter((i) => i.zone === "sideboard")
         .map((i) => i.id);
+      const hostPlayer = gameState.players[hostPlayerId];
+      if (!hostPlayer) {
+        throw new Error("HOST_PLAYER_NOT_FOUND");
+      }
       gameState = {
         ...gameState,
         cardDefinitions: { ...gameState.cardDefinitions, ...defs },
@@ -125,9 +129,9 @@ export async function POST(
         players: {
           ...gameState.players,
           [hostPlayerId]: {
-            ...gameState.players[hostPlayerId]!,
+            ...hostPlayer,
             zones: {
-              ...gameState.players[hostPlayerId]!.zones,
+              ...hostPlayer.zones,
               library: libraryIds,
               sideboard: sideboardIds,
             },
@@ -154,6 +158,10 @@ export async function POST(
       const sideboardIds = instances
         .filter((i) => i.zone === "sideboard")
         .map((i) => i.id);
+      const guestPlayer = gameState.players[guestPlayerId];
+      if (!guestPlayer) {
+        throw new Error("GUEST_PLAYER_NOT_FOUND");
+      }
       gameState = {
         ...gameState,
         cardDefinitions: { ...gameState.cardDefinitions, ...defs },
@@ -161,9 +169,9 @@ export async function POST(
         players: {
           ...gameState.players,
           [guestPlayerId]: {
-            ...gameState.players[guestPlayerId]!,
+            ...guestPlayer,
             zones: {
-              ...gameState.players[guestPlayerId]!.zones,
+              ...guestPlayer.zones,
               library: libraryIds,
               sideboard: sideboardIds,
             },
