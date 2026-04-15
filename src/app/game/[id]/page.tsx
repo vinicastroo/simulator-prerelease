@@ -1,5 +1,7 @@
 import { notFound, redirect } from "next/navigation";
+import ReactDOM from "react-dom";
 import { requireSessionUser } from "@/lib/auth-session";
+import type { GameState } from "@/lib/game/types";
 import { prisma } from "@/lib/prisma";
 import { GameRoomPage } from "./GameRoomPage";
 
@@ -47,6 +49,17 @@ export default async function GamePage({ params }: Props) {
     });
     // Redirect to same page so re-fetch picks up updated room
     redirect(`/game/${roomId}`);
+  }
+
+  // Preload all card images so the browser fetches them in parallel with
+  // hydration — by the time cards are played they're already in cache.
+  if (room.status === "ACTIVE" && room.gameState) {
+    const gs = room.gameState as unknown as GameState;
+    for (const def of Object.values(gs.cardDefinitions)) {
+      if (def.imageUrl) {
+        ReactDOM.preload(def.imageUrl, { as: "image" });
+      }
+    }
   }
 
   const kits = await prisma.prereleaseKit.findMany({
