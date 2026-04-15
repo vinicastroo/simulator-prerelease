@@ -100,11 +100,15 @@ export type GameSetupState = {
     | {
         stage: "mulligan";
         keptPlayerIds: PlayerId[];
+        handSizeByPlayerId: Partial<Record<PlayerId, number>>;
+        mulliganCountByPlayerId: Partial<Record<PlayerId, number>>;
       }
     | {
         stage: "ready";
         keptPlayerIds: PlayerId[];
         firstPlayerId: PlayerId;
+        handSizeByPlayerId: Partial<Record<PlayerId, number>>;
+        mulliganCountByPlayerId: Partial<Record<PlayerId, number>>;
       };
 };
 

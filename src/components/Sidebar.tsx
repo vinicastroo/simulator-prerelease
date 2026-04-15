@@ -320,13 +320,21 @@ export function Sidebar() {
             <p className="text-white/35 text-[11px] mt-0.5">
               Arraste cartas para adicionar
             </p>
-            <div className="mt-3">
+            <div className="mt-3 flex items-center gap-2">
               <Button
                 size="sm"
                 className="h-8 rounded-xl border border-[#3c5d8f]/45 bg-[#20304f]/70 text-[#d7e4ff] hover:bg-[#2a3d64]"
                 onClick={handlePlaytestClick}
               >
                 Playtest
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-8 rounded-xl border border-[#3c5d8f]/30 bg-transparent text-[#91a7da] hover:bg-[#20304f]/50 hover:text-[#d7e4ff]"
+                onClick={() => router.push("/game")}
+              >
+                Jogar com amigos
               </Button>
             </div>
           </div>

@@ -19,22 +19,22 @@ export async function POST(
   const { id: roomId } = await params;
   const userId = session.user.id;
 
-  const result = await prisma
-    .$transaction(async (tx) => {
-      const room = await tx.gameRoom.findUnique({ where: { id: roomId } });
-      if (!room) throw new Error("NOT_FOUND");
-      if (room.status !== "ACTIVE") throw new Error("GAME_NOT_ACTIVE");
+  const result = await (async () => {
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const room = await prisma.gameRoom.findUnique({ where: { id: roomId } });
+      if (!room) return { error: "NOT_FOUND" };
+      if (room.status !== "ACTIVE") return { error: "GAME_NOT_ACTIVE" };
 
       const isHost = room.hostUserId === userId;
       const isGuest = room.guestUserId === userId;
-      if (!isHost && !isGuest) throw new Error("FORBIDDEN");
+      if (!isHost && !isGuest) return { error: "FORBIDDEN" };
 
       const playerId = isHost ? room.hostPlayerId : room.guestPlayerId;
-      if (!playerId) throw new Error("PLAYER_NOT_FOUND");
+      if (!playerId) return { error: "PLAYER_NOT_FOUND" };
 
       const currentState = room.gameState as unknown as GameState;
       const player = currentState.players[playerId];
-      if (!player) throw new Error("PLAYER_NOT_FOUND");
+      if (!player) return { error: "PLAYER_NOT_FOUND" };
 
       const setup = getGameSetup(currentState);
       if (setup.mulligan.stage !== "mulligan") {
@@ -45,6 +45,7 @@ export async function POST(
         return { nextState: currentState, nextVersion: room.stateVersion };
       }
 
+      const drawCount = Math.min(7, player.zones.library.length);
       const shuffled = shuffleCardIds(player.zones.library);
       let nextState = gameReducer(currentState, {
         type: "zone/shuffle",
@@ -55,18 +56,26 @@ export async function POST(
       nextState = gameReducer(nextState, {
         type: "card/draw",
         playerId,
-        count: Math.min(7, shuffled.length),
+        count: drawCount,
       });
 
       const nextVersion = room.stateVersion + 1;
-      await tx.gameRoom.update({
-        where: { id: roomId },
+      const updated = await prisma.gameRoom.updateMany({
+        where: {
+          id: roomId,
+          stateVersion: room.stateVersion,
+          status: "ACTIVE",
+        },
         data: { gameState: nextState as object, stateVersion: nextVersion },
       });
 
-      return { nextState, nextVersion };
-    })
-    .catch((error: Error) => ({ error: error.message }));
+      if (updated.count > 0) {
+        return { nextState, nextVersion };
+      }
+    }
+
+    return { error: "VERSION_CONFLICT" };
+  })();
 
   if ("error" in result) {
     const status =
@@ -74,9 +83,11 @@ export async function POST(
         ? 404
         : result.error === "FORBIDDEN"
           ? 403
-          : result.error === "GAME_NOT_ACTIVE"
+          : result.error === "VERSION_CONFLICT"
             ? 409
-            : 500;
+            : result.error === "GAME_NOT_ACTIVE"
+              ? 409
+              : 500;
     return NextResponse.json({ error: result.error }, { status });
   }
 

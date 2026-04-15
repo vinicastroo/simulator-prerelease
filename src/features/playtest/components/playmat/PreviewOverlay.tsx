@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { CardPreview } from "../CardPreview";
 import type { CardHoverInfo, PreviewAnchor } from "./types";
 
@@ -25,7 +27,12 @@ export function PreviewOverlay({
   previewAnchor,
   preferBelow = false,
 }: PreviewOverlayProps) {
-  if (!previewCard || !previewAnchor) return null;
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!previewCard || !previewAnchor || !mounted) return null;
 
   const viewportWidth =
     typeof window === "undefined" ? 1280 : window.innerWidth;
@@ -90,9 +97,9 @@ export function PreviewOverlay({
     Math.min(top, viewportHeight - previewHeight - PREVIEW_MARGIN),
   );
 
-  return (
+  return createPortal(
     <div
-      className="pointer-events-none fixed z-[500]"
+      className="pointer-events-none fixed z-[9999]"
       style={{
         left,
         top,
@@ -109,6 +116,7 @@ export function PreviewOverlay({
           className="border border-white/20"
         />
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

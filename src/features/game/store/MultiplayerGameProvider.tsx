@@ -38,6 +38,8 @@ type MultiplayerGameContextValue = {
   resetSyncVersion: number;
   isFirstPlayerRollActive: boolean;
   firstPlayerRollWinnerId: string | null;
+  isActionPending: boolean;
+  mulliganToastMessage: string | null;
 };
 
 const MultiplayerGameContext =
@@ -98,6 +100,10 @@ export function MultiplayerGameProvider({
   const [firstPlayerRollWinnerId, setFirstPlayerRollWinnerId] = useState<
     string | null
   >(null);
+  const [pendingActionCount, setPendingActionCount] = useState(0);
+  const [mulliganToastMessage, setMulliganToastMessage] = useState<
+    string | null
+  >(null);
 
   const addPing = useCallback((cardId: string) => {
     setActivePings((prev) => new Set([...prev, cardId]));
@@ -110,7 +116,7 @@ export function MultiplayerGameProvider({
     }, 700);
   }, []);
 
-  // Serialized action queue — prevents VERSION_CONFLICT when actions fire rapidly
+  // Serialized action queue — server stays authoritative for multiplayer actions.
   const actionQueueRef = useRef<GameAction[]>([]);
   const processingRef = useRef(false);
 
@@ -132,8 +138,24 @@ export function MultiplayerGameProvider({
 
         if (res.ok) {
           const data = (await res.json()) as { seq: number };
-          versionRef.current = data.seq;
-          setStateVersion(data.seq);
+          const sync = await fetch(`/api/game/${roomId}/state`);
+          if (sync.ok) {
+            const synced = (await sync.json()) as {
+              gameState: GameState;
+              stateVersion: number;
+              hostReady: boolean;
+              guestReady: boolean;
+            };
+            stateRef.current = synced.gameState;
+            setState(synced.gameState);
+            versionRef.current = synced.stateVersion;
+            setStateVersion(synced.stateVersion);
+            setHostResetAccepted(Boolean(synced.hostReady));
+            setGuestResetAccepted(Boolean(synced.guestReady));
+          } else {
+            versionRef.current = data.seq;
+            setStateVersion(data.seq);
+          }
         } else {
           // Resync on any error (version conflict, etc.)
           const sync = await fetch(`/api/game/${roomId}/state`);
@@ -153,6 +175,7 @@ export function MultiplayerGameProvider({
       }
 
       actionQueueRef.current.shift();
+      setPendingActionCount((current) => Math.max(0, current - 1));
     }
 
     processingRef.current = false;
@@ -181,13 +204,9 @@ export function MultiplayerGameProvider({
 
   const dispatch = useCallback(
     (action: GameAction) => {
-      // Apply optimistically immediately — update ref first so chained
-      // dispatches (e.g. shuffle then draw) build on each other correctly.
-      const nextState = gameReducer(stateRef.current, action);
-      stateRef.current = nextState;
-      setState(nextState);
-      // Enqueue and drain serially so versions never conflict
+      // Enqueue and let the server-confirmed result update local state.
       actionQueueRef.current.push(action);
+      setPendingActionCount((current) => current + 1);
       void processQueue();
     },
     [processQueue],
@@ -225,7 +244,7 @@ export function MultiplayerGameProvider({
 
     channel.bind(
       "game-action",
-      (data: { action: GameAction; actorUserId: string }) => {
+      (data: { action: GameAction; actorUserId: string; seq?: number }) => {
         // Ignore echo of own actions (already applied optimistically)
         if (data.actorUserId === myUserId) return;
         // card/ping is a UI signal — show animation, don't mutate state
@@ -236,6 +255,10 @@ export function MultiplayerGameProvider({
         const nextState = gameReducer(stateRef.current, data.action);
         stateRef.current = nextState;
         setState(nextState);
+        if (data.seq !== undefined) {
+          versionRef.current = data.seq;
+          setStateVersion(data.seq);
+        }
       },
     );
 
@@ -257,6 +280,23 @@ export function MultiplayerGameProvider({
         window.setTimeout(() => {
           setIsFirstPlayerRollActive(false);
         }, data.durationMs);
+      },
+    );
+
+    channel.bind(
+      "player-mulliganed",
+      (data: { playerName: string; count: number }) => {
+        setMulliganToastMessage(
+          `${data.playerName} mulligou ${data.count} vez${data.count === 1 ? "" : "es"}`,
+        );
+        window.setTimeout(() => {
+          setMulliganToastMessage((current) =>
+            current ===
+            `${data.playerName} mulligou ${data.count} vez${data.count === 1 ? "" : "es"}`
+              ? null
+              : current,
+          );
+        }, 2200);
       },
     );
 
@@ -305,6 +345,8 @@ export function MultiplayerGameProvider({
         resetSyncVersion,
         isFirstPlayerRollActive,
         firstPlayerRollWinnerId,
+        isActionPending: pendingActionCount > 0,
+        mulliganToastMessage,
       }}
     >
       {children}

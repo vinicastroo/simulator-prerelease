@@ -59,6 +59,7 @@ export type GameAction =
       to: ZoneName;
       toPlayerId: PlayerId;
       index?: number;
+      battlefieldPosition?: { x: number; y: number; z: number };
     }
   | {
       type: "card/moveMany";
@@ -75,6 +76,12 @@ export type GameAction =
       playerId: PlayerId;
       keepOnTopIds: CardInstanceId[];
       putOnBottomIds: CardInstanceId[];
+    }
+  | {
+      type: "card/surveil";
+      playerId: PlayerId;
+      keepOnTopIds: CardInstanceId[];
+      putInGraveyardIds: CardInstanceId[];
     }
   | {
       type: "card/tutor";

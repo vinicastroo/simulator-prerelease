@@ -196,6 +196,10 @@ export function MultiplayerPlaymat({
     useState<CardHoverInfo | null>(null);
   const [opponentPreviewAnchor, setOpponentPreviewAnchor] =
     useState<PreviewAnchor | null>(null);
+  const [mulliganPreviewCard, setMulliganPreviewCard] =
+    useState<CardHoverInfo | null>(null);
+  const [mulliganPreviewAnchor, setMulliganPreviewAnchor] =
+    useState<PreviewAnchor | null>(null);
 
   const clampZoom = useCallback(
     (v: number) =>
@@ -369,6 +373,22 @@ export function MultiplayerPlaymat({
           </div>
         )}
 
+        {multiCtx.isConnected && multiCtx.isActionPending && (
+          <div className="pointer-events-none fixed inset-x-0 top-0 z-[590] flex justify-center">
+            <div className="rounded-b-lg bg-cyan-950/85 px-4 py-1 text-xs font-semibold text-cyan-100">
+              Sincronizando jogada...
+            </div>
+          </div>
+        )}
+
+        {multiCtx.mulliganToastMessage && (
+          <div className="pointer-events-none fixed inset-x-0 top-6 z-[640] flex justify-center px-4">
+            <div className="rounded-xl border border-white/10 bg-[#0e131a]/92 px-4 py-2 text-sm font-medium text-white shadow-2xl backdrop-blur-md">
+              {multiCtx.mulliganToastMessage}
+            </div>
+          </div>
+        )}
+
         {/* Opponent hand / zones row — 15% */}
         <div
           id="opponent-zones-row"
@@ -511,9 +531,26 @@ export function MultiplayerPlaymat({
                       </div>
                     ))
                   : openingHandCards.map((card) => (
-                      <div
+                      <button
                         key={card.id}
-                        className="flex flex-col items-center gap-2"
+                        type="button"
+                        className="flex flex-col items-center gap-2 bg-transparent p-0 text-inherit"
+                        onMouseEnter={(event) => {
+                          setMulliganPreviewCard({
+                            name: card.name,
+                            imageUrl: card.imageUrl,
+                          });
+                          const rect =
+                            event.currentTarget.getBoundingClientRect();
+                          setMulliganPreviewAnchor({
+                            x: rect.left + rect.width / 2,
+                            y: rect.top,
+                          });
+                        }}
+                        onMouseLeave={() => {
+                          setMulliganPreviewCard(null);
+                          setMulliganPreviewAnchor(null);
+                        }}
                       >
                         <div className="relative h-[167px] w-[120px] overflow-hidden rounded-[10px] border border-white/10 bg-black/20 shadow-lg sm:h-[209px] sm:w-[150px]">
                           {card.imageUrl ? (
@@ -532,7 +569,7 @@ export function MultiplayerPlaymat({
                         <span className="max-w-[120px] text-center text-[10px] text-white/55">
                           {card.name}
                         </span>
-                      </div>
+                      </button>
                     ))}
               </div>
 
@@ -563,6 +600,10 @@ export function MultiplayerPlaymat({
                 </Button>
               </div>
             </div>
+            <PreviewOverlay
+              previewCard={mulliganPreviewCard}
+              previewAnchor={mulliganPreviewAnchor}
+            />
           </div>
         )}
     </GameContext.Provider>

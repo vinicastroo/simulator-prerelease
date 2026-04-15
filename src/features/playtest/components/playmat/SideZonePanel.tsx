@@ -1,8 +1,10 @@
 "use client";
 
+import { useDndMonitor, useDraggable } from "@dnd-kit/core";
+import { CSS } from "@dnd-kit/utilities";
 import Image from "next/image";
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   ContextMenu,
@@ -29,8 +31,10 @@ import { shuffleCardIds } from "@/lib/game/shuffle";
 import type { CardInstance } from "@/lib/game/types";
 import { useGameStore } from "../../hooks/useGameStore";
 import { DeckTopCard } from "./DeckTopCard";
+import { ModalDropZoneOverlay } from "./ModalDropZones";
+import { PreviewOverlay } from "./PreviewOverlay";
 import { StackTopCard } from "./StackTopCard";
-import type { CardHoverInfo } from "./types";
+import type { CardHoverInfo, DragCardData, PreviewAnchor } from "./types";
 
 // ---------------------------------------------------------------------------
 // Shell
@@ -142,7 +146,10 @@ function StackZone({
       onView={onView}
     >
       <SideZoneCardFrame>
-        <div className="relative flex h-[209px] w-[150px] items-center justify-center rounded-[10px] border border-white/20 bg-white/[0.02]">
+        <div
+          className="relative flex h-[209px] w-[150px] cursor-pointer items-center justify-center rounded-[10px] border border-white/20 bg-white/[0.02] transition hover:border-white/40"
+          onClick={onView}
+        >
           {top ? (
             <StackTopCard
               cardId={top.id}
@@ -171,6 +178,79 @@ type ScryCard = {
   dest: "top" | "bottom";
 };
 
+type SurveilCard = {
+  id: string;
+  name: string;
+  imageUrl: string | null;
+  dest: "top" | "graveyard";
+};
+
+type LibraryViewCard = {
+  id: string;
+  name: string;
+  imageUrl: string | null;
+};
+
+
+function LibraryViewCardButton({
+  card,
+  onHover,
+}: {
+  card: LibraryViewCard;
+  onHover: (info: CardHoverInfo | null, target: HTMLElement | null) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } =
+    useDraggable({
+      id: `library-view-${card.id}`,
+      data: {
+        cardId: card.id,
+        from: "library",
+        behavior: "move-from-library",
+      } satisfies DragCardData,
+    });
+
+  return (
+    <button
+      ref={setNodeRef}
+      type="button"
+      className="flex flex-col items-center gap-1.5 rounded-lg bg-transparent p-0 text-inherit"
+      style={{
+        opacity: isDragging ? 0.4 : 1,
+        transform: transform ? CSS.Translate.toString(transform) : undefined,
+      }}
+      onMouseEnter={(event) =>
+        onHover(
+          { name: card.name, imageUrl: card.imageUrl },
+          event.currentTarget,
+        )
+      }
+      onMouseLeave={() => onHover(null, null)}
+      {...listeners}
+      {...attributes}
+    >
+      <div className="relative h-[167px] w-[120px] overflow-hidden rounded-[8px] border border-white/10 bg-white/[0.03] shadow-lg">
+        {card.imageUrl ? (
+          <Image
+            src={card.imageUrl}
+            alt={card.name}
+            width={120}
+            height={167}
+            className="h-full w-full object-cover"
+            unoptimized
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center p-2 text-center text-[11px] text-white/55">
+            {card.name}
+          </div>
+        )}
+      </div>
+      <span className="max-w-[120px] truncate text-center text-[10px] text-white/55">
+        {card.name}
+      </span>
+    </button>
+  );
+}
+
 type LibraryZoneProps = {
   topId: string | null;
   count: number;
@@ -194,6 +274,26 @@ function LibraryZone({
 }: LibraryZoneProps) {
   const { state, dispatch, localPlayerId } = useGameStore();
 
+  // --- library drag monitoring ---
+  const [isDraggingFromLibrary, setIsDraggingFromLibrary] = useState(false);
+
+  useDndMonitor({
+    onDragStart(event) {
+      const data = event.active.data.current as
+        | { behavior?: string }
+        | undefined;
+      if (data?.behavior === "move-from-library") {
+        setIsDraggingFromLibrary(true);
+      }
+    },
+    onDragEnd() {
+      setIsDraggingFromLibrary(false);
+    },
+    onDragCancel() {
+      setIsDraggingFromLibrary(false);
+    },
+  });
+
   // --- dialog state ---
   const [revealOpen, setRevealOpen] = useState(false);
   const [millOpen, setMillOpen] = useState(false);
@@ -204,9 +304,46 @@ function LibraryZone({
   const [scryCount, setScryCount] = useState("1");
   const [scryModalOpen, setScryModalOpen] = useState(false);
   const [scryCards, setScryCards] = useState<ScryCard[]>([]);
+  const [scryPreviewCard, setScryPreviewCard] = useState<CardHoverInfo | null>(
+    null,
+  );
+  const [scryPreviewAnchor, setScryPreviewAnchor] =
+    useState<PreviewAnchor | null>(null);
+  const [surveilCountOpen, setSurveilCountOpen] = useState(false);
+  const [surveilCount, setSurveilCount] = useState("1");
+  const [surveilModalOpen, setSurveilModalOpen] = useState(false);
+  const [surveilCards, setSurveilCards] = useState<SurveilCard[]>([]);
+  const [surveilPreviewCard, setSurveilPreviewCard] =
+    useState<CardHoverInfo | null>(null);
+  const [surveilPreviewAnchor, setSurveilPreviewAnchor] =
+    useState<PreviewAnchor | null>(null);
+  const [libraryViewOpen, setLibraryViewOpen] = useState(false);
+  const [libraryFilter, setLibraryFilter] = useState("");
+  const [libraryPreviewCard, setLibraryPreviewCard] =
+    useState<CardHoverInfo | null>(null);
+  const [libraryPreviewAnchor, setLibraryPreviewAnchor] =
+    useState<PreviewAnchor | null>(null);
 
   // --- derived ---
   const libraryIds = state.players[localPlayerId]?.zones.library ?? [];
+  const libraryViewCards = useMemo(() => {
+    const normalizedFilter = libraryFilter.trim().toLowerCase();
+
+    return libraryIds
+      .map((id) => {
+        const sel = selectCardWithDefinition(state, id);
+        return {
+          id,
+          name: sel?.definition.name ?? "Carta",
+          imageUrl: sel?.definition.imageUrl ?? null,
+        } satisfies LibraryViewCard;
+      })
+      .filter((card) =>
+        normalizedFilter.length === 0
+          ? true
+          : card.name.toLowerCase().includes(normalizedFilter),
+      );
+  }, [libraryFilter, libraryIds, state]);
 
   const topCardInfo = topId
     ? (() => {
@@ -271,10 +408,75 @@ function LibraryZone({
     setScryCount("1");
   };
 
+  const handleSurveilCountConfirm = () => {
+    const n = Math.min(
+      Math.max(1, Number.parseInt(surveilCount, 10) || 1),
+      count,
+    );
+    const topCards = selectTopLibraryCards(state, localPlayerId, n);
+    setSurveilCards(
+      topCards.map((inst) => {
+        const sel = selectCardWithDefinition(state, inst.id);
+        return {
+          id: inst.id,
+          name: sel?.definition.name ?? "Carta",
+          imageUrl: sel?.definition.imageUrl ?? null,
+          dest: "top" as const,
+        };
+      }),
+    );
+    setSurveilCountOpen(false);
+    setSurveilModalOpen(true);
+  };
+
+  const handleSurveilConfirm = () => {
+    dispatch({
+      type: "card/surveil",
+      playerId: localPlayerId,
+      keepOnTopIds: surveilCards
+        .filter((c) => c.dest === "top")
+        .map((c) => c.id),
+      putInGraveyardIds: surveilCards
+        .filter((c) => c.dest === "graveyard")
+        .map((c) => c.id),
+    });
+    setSurveilModalOpen(false);
+    setSurveilCards([]);
+    setSurveilCount("1");
+  };
+
+  const clearScryPreview = () => {
+    setScryPreviewCard(null);
+    setScryPreviewAnchor(null);
+  };
+
+  const clearSurveilPreview = () => {
+    setSurveilPreviewCard(null);
+    setSurveilPreviewAnchor(null);
+  };
+
+  const clearLibraryPreview = () => {
+    setLibraryPreviewCard(null);
+    setLibraryPreviewAnchor(null);
+  };
+
   const toggleScryDest = (id: string) => {
     setScryCards((prev) =>
       prev.map((c) =>
         c.id === id ? { ...c, dest: c.dest === "top" ? "bottom" : "top" } : c,
+      ),
+    );
+  };
+
+  const toggleSurveilDest = (id: string) => {
+    setSurveilCards((prev) =>
+      prev.map((c) =>
+        c.id === id
+          ? {
+              ...c,
+              dest: c.dest === "top" ? "graveyard" : "top",
+            }
+          : c,
       ),
     );
   };
@@ -350,6 +552,20 @@ function LibraryZone({
                   className="border-b"
                 >
                   Scry
+                </ContextMenuItem>
+                <ContextMenuItem
+                  onSelect={() => setSurveilCountOpen(true)}
+                  disabled={count === 0}
+                  className="border-b"
+                >
+                  Surveil
+                </ContextMenuItem>
+                <ContextMenuItem
+                  onSelect={() => setLibraryViewOpen(true)}
+                  disabled={count === 0}
+                  className="border-b"
+                >
+                  View in library
                 </ContextMenuItem>
                 <ContextMenuItem
                   onSelect={handleShuffle}
@@ -473,7 +689,7 @@ function LibraryZone({
 
       {/* Scry — step 1: choose count */}
       <Dialog open={scryCountOpen} onOpenChange={setScryCountOpen}>
-        <DialogContent>
+        <DialogContent className="bg-black">
           <DialogHeader>
             <DialogTitle>Scry</DialogTitle>
           </DialogHeader>
@@ -502,7 +718,7 @@ function LibraryZone({
 
       {/* Scry — step 2: choose top / bottom */}
       <Dialog open={scryModalOpen} onOpenChange={setScryModalOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl bg-black">
           <DialogHeader>
             <DialogTitle>
               Scry {scryCards.length} — clique para alternar topo / fundo
@@ -515,6 +731,18 @@ function LibraryZone({
                 type="button"
                 onClick={() => toggleScryDest(card.id)}
                 className="flex flex-col items-center gap-1.5 cursor-pointer"
+                onMouseEnter={(event) => {
+                  setScryPreviewCard({
+                    name: card.name,
+                    imageUrl: card.imageUrl,
+                  });
+                  const rect = event.currentTarget.getBoundingClientRect();
+                  setScryPreviewAnchor({
+                    x: rect.left + rect.width / 2,
+                    y: rect.top,
+                  });
+                }}
+                onMouseLeave={clearScryPreview}
               >
                 {card.imageUrl ? (
                   <Image
@@ -560,6 +788,252 @@ function LibraryZone({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <Dialog open={surveilCountOpen} onOpenChange={setSurveilCountOpen}>
+        <DialogContent className="bg-black">
+          <DialogHeader>
+            <DialogTitle>Surveil</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="surveil-count">Quantas cartas?</Label>
+            <Input
+              id="surveil-count"
+              type="number"
+              min={1}
+              max={count}
+              value={surveilCount}
+              onChange={(e) => setSurveilCount(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleSurveilCountConfirm();
+              }}
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setSurveilCountOpen(false)}
+            >
+              Cancelar
+            </Button>
+            <Button onClick={handleSurveilCountConfirm}>Ver cartas</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={surveilModalOpen} onOpenChange={setSurveilModalOpen}>
+        <DialogContent className="max-w-2xl bg-black">
+          <DialogHeader>
+            <DialogTitle>
+              Surveil {surveilCards.length} — clique para alternar topo /
+              cemiterio
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-wrap justify-center gap-3 py-2">
+            {surveilCards.map((card) => (
+              <button
+                key={card.id}
+                type="button"
+                onClick={() => toggleSurveilDest(card.id)}
+                className="flex cursor-pointer flex-col items-center gap-1.5"
+                onMouseEnter={(event) => {
+                  setSurveilPreviewCard({
+                    name: card.name,
+                    imageUrl: card.imageUrl,
+                  });
+                  const rect = event.currentTarget.getBoundingClientRect();
+                  setSurveilPreviewAnchor({
+                    x: rect.left + rect.width / 2,
+                    y: rect.top,
+                  });
+                }}
+                onMouseLeave={clearSurveilPreview}
+              >
+                {card.imageUrl ? (
+                  <Image
+                    src={card.imageUrl}
+                    alt={card.name}
+                    width={100}
+                    height={139}
+                    className={`rounded-[6px] border-2 transition-all ${
+                      card.dest === "top"
+                        ? "border-white/50"
+                        : "border-emerald-500/60 opacity-50"
+                    }`}
+                    unoptimized
+                  />
+                ) : (
+                  <div
+                    className={`flex h-[139px] w-[100px] items-center justify-center rounded-[6px] border-2 p-1 text-center text-[10px] ${
+                      card.dest === "top"
+                        ? "border-white/50 bg-white/5"
+                        : "border-emerald-500/60 bg-emerald-500/5 opacity-50"
+                    }`}
+                  >
+                    {card.name}
+                  </div>
+                )}
+                <span
+                  className={`rounded px-2 py-0.5 font-mono text-[10px] ${
+                    card.dest === "top"
+                      ? "bg-white/10 text-white"
+                      : "bg-emerald-500/20 text-emerald-300"
+                  }`}
+                >
+                  {card.dest === "top" ? "Topo" : "Cemiterio"}
+                </span>
+              </button>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setSurveilModalOpen(false)}
+            >
+              Cancelar
+            </Button>
+            <Button onClick={handleSurveilConfirm}>Confirmar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={libraryViewOpen}
+        onOpenChange={(open) => {
+          setLibraryViewOpen(open);
+          if (!open) setLibraryFilter("");
+        }}
+      >
+        <DialogContent className="flex h-[90vh] max-w-[96vw] flex-col gap-0 overflow-hidden bg-[#0d1017] p-0 sm:max-w-[92vw]">
+          {/* Header */}
+          <div className="flex flex-col gap-3 border-b border-white/10 px-6 pb-4 pt-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-[#91a7da]">
+                  Grimório
+                </p>
+                <h2 className="mt-0.5 text-xl font-black tracking-tight text-white">
+                  Ver cartas
+                </h2>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 font-mono text-[11px] text-white/50">
+                  {libraryFilter
+                    ? `${libraryViewCards.length} / ${count}`
+                    : `${count} cartas`}
+                </span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="border-white/10 bg-white/[0.04] text-white/60 hover:bg-white/[0.09] hover:text-white"
+                  onClick={() => {
+                    handleShuffle();
+                    setLibraryViewOpen(false);
+                  }}
+                >
+                  Embaralhar
+                </Button>
+              </div>
+            </div>
+            <div className="relative">
+              <Input
+                value={libraryFilter}
+                onChange={(event) => setLibraryFilter(event.target.value)}
+                placeholder="Filtrar por nome..."
+                className="border-white/10 bg-white/[0.04] pr-8 text-white placeholder:text-white/25 focus-visible:border-white/25 focus-visible:ring-0"
+              />
+              {libraryFilter && (
+                <button
+                  type="button"
+                  onClick={() => setLibraryFilter("")}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-white/35 hover:text-white/70"
+                  aria-label="Limpar filtro"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+            <p className="text-[11px] text-white/35">
+              Arraste uma carta para a mao, campo, cemiterio ou exilio.
+            </p>
+          </div>
+
+          {/* Card grid + drop zone overlay */}
+          <div className="relative flex-1 overflow-hidden">
+            {/* Scrollable card grid — dimmed while dragging */}
+            <div
+              className={`h-full overflow-y-auto p-5 transition-opacity duration-200 ${
+                isDraggingFromLibrary
+                  ? "pointer-events-none opacity-20"
+                  : ""
+              }`}
+            >
+              {libraryViewCards.length === 0 ? (
+                <div className="flex h-full items-center justify-center py-10 text-sm text-white/30">
+                  {libraryFilter
+                    ? `Nenhuma carta com "${libraryFilter}".`
+                    : "Grimório vazio."}
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-4">
+                  {libraryViewCards.map((card) => {
+                    const globalIndex = libraryIds.indexOf(card.id);
+                    return (
+                      <div key={card.id} className="relative">
+                        <span className="absolute -left-1 -top-1 z-10 flex h-5 min-w-5 items-center justify-center rounded-full border border-white/15 bg-black/80 px-1 font-mono text-[9px] font-bold text-white/60">
+                          {globalIndex + 1}
+                        </span>
+                        <LibraryViewCardButton
+                          card={card}
+                          onHover={(info, target) => {
+                            setLibraryPreviewCard(info);
+                            if (!target) {
+                              setLibraryPreviewAnchor(null);
+                              return;
+                            }
+                            const rect = target.getBoundingClientRect();
+                            setLibraryPreviewAnchor({
+                              x: rect.left + rect.width / 2,
+                              y: rect.top,
+                            });
+                          }}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Drop zones — appear on top while dragging */}
+            {isDraggingFromLibrary && <ModalDropZoneOverlay />}
+          </div>
+
+          {/* Footer */}
+          <div className="flex justify-end border-t border-white/10 px-6 py-3">
+            <Button
+              variant="outline"
+              className="border-white/10 bg-white/[0.03] text-white/70 hover:bg-white/[0.08]"
+              onClick={() => {
+                setLibraryViewOpen(false);
+                setLibraryFilter("");
+              }}
+            >
+              Fechar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      <PreviewOverlay
+        previewCard={scryPreviewCard}
+        previewAnchor={scryPreviewAnchor}
+      />
+      <PreviewOverlay
+        previewCard={surveilPreviewCard}
+        previewAnchor={surveilPreviewAnchor}
+      />
+      <PreviewOverlay
+        previewCard={libraryPreviewCard}
+        previewAnchor={libraryPreviewAnchor}
+      />
     </>
   );
 }

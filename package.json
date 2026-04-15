@@ -12,6 +12,7 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:seed": "tsx scripts/seed-mtg.ts",
+    "db:seed-tokens": "tsx scripts/seed-tokens.ts",
     "db:backup": "tsx scripts/backup-cards.ts",
     "db:restore": "tsx scripts/restore-cards.ts"
   },

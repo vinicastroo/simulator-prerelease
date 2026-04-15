@@ -7,7 +7,6 @@ import { CardBack } from "../CardBack";
 import { BATTLEFIELD_CARD_HEIGHT, BATTLEFIELD_CARD_WIDTH } from "./constants";
 import { ManaCostBadges } from "./ManaCostBadges";
 import type { CardHoverInfo, DragCardData } from "./types";
-import { parseManaCost } from "./utils";
 
 type BattlefieldCardProps = {
   card: CardInstance;
@@ -22,6 +21,12 @@ type BattlefieldCardProps = {
   onPing?: () => void;
   /** True when the opponent pinged this card (received via Pusher) */
   isPinged?: boolean;
+  /** Left click = +1 on that stat, right click = -1 */
+  onModifyPT?: (powerDelta: number, toughnessDelta: number) => void;
+  /** Left click = +1 loyalty, right click = -1 loyalty */
+  onModifyLoyalty?: (delta: number) => void;
+  /** Right-click anywhere on the card (except P/T and loyalty boxes) */
+  onRightClick?: (x: number, y: number) => void;
 };
 
 export const BattlefieldCard = memo(function BattlefieldCard({
@@ -35,6 +40,9 @@ export const BattlefieldCard = memo(function BattlefieldCard({
   onHover,
   onPing,
   isPinged = false,
+  onModifyPT,
+  onModifyLoyalty,
+  onRightClick,
 }: BattlefieldCardProps) {
   const [pinged, setPinged] = useState(false);
 
@@ -53,6 +61,7 @@ export const BattlefieldCard = memo(function BattlefieldCard({
     const t = setTimeout(() => setPinged(false), 500);
     return () => clearTimeout(t);
   }, [pinged]);
+
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({
       id: card.id,
@@ -62,10 +71,14 @@ export const BattlefieldCard = memo(function BattlefieldCard({
       } satisfies DragCardData,
     });
 
-  const symbols = useMemo(() => parseManaCost(manaCost), [manaCost]);
   const isCreature = useMemo(() => {
     if (card.faceDown) return false;
     return cardType.toLowerCase().includes("creature");
+  }, [card.faceDown, cardType]);
+
+  const isPlaneswalker = useMemo(() => {
+    if (card.faceDown) return false;
+    return cardType.toLowerCase().includes("planeswalker");
   }, [card.faceDown, cardType]);
 
   const dragTransform = transform ? CSS.Translate.toString(transform) : "";
@@ -73,12 +86,13 @@ export const BattlefieldCard = memo(function BattlefieldCard({
     !isDragging && card.tapped ? "rotate(90deg)" : ""
   }`;
 
+  const loyalty = card.counters["loyalty"] ?? 0;
+
   return (
-    <button
+    <div
       ref={setNodeRef}
-      type="button"
       draggable={false}
-      className="absolute cursor-pointer select-none touch-none border-0 bg-transparent p-0 outline-none hover:z-10 hover:scale-105 focus:outline-none focus-visible:outline-none"
+      className="absolute cursor-pointer select-none touch-none outline-none hover:z-10 hover:scale-105 focus:outline-none focus-visible:outline-none"
       style={{
         opacity: isDragging ? 0 : 1,
         transformOrigin: "center center",
@@ -92,7 +106,14 @@ export const BattlefieldCard = memo(function BattlefieldCard({
       onMouseMove={(event) => onHover({ name, imageUrl }, event.currentTarget)}
       onMouseLeave={() => onHover(null, null)}
       onClick={handleClick}
-      onContextMenu={(event) => event.preventDefault()}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") handleClick();
+      }}
+      onContextMenu={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        onRightClick?.(event.clientX, event.clientY);
+      }}
       {...listeners}
       {...attributes}
     >
@@ -110,7 +131,7 @@ export const BattlefieldCard = memo(function BattlefieldCard({
           />
         )}
 
-        <ManaCostBadges cardId={card.id} symbols={symbols} />
+        <ManaCostBadges cardId={card.id} manaCost={manaCost} />
 
         {imageUrl ? (
           <div
@@ -147,10 +168,16 @@ export const BattlefieldCard = memo(function BattlefieldCard({
             </div>
           )}
 
-        {Object.entries(card.counters).some(([, value]) => value > 0) && (
+        {Object.entries(card.counters).some(
+          ([key, value]) =>
+            value > 0 && !(isPlaneswalker && key === "loyalty"),
+        ) && (
           <div className="absolute -bottom-1 left-0 right-0 flex flex-wrap justify-center gap-0.5">
             {Object.entries(card.counters)
-              .filter(([, value]) => value > 0)
+              .filter(
+                ([key, value]) =>
+                  value > 0 && !(isPlaneswalker && key === "loyalty"),
+              )
               .map(([counter, value]) => (
                 <span
                   key={counter}
@@ -166,17 +193,63 @@ export const BattlefieldCard = memo(function BattlefieldCard({
           </div>
         )}
 
+        {/* Creature P/T — left click +1, right click -1 */}
         {isCreature && power !== null && toughness !== null && (
           <div className="absolute -bottom-2 right-0 z-30 flex items-center gap-0.5">
-            <span className="flex h-5 min-w-5 items-center justify-center rounded-sm border border-white/30 bg-black/85 px-1 text-[10px] font-bold leading-none text-white">
+            <button
+              type="button"
+              className="flex h-6 min-w-6 cursor-pointer items-center justify-center rounded-sm border border-white/30 bg-black/85 px-1.5 text-xs font-bold leading-none text-white transition hover:border-white/70 hover:bg-black active:scale-95"
+              onClick={(e) => {
+                e.stopPropagation();
+                onModifyPT?.(1, 0);
+              }}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onModifyPT?.(-1, 0);
+              }}
+            >
               {power}
-            </span>
-            <span className="flex h-5 min-w-5 items-center justify-center rounded-sm border border-white/30 bg-black/85 px-1 text-[10px] font-bold leading-none text-white">
+            </button>
+            <button
+              type="button"
+              className="flex h-6 min-w-6 cursor-pointer items-center justify-center rounded-sm border border-white/30 bg-black/85 px-1.5 text-xs font-bold leading-none text-white transition hover:border-white/70 hover:bg-black active:scale-95"
+              onClick={(e) => {
+                e.stopPropagation();
+                onModifyPT?.(0, 1);
+              }}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onModifyPT?.(0, -1);
+              }}
+            >
               {toughness}
-            </span>
+            </button>
+          </div>
+        )}
+
+        {/* Planeswalker loyalty — left click +1, right click -1 */}
+        {isPlaneswalker && (
+          <div className="absolute -bottom-2 right-0 z-30">
+            <button
+              type="button"
+              className="flex h-6 min-w-6 cursor-pointer items-center justify-center rounded-sm border border-amber-400/50 bg-black/85 px-1.5 text-xs font-bold leading-none text-amber-200 transition hover:border-amber-300 hover:bg-black active:scale-95"
+              onClick={(e) => {
+                e.stopPropagation();
+                onModifyLoyalty?.(1);
+              }}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onModifyLoyalty?.(-1);
+              }}
+            >
+              {loyalty}
+            </button>
           </div>
         )}
       </div>
-    </button>
+    </div>
   );
 });

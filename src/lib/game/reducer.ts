@@ -130,9 +130,33 @@ function moveCard(
   to: ZoneName,
   toPlayerId: string,
   index?: number,
+  battlefieldPosition?: { x: number; y: number; z: number },
 ): GameState {
   const inst = state.cardInstances[cardId];
   if (!inst) return state;
+
+  // Tokens leaving the battlefield are deleted instead of moved
+  if (inst.isToken && from === "battlefield" && to !== "battlefield") {
+    let next = clearAttachments(state, cardId);
+    const player = next.players[inst.controllerId];
+    if (player) {
+      next = {
+        ...next,
+        players: {
+          ...next.players,
+          [inst.controllerId]: {
+            ...player,
+            zones: {
+              ...player.zones,
+              battlefield: player.zones.battlefield.filter((id) => id !== cardId),
+            },
+          },
+        },
+      };
+    }
+    const { [cardId]: _removed, ...remainingInsts } = next.cardInstances;
+    return { ...next, cardInstances: remainingInsts };
+  }
 
   let next = state;
 
@@ -146,7 +170,13 @@ function moveCard(
 
   const battlefieldData: CardInstance["battlefield"] =
     to === "battlefield"
-      ? { x: 0, y: 0, z: 0, attachedTo: null, attachments: [] }
+      ? {
+          x: battlefieldPosition?.x ?? 0,
+          y: battlefieldPosition?.y ?? 0,
+          z: battlefieldPosition?.z ?? 0,
+          attachedTo: null,
+          attachments: [],
+        }
       : null;
 
   next = {
@@ -417,6 +447,7 @@ function applyAction(state: GameState, action: GameAction): GameState {
         action.to,
         action.toPlayerId,
         action.index,
+        action.battlefieldPosition,
       );
     }
 
@@ -525,6 +556,43 @@ function applyAction(state: GameState, action: GameAction): GameState {
             zones: { ...player.zones, library: newLibrary },
           },
         },
+      };
+    }
+
+    case "card/surveil": {
+      const player = state.players[action.playerId];
+      if (!player) return state;
+      const library = player.zones.library.filter(
+        (id) =>
+          !action.keepOnTopIds.includes(id) &&
+          !action.putInGraveyardIds.includes(id),
+      );
+      const newGraveyard = [
+        ...player.zones.graveyard,
+        ...action.putInGraveyardIds,
+      ];
+      const updatedInsts: GameState["cardInstances"] = {
+        ...state.cardInstances,
+      };
+      for (const id of action.putInGraveyardIds) {
+        if (updatedInsts[id]) {
+          updatedInsts[id] = { ...updatedInsts[id], zone: "graveyard" };
+        }
+      }
+      return {
+        ...state,
+        players: {
+          ...state.players,
+          [action.playerId]: {
+            ...player,
+            zones: {
+              ...player.zones,
+              library: [...action.keepOnTopIds, ...library],
+              graveyard: newGraveyard,
+            },
+          },
+        },
+        cardInstances: updatedInsts,
       };
     }
 

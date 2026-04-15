@@ -21,6 +21,7 @@ import {
   useState,
   type WheelEvent,
 } from "react";
+import { generateCardDefId, generateCardInstanceId } from "@/lib/game/ids";
 import { selectCardWithDefinition } from "@/lib/game/selectors";
 import { shuffleCardIds } from "@/lib/game/shuffle";
 import type { CardInstance, TurnPhase } from "@/lib/game/types";
@@ -36,6 +37,12 @@ import {
   BATTLEFIELD_ZOOM_STEP,
   GRID_SIZE,
 } from "./playmat/constants";
+import { BattlefieldCardMenu } from "./playmat/BattlefieldCardMenu";
+import { BattlefieldContextMenu } from "./playmat/BattlefieldContextMenu";
+import {
+  BattlefieldTokenBrowser,
+  type TokenCard,
+} from "./playmat/BattlefieldTokenBrowser";
 import { HandZone } from "./playmat/HandZone";
 import { PreviewOverlay } from "./playmat/PreviewOverlay";
 import { SideZonePanel } from "./playmat/SideZonePanel";
@@ -133,6 +140,19 @@ export function Playmat({
   const [activeDrag, setActiveDrag] = useState<ActiveDragState | null>(null);
   const [centerToast, setCenterToast] = useState<CenterToast | null>(null);
   const lastHandledLogIdRef = useRef<string | null>(null);
+
+  type CardMenuState = { cardId: string; x: number; y: number };
+  const [cardMenu, setCardMenu] = useState<CardMenuState | null>(null);
+
+  type ContextMenuState = { x: number; y: number };
+  const [battlefieldContextMenu, setBattlefieldContextMenu] =
+    useState<ContextMenuState | null>(null);
+  const [tokenBrowserOpen, setTokenBrowserOpen] = useState(false);
+  // Store where the user right-clicked so tokens land near that spot
+  const battlefieldContextPositionRef = useRef<{ x: number; y: number }>({
+    x: 0,
+    y: 0,
+  });
 
   const handDrop = useDroppable({ id: "hand" });
   const battlefieldDrop = useDroppable({ id: "battlefield" });
@@ -398,6 +418,13 @@ export function Playmat({
       if (overId) {
         const nextOverId = String(overId);
 
+        // Modal library drop zones
+        if (nextOverId === "modal-battlefield") return "battlefield";
+        if (nextOverId === "modal-hand") return "hand";
+        if (nextOverId === "modal-graveyard") return "graveyard";
+        if (nextOverId === "modal-exile") return "exile";
+        if (nextOverId === "modal-cancel") return null;
+
         if (isZoneName(nextOverId)) {
           return nextOverId as DropTargetId;
         }
@@ -443,7 +470,10 @@ export function Playmat({
       );
       clearPreview();
 
-      if (currentZone === "library") {
+      if (
+        currentZone === "library" &&
+        dragData.behavior !== "move-from-library"
+      ) {
         dispatch({ type: "card/draw", playerId: localPlayerId, count: 1 });
         setActiveDrag({
           cardId: dragData.cardId,
@@ -497,6 +527,12 @@ export function Playmat({
         return;
       }
 
+      // Cancel zone — abort without doing anything
+      if (String(event.over?.id ?? "") === "modal-cancel") {
+        resetDragState();
+        return;
+      }
+
       const fromZone = getCardZone(dragData.cardId) ?? dragData.from;
       const toTarget =
         resolveDropZone(event, dragData.cardId) ?? activeDrag?.over ?? null;
@@ -517,7 +553,10 @@ export function Playmat({
           }
         }
 
-        const cursor = getDropClientPosition(event);
+        // When dropped via modal zone the cursor is over the modal, not the
+        // battlefield — skip cursor-based positioning and use the auto-layout fallback.
+        const isModalDrop = String(event.over?.id ?? "").startsWith("modal-");
+        const cursor = isModalDrop ? null : getDropClientPosition(event);
         const fallbackCard = state.cardInstances[dragData.cardId];
 
         const position = cursor
@@ -535,16 +574,17 @@ export function Playmat({
             from: fromZone,
             to: "battlefield",
             toPlayerId: localPlayerId,
+            battlefieldPosition: position,
+          });
+        } else {
+          dispatch({
+            type: "card/setBattlefieldPosition",
+            cardId: dragData.cardId,
+            x: position.x,
+            y: position.y,
+            z: position.z,
           });
         }
-
-        dispatch({
-          type: "card/setBattlefieldPosition",
-          cardId: dragData.cardId,
-          x: position.x,
-          y: position.y,
-          z: position.z,
-        });
 
         resetDragState();
         return;
@@ -728,6 +768,186 @@ export function Playmat({
     [handleHoverWithAnchor],
   );
 
+  const handleRightClickCard = useCallback(
+    (cardId: string, x: number, y: number) => {
+      setCardMenu({ cardId, x, y });
+    },
+    [],
+  );
+
+  const handleEmptyBattlefieldRightClick = useCallback(
+    (x: number, y: number) => {
+      battlefieldContextPositionRef.current = { x, y };
+      setBattlefieldContextMenu({ x, y });
+    },
+    [],
+  );
+
+  const handleCreateTokenFromBrowser = useCallback(
+    (token: TokenCard, quantity: number) => {
+      const { x: originX, y: originY } = battlefieldContextPositionRef.current;
+      const bfRect = battlefieldRef.current?.getBoundingClientRect();
+
+      const baseX = bfRect
+        ? snapToGrid(
+            Math.max(
+              0,
+              (originX - bfRect.left) / battlefieldZoom -
+                BATTLEFIELD_CARD_WIDTH / 2,
+            ),
+          )
+        : 80;
+      const baseY = bfRect
+        ? snapToGrid(
+            Math.max(
+              0,
+              (originY - bfRect.top) / battlefieldZoom -
+                BATTLEFIELD_CARD_HEIGHT / 2,
+            ),
+          )
+        : 80;
+
+      const SPREAD = GRID_SIZE * 2; // offset between copies
+
+      for (let i = 0; i < quantity; i++) {
+        const newDefId = generateCardDefId();
+        const newInstId = generateCardInstanceId();
+
+        const newDef = {
+          id: newDefId,
+          sourceId: token.scryfallId,
+          name: token.name,
+          imageUrl: token.imagePath,
+          manaCost: token.manaCost ?? "",
+          type: token.typeLine ?? "Token",
+          oracleText: token.oracleText ?? null,
+          power: token.power,
+          toughness: token.toughness,
+        };
+
+        const col = i % 4;
+        const row = Math.floor(i / 4);
+
+        const newInst: CardInstance = {
+          id: newInstId,
+          definitionId: newDefId,
+          ownerId: localPlayerId,
+          controllerId: localPlayerId,
+          zone: "battlefield",
+          tapped: false,
+          faceDown: false,
+          counters:
+            token.loyalty !== null
+              ? { loyalty: parseInt(token.loyalty, 10) || 0 }
+              : {},
+          isToken: true,
+          customName: null,
+          tokenData: {
+            name: token.name,
+            power: token.power,
+            toughness: token.toughness,
+            color: token.colors[0] ?? null,
+            type: token.typeLine ?? "Token",
+            imageUrl: token.imagePath,
+          },
+          battlefield: {
+            x: baseX + col * SPREAD,
+            y: baseY + row * SPREAD,
+            z: getNextBattlefieldZ(),
+            attachedTo: null,
+            attachments: [],
+          },
+        };
+
+        dispatch({
+          type: "token/create",
+          playerId: localPlayerId,
+          definition: newDef,
+          instance: newInst,
+        });
+      }
+
+      const label = quantity === 1 ? "1 token criado" : `${quantity} tokens criados`;
+      setCenterToast({ id: crypto.randomUUID(), message: label });
+    },
+    [
+      battlefieldRef,
+      battlefieldZoom,
+      dispatch,
+      getNextBattlefieldZ,
+      localPlayerId,
+    ],
+  );
+
+  const handleAddCounter = useCallback(
+    (cardId: string, counter: string) => {
+      dispatch({ type: "card/addCounter", cardId, counter, amount: 1 });
+    },
+    [dispatch],
+  );
+
+  const handleRemoveCounter = useCallback(
+    (cardId: string, counter: string) => {
+      dispatch({ type: "card/removeCounter", cardId, counter, amount: 1 });
+    },
+    [dispatch],
+  );
+
+  const handleDuplicateAsToken = useCallback(
+    (cardId: string) => {
+      const source = state.cardInstances[cardId];
+      if (!source) return;
+      const sourceDef = state.cardDefinitions[source.definitionId];
+      if (!sourceDef) return;
+
+      const newDefId = generateCardDefId();
+      const newInstId = generateCardInstanceId();
+
+      const newDef = { ...sourceDef, id: newDefId };
+      const newInst: CardInstance = {
+        id: newInstId,
+        definitionId: newDefId,
+        ownerId: localPlayerId,
+        controllerId: localPlayerId,
+        zone: "battlefield",
+        tapped: false,
+        faceDown: false,
+        counters: {},
+        isToken: true,
+        customName: source.customName,
+        tokenData: source.tokenData ?? {
+          name: sourceDef.name,
+          power: sourceDef.power,
+          toughness: sourceDef.toughness,
+          color: null,
+          type: sourceDef.type,
+          imageUrl: sourceDef.imageUrl,
+        },
+        battlefield: {
+          x: (source.battlefield?.x ?? 80) + 24,
+          y: (source.battlefield?.y ?? 80) + 24,
+          z: getNextBattlefieldZ(),
+          attachedTo: null,
+          attachments: [],
+        },
+      };
+
+      dispatch({
+        type: "token/duplicateFromCard",
+        sourceCardId: cardId,
+        newDefinition: newDef,
+        newInstance: newInst,
+      });
+    },
+    [
+      dispatch,
+      getNextBattlefieldZ,
+      localPlayerId,
+      state.cardDefinitions,
+      state.cardInstances,
+    ],
+  );
+
   const handleChangeLife = useCallback(
     (delta: number) => {
       dispatch({
@@ -738,6 +958,44 @@ export function Playmat({
       });
     },
     [dispatch, localPlayerId],
+  );
+
+  const handleModifyCardPT = useCallback(
+    (cardId: string, powerDelta: number, toughnessDelta: number) => {
+      const inst = state.cardInstances[cardId];
+      if (!inst) return;
+      const def = state.cardDefinitions[inst.definitionId];
+      if (!def) return;
+      const rawPower = inst.tokenData?.power ?? def.power ?? "0";
+      const rawToughness = inst.tokenData?.toughness ?? def.toughness ?? "0";
+      const currentPower = parseInt(rawPower, 10);
+      const currentToughness = parseInt(rawToughness, 10);
+      dispatch({
+        type: "card/setPowerToughness",
+        cardId,
+        defId: inst.definitionId,
+        power: isNaN(currentPower) ? rawPower : String(currentPower + powerDelta),
+        toughness: isNaN(currentToughness)
+          ? rawToughness
+          : String(currentToughness + toughnessDelta),
+      });
+    },
+    [dispatch, state.cardDefinitions, state.cardInstances],
+  );
+
+  const handleModifyCardLoyalty = useCallback(
+    (cardId: string, delta: number) => {
+      const inst = state.cardInstances[cardId];
+      if (!inst) return;
+      const current = inst.counters["loyalty"] ?? 0;
+      dispatch({
+        type: "card/setCounter",
+        cardId,
+        counter: "loyalty",
+        value: Math.max(0, current + delta),
+      });
+    },
+    [dispatch, state.cardInstances],
   );
 
   return (
@@ -781,6 +1039,10 @@ export function Playmat({
             onAdjustZoom={adjustBattlefieldZoom}
             onHoverCard={handleBattlefieldHover}
             onPingCard={(cardId) => dispatch({ type: "card/ping", cardId })}
+            onModifyCardPT={handleModifyCardPT}
+            onModifyCardLoyalty={handleModifyCardLoyalty}
+            onRightClickCard={handleRightClickCard}
+            onEmptyRightClick={handleEmptyBattlefieldRightClick}
           />
         </div>
 
@@ -851,6 +1113,41 @@ export function Playmat({
 
       <PreviewOverlay previewCard={previewCard} previewAnchor={previewAnchor} />
 
+      {cardMenu && (() => {
+        const inst = state.cardInstances[cardMenu.cardId];
+        const def = inst ? state.cardDefinitions[inst.definitionId] : null;
+        if (!inst || !def) return null;
+        return (
+          <BattlefieldCardMenu
+            cardId={cardMenu.cardId}
+            cardName={inst.customName ?? inst.tokenData?.name ?? def.name}
+            counters={inst.counters}
+            x={cardMenu.x}
+            y={cardMenu.y}
+            onClose={() => setCardMenu(null)}
+            onAddCounter={(counter) => handleAddCounter(cardMenu.cardId, counter)}
+            onRemoveCounter={(counter) => handleRemoveCounter(cardMenu.cardId, counter)}
+            onDuplicate={() => handleDuplicateAsToken(cardMenu.cardId)}
+          />
+        );
+      })()}
+
+      {battlefieldContextMenu && (
+        <BattlefieldContextMenu
+          x={battlefieldContextMenu.x}
+          y={battlefieldContextMenu.y}
+          onClose={() => setBattlefieldContextMenu(null)}
+          onCreateToken={() => setTokenBrowserOpen(true)}
+        />
+      )}
+
+      {tokenBrowserOpen && (
+        <BattlefieldTokenBrowser
+          onClose={() => setTokenBrowserOpen(false)}
+          onCreateToken={handleCreateTokenFromBrowser}
+        />
+      )}
+
       <ZonePreviewModal
         zone={zonePreview}
         cards={
@@ -887,10 +1184,12 @@ export function Playmat({
         </div>
       ) : null}
 
-      <DragOverlay zIndex={400}>
+      <DragOverlay zIndex={400} dropAnimation={null}>
         {activeDragCard &&
         (activeDrag?.origin === "battlefield" ||
-          activeDrag?.origin === "library") ? (
+          activeDrag?.origin === "library" ||
+          activeDrag?.origin === "graveyard" ||
+          activeDrag?.origin === "exile") ? (
           <div
             className="overflow-hidden rounded-[4px] shadow-2xl ring-1 ring-white/15"
             style={{

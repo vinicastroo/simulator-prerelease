@@ -129,6 +129,18 @@ export function buildLogEntry(
       };
     }
 
+    case "card/surveil": {
+      const name = playerName(state, action.playerId);
+      const total =
+        action.keepOnTopIds.length + action.putInGraveyardIds.length;
+      return {
+        id,
+        at,
+        actionType: action.type,
+        description: `${name} fez surveil ${total}.`,
+      };
+    }
+
     case "card/move": {
       const inst = state.cardInstances[action.cardId];
       const defName = inst

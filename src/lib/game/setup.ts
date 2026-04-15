@@ -5,6 +5,8 @@ export function createInitialGameSetup(): GameSetupState {
     mulligan: {
       stage: "mulligan",
       keptPlayerIds: [],
+      handSizeByPlayerId: {},
+      mulliganCountByPlayerId: {},
     },
   };
 }
@@ -25,4 +27,11 @@ export function hasPlayerKeptOpeningHand(
   playerId: PlayerId,
 ): boolean {
   return getGameSetup(state).mulligan.keptPlayerIds.includes(playerId);
+}
+
+export function getPlayerMulliganCount(
+  state: GameState,
+  playerId: PlayerId,
+): number {
+  return getGameSetup(state).mulligan.mulliganCountByPlayerId[playerId] ?? 0;
 }

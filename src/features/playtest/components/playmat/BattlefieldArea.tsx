@@ -38,6 +38,14 @@ type BattlefieldAreaProps = {
     target: HTMLElement | null,
   ) => void;
   onPingCard?: (cardId: string) => void;
+  onModifyCardPT?: (
+    cardId: string,
+    powerDelta: number,
+    toughnessDelta: number,
+  ) => void;
+  onModifyCardLoyalty?: (cardId: string, delta: number) => void;
+  onRightClickCard?: (cardId: string, x: number, y: number) => void;
+  onEmptyRightClick?: (x: number, y: number) => void;
 };
 
 export function BattlefieldArea({
@@ -59,6 +67,10 @@ export function BattlefieldArea({
   onAdjustZoom,
   onHoverCard,
   onPingCard,
+  onModifyCardPT,
+  onModifyCardLoyalty,
+  onRightClickCard,
+  onEmptyRightClick,
 }: BattlefieldAreaProps) {
   const hudPosition =
     orientation === "top"
@@ -156,6 +168,14 @@ export function BattlefieldArea({
 
       <div
         className="relative h-full w-full"
+        onContextMenu={
+          onEmptyRightClick
+            ? (e) => {
+                e.preventDefault();
+                onEmptyRightClick(e.clientX, e.clientY);
+              }
+            : undefined
+        }
         style={{
           transform: `scale(${battlefieldZoom})`,
           transformOrigin: "top left",
@@ -191,6 +211,21 @@ export function BattlefieldArea({
               }
               isPinged={activePings?.has(card.id)}
               onPing={onPingCard ? () => onPingCard(card.id) : undefined}
+              onModifyPT={
+                onModifyCardPT
+                  ? (pd, td) => onModifyCardPT(card.id, pd, td)
+                  : undefined
+              }
+              onModifyLoyalty={
+                onModifyCardLoyalty
+                  ? (d) => onModifyCardLoyalty(card.id, d)
+                  : undefined
+              }
+              onRightClick={
+                onRightClickCard
+                  ? (x, y) => onRightClickCard(card.id, x, y)
+                  : undefined
+              }
             />
           ),
         )}

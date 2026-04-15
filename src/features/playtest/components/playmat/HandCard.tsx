@@ -79,7 +79,7 @@ export const HandCard = memo(function HandCard({
       {...attributes}
     >
       <div className="group relative">
-        <ManaCostBadges cardId={card.id} symbols={symbols} />
+        <ManaCostBadges cardId={card.id} manaCost={manaCost} />
 
         {imageUrl ? (
           <div

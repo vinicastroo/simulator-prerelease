@@ -7,6 +7,7 @@ export type DropTargetId = ZoneName | LibraryDropTarget;
 export type DragCardData = {
   cardId: string;
   from: ZoneName;
+  behavior?: "draw-from-library" | "move-from-library" | "move-from-zone-modal";
 };
 
 export type ActiveDragState = DragCardData & {
