@@ -8,7 +8,8 @@ import {
   useMotionValue,
 } from "framer-motion";
 import Image from "next/image";
-import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
 import {
   type PlacedCardState,
   usePrerelease,
@@ -87,7 +88,7 @@ function rectsIntersect(lasso: LassoRect, card: PlacedCardState): boolean {
 
 type ToolMode = "select" | "hand";
 type CanvasSortMode = "cmc" | "color" | "rarity";
-type ViewMode = "canvas" | "gallery";
+type ViewMode = "canvas" | "gallery" | "list";
 
 interface ZoomProps {
   scale: number;
@@ -154,6 +155,18 @@ function ZoomControls({
       >
         <GridIcon className="h-4 w-4" />
       </button>
+      <button
+        type="button"
+        title="Visualização lista"
+        onClick={() => setViewMode("list")}
+        className={`w-10 h-10 flex items-center justify-center rounded-lg transition-colors ${
+          viewMode === "list"
+            ? "bg-[#233455]/55 text-[#d8e4ff]"
+            : "text-[#6f84b4] hover:bg-[#233455]/45 hover:text-[#b8c6e6]"
+        }`}
+      >
+        <ListIcon className="h-4 w-4" />
+      </button>
       <div className="mx-2 h-[1px] bg-[#30476f]/45" />
       <button
         type="button"
@@ -184,6 +197,21 @@ function ZoomControls({
         {isCanvasView ? `${Math.round(scale * 100)}%` : "GRID"}
       </div>
       <div className="mx-2 h-[1px] bg-[#30476f]/45" />
+      <button
+        type="button"
+        title="Selecionar (V)"
+        disabled={!isCanvasView}
+        onClick={() => setToolMode("select")}
+        className={`w-10 h-10 flex items-center justify-center rounded-lg transition-colors ${
+          !isCanvasView
+            ? "text-white/20 cursor-not-allowed"
+            : toolMode === "select"
+              ? "bg-[#233455]/55 text-[#b8c6e6]"
+              : "text-[#6f84b4] hover:bg-[#233455]/45 hover:text-[#b8c6e6]"
+        }`}
+      >
+        <CursorIcon className="h-4 w-4" />
+      </button>
       <button
         type="button"
         title="Mover canvas (H)"
@@ -245,7 +273,8 @@ export function DndCanvas() {
   const [viewingCard, setViewingCard] = useState<PlacedCardState | null>(null);
 
   // Pan offset (MotionValues → no re-renders while panning)
-  const worldX = useMotionValue(0);
+  // Initial X offset pushes the world past the toolbar (~80px wide at left-6)
+  const worldX = useMotionValue(104);
   const worldY = useMotionValue(0);
 
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -277,15 +306,18 @@ export function DndCanvas() {
   const isPanning = useRef(false);
   const panStart = useRef({ clientX: 0, clientY: 0, wx: 0, wy: 0 });
 
-  // ── Keyboard: Space = temporary hand tool ──
+  // ── Keyboard: Space = temporary hand tool, H = toggle hand, V/Escape = select ──
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       if (e.code === "Space" && !e.repeat) {
         e.preventDefault();
         spaceHeld.current = true;
       }
       if (e.code === "KeyH")
         setToolMode((m) => (m === "hand" ? "select" : "hand"));
+      if (e.code === "KeyV" || e.code === "Escape")
+        setToolMode("select");
     };
     const up = (e: KeyboardEvent) => {
       if (e.code === "Space") spaceHeld.current = false;
@@ -637,8 +669,10 @@ export function DndCanvas() {
             />
           </motion.div>
         </div>
-      ) : (
+      ) : viewMode === "gallery" ? (
         <GalleryView cards={galleryCards} onOpenOverview={handleOpenOverview} />
+      ) : (
+        <ListView cards={galleryCards} sortMode={gallerySortMode} toolMode={toolMode} onOpenOverview={handleOpenOverview} />
       )}
 
       <ZoomControls
@@ -719,6 +753,8 @@ function GalleryView({
   cards: PlacedCardState[];
   onOpenOverview: (placed: PlacedCardState) => void;
 }) {
+  const { setDraggingCard } = usePrerelease();
+
   return (
     <div className="h-full w-full overflow-y-auto px-20 py-8 [scrollbar-color:#31456f_transparent] [scrollbar-width:thin] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#31456f]/80 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar]:w-1.5">
       <div className="mx-auto max-w-[1600px]">
@@ -748,38 +784,313 @@ function GalleryView({
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
             {cards.map((placed, index) => (
-              <button
+              <Button
                 key={placed.id}
-                type="button"
+                variant="ghost"
+                draggable
                 onClick={() => onOpenOverview(placed)}
-                className="group rounded-[24px] border border-[#22314d] bg-[#10151b]/88 p-2.5 text-left shadow-[0_14px_36px_rgba(0,0,0,0.22)] transition-all hover:-translate-y-0.5 hover:border-[#39517d] hover:bg-[#121922]"
+                onDragStart={(e) => {
+                  e.dataTransfer.setData(
+                    "application/x-placed-card-id",
+                    placed.id,
+                  );
+                  e.dataTransfer.setData(
+                    "application/x-placed-card-ids",
+                    JSON.stringify([placed.id]),
+                  );
+                  e.dataTransfer.effectAllowed = "move";
+                  setDraggingCard(placed.id);
+                }}
+                onDragEnd={() => setDraggingCard(null)}
+                className="group relative h-auto w-full cursor-grab p-0 transition-all duration-150 hover:-translate-y-0.5 hover:bg-transparent active:cursor-grabbing"
               >
-                <div className="relative overflow-hidden rounded-[18px] bg-[#0f1318] shadow-[0_0_0_1px_rgba(49,69,111,0.18)]">
-                  <div className="relative aspect-[2.5/3.5] w-full">
-                    <Image
-                      src={placed.card.imagePath}
-                      alt={placed.card.name}
-                      fill
-                      priority={index < 10}
-                      sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, (max-width: 1536px) 20vw, 16vw"
-                      className="object-cover transition-transform duration-200 group-hover:scale-[1.02]"
-                      draggable={false}
-                    />
-                    {placed.isFoil && (
-                      <div className="absolute inset-0 foil-overlay pointer-events-none opacity-50" />
-                    )}
-                    {placed.isPromo && <StarBadge />}
-                    {placed.card.set === "SOA" && <ArchiveBadge />}
-                  </div>
+                <div className="relative aspect-[2.5/3.5] w-full overflow-hidden rounded-xl shadow-[0_4px_18px_rgba(0,0,0,0.45)]">
+                  <Image
+                    src={placed.card.imagePath}
+                    alt={placed.card.name}
+                    fill
+                    priority={index < 10}
+                    sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, (max-width: 1536px) 20vw, 16vw"
+                    className="object-cover transition-transform duration-200 group-hover:scale-[1.02]"
+                    draggable={false}
+                  />
+                  {placed.isFoil && (
+                    <div className="absolute inset-0 foil-overlay pointer-events-none opacity-50" />
+                  )}
+                  {placed.isPromo && <StarBadge />}
+                  {placed.card.set === "SOA" && <ArchiveBadge />}
                 </div>
-              </button>
+              </Button>
             ))}
           </div>
         )}
       </div>
     </div>
+  );
+}
+
+// ─── ListView ────────────────────────────────────────────────────────────────
+
+const COLOR_LABEL: Record<string, string> = {
+  W: "Branco",
+  U: "Azul",
+  B: "Preto",
+  R: "Vermelho",
+  G: "Verde",
+};
+
+const RARITY_COLOR: Record<string, string> = {
+  MYTHIC: "#f97316",
+  RARE: "#eab308",
+  UNCOMMON: "#94a3b8",
+  COMMON: "#64748b",
+};
+
+// Column order: W U B R G Multi Colorless Land
+const LIST_COLOR_ORDER = ["W", "U", "B", "R", "G", "Multi", "Incolor", "Terra"];
+
+const LIST_COLUMN_ACCENT: Record<string, string> = {
+  W: "#e8d9a0",
+  U: "#5b8fd4",
+  B: "#9f82c4",
+  R: "#d96444",
+  G: "#5aaa6a",
+  Multi: "#d4a83a",
+  Incolor: "#8098b8",
+  Terra: "#9b7a5c",
+};
+
+function listColorKey(placed: PlacedCardState): string {
+  if (placed.card.typeLine.includes("Land")) return "Terra";
+  const c = placed.card.colors;
+  if (c.length === 0) return "Incolor";
+  if (c.length > 1) return "Multi";
+  return c[0];
+}
+
+const STACK_OFFSET = 38; // px revealed per card
+
+const PREVIEW_W = 220;
+const PREVIEW_H = Math.round(PREVIEW_W * (3.5 / 2.5));
+const PREVIEW_OFFSET_X = 18;
+
+function ListView({
+  cards,
+  toolMode,
+  onOpenOverview,
+}: {
+  cards: PlacedCardState[];
+  sortMode: CanvasSortMode;
+  toolMode: ToolMode;
+  onOpenOverview: (placed: PlacedCardState) => void;
+}) {
+  const { setDraggingCard } = usePrerelease();
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // ── Pan support ──
+  const isPanning = useRef(false);
+  const panStart = useRef({ x: 0, y: 0, sl: 0, st: 0 });
+  const toolModeRef = useRef(toolMode);
+  useEffect(() => { toolModeRef.current = toolMode; }, [toolMode]);
+
+  const onPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (toolModeRef.current !== "hand") return;
+    const el = containerRef.current;
+    if (!el) return;
+    e.preventDefault();
+    isPanning.current = true;
+    panStart.current = { x: e.clientX, y: e.clientY, sl: el.scrollLeft, st: el.scrollTop };
+    el.setPointerCapture(e.pointerId);
+  }, []);
+
+  const onPointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isPanning.current) return;
+    const el = containerRef.current;
+    if (!el) return;
+    el.scrollLeft = panStart.current.sl - (e.clientX - panStart.current.x);
+    el.scrollTop  = panStart.current.st - (e.clientY - panStart.current.y);
+  }, []);
+
+  const onPointerUp = useCallback(() => {
+    isPanning.current = false;
+  }, []);
+
+  // ── Hover preview ──
+  const [preview, setPreview] = useState<{
+    placed: PlacedCardState;
+    cx: number; // cursor clientX
+    cy: number; // cursor clientY
+  } | null>(null);
+  const hidePreview = useCallback(() => setPreview(null), []);
+
+  // Compute fixed position so preview stays inside viewport
+  const previewStyle = useMemo((): React.CSSProperties => {
+    if (!preview) return { display: "none" };
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    let left = preview.cx + PREVIEW_OFFSET_X;
+    let top  = preview.cy - PREVIEW_H / 2;
+    if (left + PREVIEW_W > vw - 8) left = preview.cx - PREVIEW_W - PREVIEW_OFFSET_X;
+    if (top < 8) top = 8;
+    if (top + PREVIEW_H > vh - 8) top = vh - PREVIEW_H - 8;
+    return { left, top, display: "block" };
+  }, [preview]);
+
+  // Group by color, sorted by CMC within each group
+  const groupMap = new Map<string, PlacedCardState[]>();
+  for (const placed of cards) {
+    const key = listColorKey(placed);
+    const arr = groupMap.get(key) ?? [];
+    arr.push(placed);
+    groupMap.set(key, arr);
+  }
+  for (const arr of groupMap.values()) {
+    arr.sort((a, b) => a.card.cmc - b.card.cmc || a.card.name.localeCompare(b.card.name));
+  }
+  const columns = LIST_COLOR_ORDER.flatMap((key) => {
+    const items = groupMap.get(key);
+    return items ? [{ key, items }] : [];
+  });
+
+  if (cards.length === 0) {
+    return (
+      <div className="flex h-full w-full items-center justify-center">
+        <div className="text-center">
+          <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-[#7f95c9]">
+            Sem cartas
+          </p>
+          <p className="mt-2 text-sm text-white/35">
+            Todas as cartas abertas já estão no main deck ou sideboard.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const isHand = toolMode === "hand";
+
+  return (
+    <>
+      <div
+        ref={containerRef}
+        className="h-full w-full overflow-x-auto overflow-y-auto [scrollbar-color:#31456f_transparent] [scrollbar-width:thin] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#31456f]/80 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar]:h-1.5"
+        style={{ cursor: isHand ? "grab" : "default" }}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+      >
+        <div className="flex h-full min-w-max items-start gap-4 px-8 py-8">
+          {columns.map(({ key, items }) => {
+            const label = key === "Multi" ? "Multi" : key === "Incolor" ? "Incolor" : key === "Terra" ? "Terra" : (COLOR_LABEL[key] ?? key);
+            const accent = LIST_COLUMN_ACCENT[key] ?? "#7f95c9";
+            const stackH = items.length <= 1 ? CARD_H : STACK_OFFSET * (items.length - 1) + CARD_H;
+
+            return (
+              <div key={key} className="flex shrink-0 flex-col gap-3" style={{ width: CARD_W }}>
+                {/* Column header */}
+                <div className="flex items-center gap-2">
+                  {key !== "Multi" && key !== "Incolor" && key !== "Terra" ? (
+                    <div className="h-4 w-4 shrink-0">
+                      <Image src={`/${key}.svg`} alt={label} width={16} height={16} className="object-contain" unoptimized />
+                    </div>
+                  ) : (
+                    <div className="h-3.5 w-3.5 shrink-0 rounded-full" style={{ background: accent }} />
+                  )}
+                  <span className="truncate font-mono text-[10px] font-bold uppercase tracking-[0.22em]" style={{ color: accent }}>
+                    {label}
+                  </span>
+                  <span className="ml-auto shrink-0 font-mono text-[10px] text-white/35">{items.length}</span>
+                </div>
+
+                {/* Stacked cards */}
+                <div className="relative" style={{ height: stackH }}>
+                  {items.map((placed, i) => {
+                    const isLast = i === items.length - 1;
+                    return (
+                      <button
+                        key={placed.id}
+                        type="button"
+                        draggable
+                        onClick={() => onOpenOverview(placed)}
+                        onMouseEnter={(e) => setPreview({ placed, cx: e.clientX, cy: e.clientY })}
+                        onMouseMove={(e) => setPreview((p) => p?.placed.id === placed.id ? { placed, cx: e.clientX, cy: e.clientY } : p)}
+                        onMouseLeave={hidePreview}
+                        onDragStart={(e) => {
+                          hidePreview();
+                          e.dataTransfer.setData("application/x-placed-card-id", placed.id);
+                          e.dataTransfer.setData("application/x-placed-card-ids", JSON.stringify([placed.id]));
+                          e.dataTransfer.effectAllowed = "move";
+                          setDraggingCard(placed.id);
+                        }}
+                        onDragEnd={() => setDraggingCard(null)}
+                        className="group absolute left-0 cursor-pointer p-0 transition-transform duration-150 hover:-translate-y-1.5"
+                        style={{
+                          top: i * STACK_OFFSET,
+                          zIndex: i + 1,
+                          width: CARD_W,
+                          height: isLast ? CARD_H : STACK_OFFSET,
+                          overflow: isLast ? "visible" : "hidden",
+                        }}
+                      >
+                        <div
+                          className="relative overflow-hidden shadow-[0_4px_16px_rgba(0,0,0,0.6)]"
+                          style={{ width: CARD_W, height: CARD_H, borderRadius: 10 }}
+                        >
+                          <Image
+                            src={placed.card.imagePath}
+                            alt={placed.card.name}
+                            fill
+                            sizes={`${CARD_W}px`}
+                            className="object-cover"
+                            draggable={false}
+                          />
+                          {placed.isFoil && (
+                            <div className="absolute inset-0 foil-overlay pointer-events-none opacity-45" />
+                          )}
+                          {placed.isPromo && (
+                            <div className="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-black/60 text-[9px] text-[#f59e0b]">
+                              ★
+                            </div>
+                          )}
+                          {!isLast && (
+                            <div
+                              className="absolute inset-x-0 bottom-0 h-[3px] opacity-80"
+                              style={{ background: RARITY_COLOR[placed.card.rarity] ?? "#64748b" }}
+                            />
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Hover preview — rendered outside scroll container so it's not clipped */}
+      <div
+        className="pointer-events-none fixed z-[300000000] overflow-hidden rounded-xl shadow-[0_8px_40px_rgba(0,0,0,0.75)] transition-opacity duration-100"
+        style={{ ...previewStyle, width: PREVIEW_W, height: PREVIEW_H, opacity: preview ? 1 : 0 }}
+      >
+        {preview && (
+          <Image
+            src={preview.placed.card.imagePath}
+            alt={preview.placed.card.name}
+            fill
+            sizes={`${PREVIEW_W}px`}
+            className="object-cover"
+            priority
+          />
+        )}
+        {preview?.placed.isFoil && (
+          <div className="absolute inset-0 foil-overlay pointer-events-none opacity-50" />
+        )}
+      </div>
+    </>
   );
 }
 
@@ -1111,6 +1422,40 @@ function ArchiveBadge() {
         A
       </span>
     </div>
+  );
+}
+
+function ListIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      className={className}
+    >
+      <line x1="7" y1="5" x2="17" y2="5" />
+      <line x1="7" y1="10" x2="17" y2="10" />
+      <line x1="7" y1="15" x2="17" y2="15" />
+      <circle cx="3.5" cy="5" r="1.2" fill="currentColor" stroke="none" />
+      <circle cx="3.5" cy="10" r="1.2" fill="currentColor" stroke="none" />
+      <circle cx="3.5" cy="15" r="1.2" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+function CursorIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 20 20"
+      fill="currentColor"
+      className={className}
+    >
+      <path d="M4 2.5l11 7.5-5.2 1.2-2.8 5.3-3-14z" />
+    </svg>
   );
 }
 

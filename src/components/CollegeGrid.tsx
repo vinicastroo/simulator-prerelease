@@ -4,13 +4,10 @@ import Image from "next/image";
 import { useState, useTransition } from "react";
 import { createPrereleaseKit } from "@/actions/kit";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
-  DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { COLLEGES, type CollegeDef } from "@/lib/mtg/colleges";
@@ -60,84 +57,157 @@ export function CollegeGrid() {
         }}
       >
         <DialogContent
-          className="max-w-[min(96vw,1200px)] rounded-[1.75rem] border border-white/10 bg-[#0d1017] p-0 text-white sm:max-w-[min(96vw,1200px)]"
+          className="max-w-[min(96vw,460px)] overflow-hidden rounded-[1.75rem] border border-white/10 bg-[#0d1017] p-0 text-white sm:max-w-[min(96vw,460px)]"
           showCloseButton={!isPending}
         >
           {selectedCollege ? (
             <>
-              <DialogHeader className="px-6 pt-6 sm:px-8 sm:pt-8">
-                <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-white/40">
-                  Kit de prerelease
-                </p>
-                <DialogTitle
-                  className={cn(
-                    "text-3xl font-black tracking-[-0.05em] text-white",
-                    selectedCollege.theme.accentClass,
-                  )}
-                >
-                  {selectedCollege.name}
-                </DialogTitle>
-                <DialogDescription className="max-w-2xl text-sm leading-7 text-white/50">
-                  Seu kit sera aberto com 6 boosters de Strixhaven antes de ir
-                  para o simulador.
-                </DialogDescription>
-              </DialogHeader>
+              {/* College-tinted radial glow behind header */}
+              <div
+                className="pointer-events-none absolute inset-0"
+                style={{
+                  background: `radial-gradient(ellipse 90% 55% at 50% 0%, ${selectedCollege.theme.gradientFrom}22 0%, transparent 70%)`,
+                }}
+              />
 
-              <div className="px-6 pb-6 pt-4 sm:px-8">
-                <div className="overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                  <div className="flex min-w-max justify-center gap-3">
-                    {Array.from({ length: 6 }, (_, index) => ({
-                      boosterId: `booster-${index + 1}`,
-                      number: index + 1,
-                      priority: index < 3,
-                    })).map((booster) => (
-                      <div
-                        key={booster.boosterId}
-                        className={cn(
-                          "w-[150px] shrink-0 transition-all duration-500",
-                          isPending &&
-                            "animate-out fade-out-0 zoom-out-95 slide-out-to-bottom-6",
-                        )}
-                        style={{
-                          animationDelay: isPending
-                            ? `${booster.number * 45}ms`
-                            : undefined,
-                        }}
-                      >
-                        <div className="relative aspect-[0.72] overflow-hidden rounded-[0.9rem]">
-                          <Image
-                            src="/booster-secrets-of-strixhaven.png"
-                            alt={`Booster ${booster.number} de Strixhaven`}
-                            fill
-                            className="object-contain"
-                            priority={booster.priority}
-                          />
-                        </div>
-                      </div>
-                    ))}
+              {/* ── Header ── */}
+              <div className="relative px-6 pb-5 pt-7 sm:px-8">
+                <div className="flex items-center gap-4">
+                  <div className="relative h-16 w-16 shrink-0 drop-shadow-lg">
+                    <Image
+                      src={selectedCollege.logoPath}
+                      alt={selectedCollege.name}
+                      fill
+                      className="object-contain"
+                      unoptimized
+                      priority
+                    />
                   </div>
+                  <div>
+                    <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.3em] text-white/35">
+                      Kit de prerelease
+                    </p>
+                    <DialogTitle
+                      className={cn(
+                        "text-[1.7rem] font-black leading-none tracking-[-0.05em]",
+                        selectedCollege.theme.accentClass,
+                      )}
+                    >
+                      {selectedCollege.name}
+                    </DialogTitle>
+                    <p className="mt-0.5 text-xs text-white/40">
+                      {selectedCollege.school}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Color pips */}
+                <div className="mt-3 flex items-center gap-1.5">
+                  {selectedCollege.colors.map((color) => (
+                    <div key={color.code} className="relative h-5 w-5">
+                      <Image
+                        src={color.svgPath}
+                        alt={color.label}
+                        fill
+                        className="object-contain"
+                        unoptimized
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                {/* Tagline */}
+                <DialogDescription className="mt-3 text-sm italic leading-relaxed text-white/45">
+                  &ldquo;{selectedCollege.tagline}&rdquo;
+                </DialogDescription>
+
+                {/* Keywords */}
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {selectedCollege.keywords.map((kw) => (
+                    <span
+                      key={kw}
+                      className="rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.2em]"
+                      style={{
+                        background: `${selectedCollege.theme.gradientFrom}18`,
+                        color: selectedCollege.theme.gradientFrom,
+                        border: `1px solid ${selectedCollege.theme.gradientFrom}45`,
+                      }}
+                    >
+                      {kw}
+                    </span>
+                  ))}
                 </div>
               </div>
 
-              <DialogFooter className="rounded-b-[1.75rem] border-t border-white/10 bg-white/[0.03] px-6 py-4 sm:px-8">
-                <Button
+              {/* ── Divider ── */}
+              <div className="mx-6 h-px bg-white/8 sm:mx-8" />
+
+              {/* ── Boosters ── */}
+              <div className="px-5 py-5 sm:px-7">
+                <p className="mb-4 text-center text-[10px] font-bold uppercase tracking-[0.28em] text-white/30">
+                  6 boosters incluídos
+                </p>
+                <div className="flex justify-center gap-2">
+                  {Array.from({ length: 6 }, (_, i) => (
+                    <div
+                      key={i}
+                      className={cn(
+                        "w-[62px] shrink-0 booster-enter",
+                        isPending && "booster-opening",
+                      )}
+                      style={
+                        {
+                          animationDelay: isPending
+                            ? `${i * 55}ms`
+                            : `${i * 45}ms`,
+                          "--booster-rot": `${(i - 2.5) * 5}deg`,
+                        } as React.CSSProperties
+                      }
+                    >
+                      <div className="relative aspect-[0.72] overflow-hidden rounded-xl shadow-[0_4px_18px_rgba(0,0,0,0.55)]">
+                        <Image
+                          src="/booster-secrets-of-strixhaven.png"
+                          alt={`Booster ${i + 1} de Strixhaven`}
+                          fill
+                          className="object-contain"
+                          priority={i < 3}
+                          unoptimized
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* ── Footer ── */}
+              <div className="flex items-center justify-between gap-3 border-t border-white/8 bg-white/[0.025] px-6 py-4 sm:px-8">
+                <button
                   type="button"
-                  variant="outline"
-                  className="border-white/10 bg-transparent text-white/70 hover:bg-white/[0.06]"
                   onClick={() => setSelectedCollegeId(null)}
                   disabled={isPending}
+                  className="text-sm text-white/45 transition-colors hover:text-white/70 disabled:opacity-40"
                 >
                   Cancelar
-                </Button>
-                <Button
+                </button>
+                <button
                   type="button"
-                  className="bg-[#4d6393] text-white hover:bg-[#5f77ab]"
                   onClick={handleConfirmSelection}
                   disabled={isPending}
+                  className="flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-bold text-white shadow-lg transition-all active:scale-95 disabled:opacity-60"
+                  style={{
+                    background: `linear-gradient(135deg, ${selectedCollege.theme.gradientFrom}, ${selectedCollege.theme.gradientTo})`,
+                  }}
                 >
-                  {isPending ? "Abrindo kit..." : "Abrir kit"}
-                </Button>
-              </DialogFooter>
+                  {isPending ? (
+                    <>
+                      <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                      Abrindo...
+                    </>
+                  ) : (
+                    "Abrir kit →"
+                  )}
+                </button>
+              </div>
             </>
           ) : null}
         </DialogContent>

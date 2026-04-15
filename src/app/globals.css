@@ -143,6 +143,41 @@
   animation: gloss-sweep 4.5s ease-in-out 1.2s infinite;
 }
 
+/* ── Kit modal: booster animations ────────────────────────────────────────── */
+@keyframes booster-enter {
+  from {
+    transform: translateY(18px) scale(0.9);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes booster-open {
+  0% {
+    transform: translateY(0) scale(1) rotate(0deg);
+    opacity: 1;
+  }
+  28% {
+    transform: translateY(-10px) scale(1.07) rotate(var(--booster-rot, 0deg));
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-72px) scale(0.82) rotate(var(--booster-rot, 0deg));
+    opacity: 0;
+  }
+}
+
+.booster-enter {
+  animation: booster-enter 0.35s ease-out forwards;
+}
+
+.booster-opening {
+  animation: booster-open 0.48s ease-in forwards;
+}
+
 /* ── Pack skeleton wave ────────────────────────────────────────────────────── */
 @keyframes skeleton-wave {
   0% {

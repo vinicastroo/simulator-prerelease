@@ -8,7 +8,7 @@
  *   Slot 1   — SOA card, weighted rarity (U 67% / R 26% / M 7%)
  *   Slot 2   — SOS foil (any rarity, uniform) [Seeded: replaced by college foil Rare/Mythic]
  *   Slot 3   — SOS Land (20% chance foil)
- *   Slots 4… — N SOS Rare/Mythic (N from rollRareSlotCount)
+ *   Slots 4… — N SOS Rare/Mythic (N from rollRareSlotCount, max 3)
  *   Next 3   — SOS Uncommons (non-land)
  *   Rest     — SOS Commons (non-land) until 14 total
  */
@@ -21,15 +21,23 @@ import { prisma } from "@/lib/prisma";
 /**
  * Rarity distribution of the guaranteed SOA slot (Mystical Archive).
  * Must sum to 1.0.
+ *
+ * Source: WotC "Collecting Strixhaven: School of Mages" (2021-03-25)
+ *   Uncommon 67% / Rare 26.4% / Mythic Rare 6.6%
  */
 export const SOA_RARITY_ODDS = {
   UNCOMMON: 0.67,
-  RARE: 0.26,
-  MYTHIC: 0.07,
+  RARE: 0.264,
+  MYTHIC: 0.066,
 } as const satisfies Record<string, number>;
 
-/** Probability that a rare slot is upgraded to Mythic (mirrors real MTG). */
-export const MYTHIC_UPGRADE_RATE = 0.125; // 1/8
+/**
+ * Probability that a rare slot is upgraded to Mythic.
+ *
+ * Source: WotC "What Are Play Boosters?" — "rare 6 out of 7 times,
+ * mythic rare 1 out of 7."
+ */
+export const MYTHIC_UPGRADE_RATE = 1 / 7; // ≈ 14.3%
 
 /**
  * Probability the Land slot is foil.
@@ -105,21 +113,23 @@ function weightedIndex(weights: readonly number[]): number {
 /**
  * How many Rare/Mythic slots appear in this booster.
  *
- * | Count | Probability |
- * |-------|-------------|
- * |   1   |     60%     |
- * |   2   |     33%     |
- * |   3   |      6%     |
- * |   4   |    0.5%     |
- * |   5   |    0.5%     |
+ * Play Boosters have 1 guaranteed R/M slot plus 2 wildcard slots that each
+ * independently have a 1-in-12 chance of upgrading to Rare/Mythic.
+ *
+ * Source: WotC "What Are Play Boosters?" — "In 1 out of 12 Play Boosters,
+ * the wildcard is a rare or mythic rare."
+ *
+ * | Count | Probability                          |
+ * |-------|--------------------------------------|
+ * |   1   | (11/12)²              ≈  84.0%       |
+ * |   2   | 2 × (1/12) × (11/12)  ≈  15.3%       |
+ * |   3   | (1/12)²               ≈   0.7%       |
  */
-export function rollRareSlotCount(): 1 | 2 | 3 | 4 | 5 {
-  return (weightedIndex([0.6, 0.33, 0.06, 0.005, 0.005]) + 1) as
-    | 1
-    | 2
-    | 3
-    | 4
-    | 5;
+export function rollRareSlotCount(): 1 | 2 | 3 {
+  const WILDCARD_RARE_RATE = 1 / 12;
+  const p = WILDCARD_RARE_RATE;
+  const q = 1 - p;
+  return (weightedIndex([q * q, 2 * p * q, p * p]) + 1) as 1 | 2 | 3;
 }
 
 /**
