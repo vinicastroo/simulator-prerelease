@@ -394,7 +394,7 @@ function openSeededBooster(
 
 /**
  * Draws one random Rare or Mythic from SOS as the prerelease promo card.
- * The promo is always foil.
+ * The promo is always foil. Any color is possible — not filtered by college.
  */
 export function generatePromoCard(allCards: readonly Card[]): DraftCard {
   const pool = allCards.filter(
