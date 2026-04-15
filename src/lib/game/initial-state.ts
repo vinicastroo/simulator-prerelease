@@ -47,6 +47,7 @@ export function createInitialGameState(
     phase: "main1",
     cardDefinitions: {},
     cardInstances: {},
+    battlefieldArrows: [],
     log: [],
     setup: createInitialGameSetup(),
   };

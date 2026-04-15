@@ -194,6 +194,17 @@ export function MultiplayerGameProvider({
 
   const dispatch = useCallback(
     (action: GameAction) => {
+      if (action.type === "card/ping") {
+        void fetch(`/api/game/${roomId}/action`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action, stateVersion: versionRef.current }),
+        }).catch(() => {
+          // Ping is purely visual; ignore transient transport errors.
+        });
+        return;
+      }
+
       // Apply immediately (optimistic) — same reducer the server uses.
       const nextState = gameReducer(stateRef.current, action);
       stateRef.current = nextState;
@@ -203,7 +214,7 @@ export function MultiplayerGameProvider({
       setPendingActionCount((current) => current + 1);
       void processQueue();
     },
-    [processQueue],
+    [processQueue, roomId],
   );
 
   const requestReset = useCallback(async () => {

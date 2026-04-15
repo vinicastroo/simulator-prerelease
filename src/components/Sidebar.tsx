@@ -361,10 +361,10 @@ export function Sidebar() {
           <div className="min-h-full px-3 pb-3">
             <Card className="overflow-hidden rounded-[22px] border border-[#30476f]/30 bg-[#15191d]/88 shadow-none ring-0">
               <CardHeader className="border-b border-[#30476f]/30 pb-2">
-                <CardTitle className="font-mono text-[8px] font-bold uppercase tracking-[0.2em] text-[#7f95c9]">
+                <CardTitle className="font-mono text-[9px] font-bold uppercase tracking-[0.2em] text-[#7f95c9]">
                   Resumo do Deck
                 </CardTitle>
-                <CardDescription className="text-[10px] text-white/28">
+                <CardDescription className="text-[11px] text-white/28">
                   Estado atual da build principal
                 </CardDescription>
               </CardHeader>
@@ -404,8 +404,16 @@ export function Sidebar() {
                       label={entry.label}
                       value={entry.value}
                       max={curveEntries.maxValue}
+                      recommendedMin={entry.min}
+                      recommendedMax={entry.max}
                     />
                   ))}
+                </div>
+                <div className="mt-2 flex items-center justify-end gap-1.5">
+                  <span className="h-px w-3 bg-[#f0d24b] shadow-[0_0_8px_rgba(240,210,75,0.45)]" />
+                  <span className="font-mono text-[9px] uppercase tracking-[0.08em] text-white/24">
+                    Faixa recomendada de criaturas
+                  </span>
                 </div>
               </CardContent>
             </Card>
@@ -994,12 +1002,12 @@ function SummaryMetricRow({
   return (
     <div className="flex items-center justify-between">
       <p
-        className={`font-mono text-[8px] uppercase tracking-[0.1em] ${accent ? "text-[#8ea4d6]" : "text-white/34"}`}
+        className={`font-mono text-[9px] uppercase tracking-[0.1em] ${accent ? "text-[#8ea4d6]" : "text-white/34"}`}
       >
         {label}
       </p>
       <p
-        className={`font-mono text-[11px] font-semibold tabular-nums ${accent ? "text-[#d8e4ff]" : "text-white/72"}`}
+        className={`font-mono text-[12px] font-semibold tabular-nums ${accent ? "text-[#d8e4ff]" : "text-white/72"}`}
       >
         {value}
       </p>
@@ -1209,24 +1217,43 @@ function ManaCurveBar({
   label,
   value,
   max,
+  recommendedMin,
+  recommendedMax,
 }: {
   label: string;
   value: number;
   max: number;
+  recommendedMin: number;
+  recommendedMax: number;
 }) {
   const height = max > 0 ? Math.max(4, (value / max) * 48) : 4;
+  const hasRecommendation = recommendedMax > 0;
+  const recommendedLineOffset =
+    max > 0 && recommendedMax > 0 ? (recommendedMax / max) * 48 : 0;
+  const recommendedLabel = `${recommendedMin}-${recommendedMax}`;
 
   return (
     <div className="flex flex-col items-center gap-1">
-      <span className="font-mono text-[8px] text-white/32">{value}</span>
-      <div className="flex h-12 w-full items-end rounded-full bg-white/[0.03] px-[2px] pb-[2px]">
+      <span className="font-mono text-[9px] text-white/32">{value}</span>
+      <div className="relative flex h-12 w-full items-end rounded-full bg-white/[0.03] px-[2px] pb-[2px]">
+        {hasRecommendation && (
+          <div
+            className="pointer-events-none absolute inset-x-[1px] border-t border-[#f0d24b] shadow-[0_0_8px_rgba(240,210,75,0.45)]"
+            style={{
+              bottom: `${2 + recommendedLineOffset}px`,
+            }}
+          />
+        )}
         <div
-          className="w-full rounded-full bg-[#4d6393]/85"
+          className="relative w-full rounded-full bg-[#4d6393]/85"
           style={{ height }}
         />
       </div>
-      <span className="font-mono text-[8px] uppercase tracking-[0.08em] text-white/24">
+      <span className="font-mono text-[9px] uppercase tracking-[0.08em] text-white/24">
         {label}
+      </span>
+      <span className="font-mono text-[9px] tracking-[0.04em] text-[#f0d24b]">
+        ({recommendedLabel})
       </span>
     </div>
   );
@@ -1310,14 +1337,24 @@ function buildFallbackManaTokens(colors: string[], cmc: number): string[] {
 }
 
 function getManaCurve(cards: PlacedCardState[]) {
+  const recommendedCurve = {
+    "0": { min: 0, max: 0 },
+    "1": { min: 0, max: 2 },
+    "2": { min: 4, max: 6 },
+    "3": { min: 3, max: 5 },
+    "4": { min: 2, max: 4 },
+    "5": { min: 1, max: 3 },
+    "6+": { min: 0, max: 2 },
+  } as const;
+
   const buckets = [
-    { label: "0", value: 0 },
-    { label: "1", value: 0 },
-    { label: "2", value: 0 },
-    { label: "3", value: 0 },
-    { label: "4", value: 0 },
-    { label: "5", value: 0 },
-    { label: "6+", value: 0 },
+    { label: "0", value: 0, ...recommendedCurve["0"] },
+    { label: "1", value: 0, ...recommendedCurve["1"] },
+    { label: "2", value: 0, ...recommendedCurve["2"] },
+    { label: "3", value: 0, ...recommendedCurve["3"] },
+    { label: "4", value: 0, ...recommendedCurve["4"] },
+    { label: "5", value: 0, ...recommendedCurve["5"] },
+    { label: "6+", value: 0, ...recommendedCurve["6+"] },
   ];
 
   for (const card of cards) {
@@ -1326,7 +1363,10 @@ function getManaCurve(cards: PlacedCardState[]) {
     buckets[bucketIndex].value += 1;
   }
 
-  const maxValue = Math.max(0, ...buckets.map((bucket) => bucket.value));
+  const maxValue = Math.max(
+    0,
+    ...buckets.map((bucket) => Math.max(bucket.value, bucket.max)),
+  );
   return Object.assign(buckets, { maxValue });
 }
 

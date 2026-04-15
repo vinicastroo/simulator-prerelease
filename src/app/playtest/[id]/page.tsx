@@ -57,5 +57,7 @@ export default async function PlaytestKitPage({ params }: Props) {
     "playtest-player",
   );
 
-  return <PlaytestClient initialDeck={initialDeck} />;
+  return (
+    <PlaytestClient initialDeck={initialDeck} simulatorKitId={params.id} />
+  );
 }

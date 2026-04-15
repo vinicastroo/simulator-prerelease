@@ -34,3 +34,4 @@ export const BATTLEFIELD_CARD_HEIGHT = 185;
 export const BATTLEFIELD_ZOOM_MIN = 0.6;
 export const BATTLEFIELD_ZOOM_MAX = 1.8;
 export const BATTLEFIELD_ZOOM_STEP = 0.08;
+export const BATTLEFIELD_CANVAS_SIZE = 4000;

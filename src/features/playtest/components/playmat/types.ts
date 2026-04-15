@@ -11,6 +11,7 @@ export type DragCardData = {
 };
 
 export type ActiveDragState = DragCardData & {
+  cardIds: string[];
   over: DropTargetId | null;
   origin: ZoneName;
 };

@@ -309,15 +309,18 @@ export function DndCanvas() {
   // ── Keyboard: Space = temporary hand tool, H = toggle hand, V/Escape = select ──
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement
+      )
+        return;
       if (e.code === "Space" && !e.repeat) {
         e.preventDefault();
         spaceHeld.current = true;
       }
       if (e.code === "KeyH")
         setToolMode((m) => (m === "hand" ? "select" : "hand"));
-      if (e.code === "KeyV" || e.code === "Escape")
-        setToolMode("select");
+      if (e.code === "KeyV" || e.code === "Escape") setToolMode("select");
     };
     const up = (e: KeyboardEvent) => {
       if (e.code === "Space") spaceHeld.current = false;
@@ -691,9 +694,19 @@ export function DndCanvas() {
           }}
         >
           {viewMode === "gallery" ? (
-            <GalleryView cards={galleryCards} onOpenOverview={handleOpenOverview} />
+            <GalleryView
+              cards={galleryCards}
+              onOpenOverview={handleOpenOverview}
+            />
           ) : (
-            <ListView cards={galleryCards} sortMode={gallerySortMode} toolMode={toolMode} selectedIds={selectedIds} onSelect={handleCardSelect} onOpenOverview={handleOpenOverview} />
+            <ListView
+              cards={galleryCards}
+              sortMode={gallerySortMode}
+              toolMode={toolMode}
+              selectedIds={selectedIds}
+              onSelect={handleCardSelect}
+              onOpenOverview={handleOpenOverview}
+            />
           )}
         </div>
       )}
@@ -895,7 +908,7 @@ function listColorKey(placed: PlacedCardState): string {
 
 const STACK_OFFSET = 38; // px revealed per card
 
-const PREVIEW_W = 220;
+const PREVIEW_W = 240;
 const PREVIEW_H = Math.round(PREVIEW_W * (3.5 / 2.5));
 const PREVIEW_OFFSET_X = 18;
 
@@ -922,7 +935,9 @@ function ListView({
   const panOffset = useRef({ x: 155, y: -7 });
   const innerRef = useRef<HTMLDivElement>(null);
   const toolModeRef = useRef(toolMode);
-  useEffect(() => { toolModeRef.current = toolMode; }, [toolMode]);
+  useEffect(() => {
+    toolModeRef.current = toolMode;
+  }, [toolMode]);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -938,7 +953,12 @@ function ListView({
       if (toolModeRef.current !== "hand") return;
       e.preventDefault();
       isPanning.current = true;
-      panStart.current = { x: e.clientX, y: e.clientY, ox: panOffset.current.x, oy: panOffset.current.y };
+      panStart.current = {
+        x: e.clientX,
+        y: e.clientY,
+        ox: panOffset.current.x,
+        oy: panOffset.current.y,
+      };
       el.setPointerCapture(e.pointerId);
     };
 
@@ -983,28 +1003,208 @@ function ListView({
     const vw = window.innerWidth;
     const vh = window.innerHeight;
     let left = preview.cx + PREVIEW_OFFSET_X;
-    let top  = preview.cy - PREVIEW_H / 2;
-    if (left + PREVIEW_W > vw - 8) left = preview.cx - PREVIEW_W - PREVIEW_OFFSET_X;
+    let top = preview.cy - PREVIEW_H / 2;
+    if (left + PREVIEW_W > vw - 8)
+      left = preview.cx - PREVIEW_W - PREVIEW_OFFSET_X;
     if (top < 8) top = 8;
     if (top + PREVIEW_H > vh - 8) top = vh - PREVIEW_H - 8;
     return { left, top, display: "block" };
   }, [preview]);
 
+  const rareShowcaseCards = cards.filter(
+    (placed) =>
+      placed.card.rarity === "MYTHIC" || placed.card.rarity === "RARE",
+  );
+  const mainListCards = cards.filter(
+    (placed) =>
+      placed.card.rarity !== "MYTHIC" && placed.card.rarity !== "RARE",
+  );
+
+  const sortByCurve = (a: PlacedCardState, b: PlacedCardState) =>
+    a.card.cmc - b.card.cmc || a.card.name.localeCompare(b.card.name);
+
+  const rareSections = [
+    {
+      key: "MYTHIC",
+      label: "Miticas",
+      accent: "#f97316",
+      items: rareShowcaseCards
+        .filter((placed) => placed.card.rarity === "MYTHIC")
+        .sort(sortByCurve),
+    },
+    {
+      key: "RARE",
+      label: "Raras",
+      accent: "#f0d24b",
+      items: rareShowcaseCards
+        .filter((placed) => placed.card.rarity === "RARE")
+        .sort(sortByCurve),
+    },
+  ].filter((section) => section.items.length > 0);
+
   // Group by color, sorted by CMC within each group
   const groupMap = new Map<string, PlacedCardState[]>();
-  for (const placed of cards) {
+  for (const placed of mainListCards) {
     const key = listColorKey(placed);
     const arr = groupMap.get(key) ?? [];
     arr.push(placed);
     groupMap.set(key, arr);
   }
   for (const arr of groupMap.values()) {
-    arr.sort((a, b) => a.card.cmc - b.card.cmc || a.card.name.localeCompare(b.card.name));
+    arr.sort(sortByCurve);
   }
   const columns = LIST_COLOR_ORDER.flatMap((key) => {
     const items = groupMap.get(key);
     return items ? [{ key, items }] : [];
   });
+
+  const renderColumn = ({
+    key,
+    label,
+    accent,
+    items,
+  }: {
+    key: string;
+    label: string;
+    accent: string;
+    items: PlacedCardState[];
+  }) => {
+    const stackH =
+      items.length <= 1 ? CARD_H : STACK_OFFSET * (items.length - 1) + CARD_H;
+
+    return (
+      <div
+        key={key}
+        className="flex shrink-0 flex-col gap-3"
+        style={{ width: CARD_W }}
+      >
+        <div className="flex items-center gap-2">
+          {key.length === 1 ? (
+            <div className="h-4 w-4 shrink-0">
+              <Image
+                src={`/${key}.svg`}
+                alt={label}
+                width={16}
+                height={16}
+                className="object-contain"
+                unoptimized
+              />
+            </div>
+          ) : (
+            <div
+              className="h-3.5 w-3.5 shrink-0 rounded-full"
+              style={{ background: accent }}
+            />
+          )}
+          <span
+            className="truncate font-mono text-[10px] font-bold uppercase tracking-[0.22em]"
+            style={{ color: accent }}
+          >
+            {label}
+          </span>
+          <span className="ml-auto shrink-0 font-mono text-[10px] text-white/35">
+            {items.length}
+          </span>
+        </div>
+
+        <div className="relative" style={{ height: stackH }}>
+          {items.map((placed, i) => {
+            const isLast = i === items.length - 1;
+            const isCardSelected = selectedIds.has(placed.id);
+            return (
+              <button
+                key={placed.id}
+                type="button"
+                draggable
+                onClick={(e) => {
+                  onSelect(placed.id, e.ctrlKey || e.metaKey || e.shiftKey);
+                }}
+                onDoubleClick={() => onOpenOverview(placed)}
+                onMouseEnter={(e) =>
+                  setPreview({ placed, cx: e.clientX, cy: e.clientY })
+                }
+                onMouseMove={(e) =>
+                  setPreview((p) =>
+                    p?.placed.id === placed.id
+                      ? { placed, cx: e.clientX, cy: e.clientY }
+                      : p,
+                  )
+                }
+                onMouseLeave={hidePreview}
+                onDragStart={(e) => {
+                  hidePreview();
+                  const ids =
+                    isCardSelected && selectedIds.size > 1
+                      ? Array.from(selectedIds)
+                      : [placed.id];
+                  e.dataTransfer.setData(
+                    "application/x-placed-card-id",
+                    ids[0],
+                  );
+                  e.dataTransfer.setData(
+                    "application/x-placed-card-ids",
+                    JSON.stringify(ids),
+                  );
+                  e.dataTransfer.effectAllowed = "move";
+                  setDraggingCard(placed.id);
+                }}
+                onDragEnd={() => setDraggingCard(null)}
+                className="group absolute left-0 cursor-pointer p-0 transition-transform duration-150 hover:-translate-y-1.5"
+                style={{
+                  top: i * STACK_OFFSET,
+                  zIndex: i + 1,
+                  width: CARD_W,
+                  height: isLast ? CARD_H : STACK_OFFSET,
+                  overflow: isLast ? "visible" : "hidden",
+                  pointerEvents: isHand ? "none" : undefined,
+                }}
+              >
+                <div
+                  className="relative overflow-hidden shadow-[0_4px_16px_rgba(0,0,0,0.6)]"
+                  style={{ width: CARD_W, height: CARD_H, borderRadius: 10 }}
+                >
+                  <Image
+                    src={placed.card.imagePath}
+                    alt={placed.card.name}
+                    fill
+                    sizes={`${CARD_W}px`}
+                    className="object-cover"
+                    draggable={false}
+                  />
+                  {placed.isFoil && (
+                    <div className="absolute inset-0 foil-overlay pointer-events-none opacity-45" />
+                  )}
+                  {placed.isPromo && (
+                    <div className="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-black/60 text-[9px] text-[#f59e0b]">
+                      ★
+                    </div>
+                  )}
+                  {!isLast && (
+                    <div
+                      className="absolute inset-x-0 bottom-0 h-[3px] opacity-80"
+                      style={{
+                        background:
+                          RARITY_COLOR[placed.card.rarity] ?? "#64748b",
+                      }}
+                    />
+                  )}
+                  <div
+                    className="absolute inset-0 pointer-events-none transition-opacity duration-75"
+                    style={{
+                      borderRadius: 10,
+                      boxShadow:
+                        "0 0 0 2px #4d6393, 0 0 14px 2px rgba(77,99,147,0.45)",
+                      opacity: isCardSelected ? 1 : 0,
+                    }}
+                  />
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
 
   if (cards.length === 0) {
     return (
@@ -1030,117 +1230,41 @@ function ListView({
         className="h-full w-full overflow-hidden"
         style={{ cursor: isHand ? "grab" : "default" }}
       >
-        <div ref={innerRef} className="flex min-w-max items-start gap-4 px-8 py-8" style={{ willChange: "transform" }}>
-          {columns.map(({ key, items }) => {
-            const label = key === "Multi" ? "Multi" : key === "Incolor" ? "Incolor" : key === "Terra" ? "Terra" : (COLOR_LABEL[key] ?? key);
-            const accent = LIST_COLUMN_ACCENT[key] ?? "#7f95c9";
-            const stackH = items.length <= 1 ? CARD_H : STACK_OFFSET * (items.length - 1) + CARD_H;
-
-            return (
-              <div key={key} className="flex shrink-0 flex-col gap-3" style={{ width: CARD_W }}>
-                {/* Column header */}
-                <div className="flex items-center gap-2">
-                  {key !== "Multi" && key !== "Incolor" && key !== "Terra" ? (
-                    <div className="h-4 w-4 shrink-0">
-                      <Image src={`/${key}.svg`} alt={label} width={16} height={16} className="object-contain" unoptimized />
-                    </div>
-                  ) : (
-                    <div className="h-3.5 w-3.5 shrink-0 rounded-full" style={{ background: accent }} />
-                  )}
-                  <span className="truncate font-mono text-[10px] font-bold uppercase tracking-[0.22em]" style={{ color: accent }}>
-                    {label}
-                  </span>
-                  <span className="ml-auto shrink-0 font-mono text-[10px] text-white/35">{items.length}</span>
-                </div>
-
-                {/* Stacked cards */}
-                <div className="relative" style={{ height: stackH }}>
-                  {items.map((placed, i) => {
-                    const isLast = i === items.length - 1;
-                    const isCardSelected = selectedIds.has(placed.id);
-                    return (
-                      <button
-                        key={placed.id}
-                        type="button"
-                        draggable
-                        onClick={(e) => {
-                          onSelect(placed.id, e.ctrlKey || e.metaKey || e.shiftKey);
-                        }}
-                        onDoubleClick={() => onOpenOverview(placed)}
-                        onMouseEnter={(e) => setPreview({ placed, cx: e.clientX, cy: e.clientY })}
-                        onMouseMove={(e) => setPreview((p) => p?.placed.id === placed.id ? { placed, cx: e.clientX, cy: e.clientY } : p)}
-                        onMouseLeave={hidePreview}
-                        onDragStart={(e) => {
-                          hidePreview();
-                          const ids = isCardSelected && selectedIds.size > 1
-                            ? Array.from(selectedIds)
-                            : [placed.id];
-                          e.dataTransfer.setData("application/x-placed-card-id", ids[0]);
-                          e.dataTransfer.setData("application/x-placed-card-ids", JSON.stringify(ids));
-                          e.dataTransfer.effectAllowed = "move";
-                          setDraggingCard(placed.id);
-                        }}
-                        onDragEnd={() => setDraggingCard(null)}
-                        className="group absolute left-0 cursor-pointer p-0 transition-transform duration-150 hover:-translate-y-1.5"
-                        style={{
-                          top: i * STACK_OFFSET,
-                          zIndex: i + 1,
-                          width: CARD_W,
-                          height: isLast ? CARD_H : STACK_OFFSET,
-                          overflow: isLast ? "visible" : "hidden",
-                          pointerEvents: isHand ? "none" : undefined,
-                        }}
-                      >
-                        <div
-                          className="relative overflow-hidden shadow-[0_4px_16px_rgba(0,0,0,0.6)]"
-                          style={{ width: CARD_W, height: CARD_H, borderRadius: 10 }}
-                        >
-                          <Image
-                            src={placed.card.imagePath}
-                            alt={placed.card.name}
-                            fill
-                            sizes={`${CARD_W}px`}
-                            className="object-cover"
-                            draggable={false}
-                          />
-                          {placed.isFoil && (
-                            <div className="absolute inset-0 foil-overlay pointer-events-none opacity-45" />
-                          )}
-                          {placed.isPromo && (
-                            <div className="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-black/60 text-[9px] text-[#f59e0b]">
-                              ★
-                            </div>
-                          )}
-                          {!isLast && (
-                            <div
-                              className="absolute inset-x-0 bottom-0 h-[3px] opacity-80"
-                              style={{ background: RARITY_COLOR[placed.card.rarity] ?? "#64748b" }}
-                            />
-                          )}
-                          {/* Selection highlight */}
-                          <div
-                            className="absolute inset-0 pointer-events-none transition-opacity duration-75"
-                            style={{
-                              borderRadius: 10,
-                              boxShadow: "0 0 0 2px #4d6393, 0 0 14px 2px rgba(77,99,147,0.45)",
-                              opacity: isCardSelected ? 1 : 0,
-                            }}
-                          />
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })}
+        <div
+          ref={innerRef}
+          className="flex min-w-max flex-col items-start gap-8 px-8 py-8"
+          style={{ willChange: "transform" }}
+        >
+          <div className="flex items-start gap-4">
+            {columns.map(({ key, items }) =>
+              renderColumn({
+                key,
+                items,
+                label:
+                  key === "Multi"
+                    ? "Multi"
+                    : key === "Incolor"
+                      ? "Incolor"
+                      : key === "Terra"
+                        ? "Lands"
+                        : (COLOR_LABEL[key] ?? key),
+                accent: LIST_COLUMN_ACCENT[key] ?? "#7f95c9",
+              }),
+            )}
+            {rareSections.map((section) => renderColumn(section))}
+          </div>
         </div>
       </div>
 
       {/* Hover preview — rendered outside scroll container so it's not clipped */}
       <div
         className="pointer-events-none fixed z-[300000000] overflow-hidden rounded-xl shadow-[0_8px_40px_rgba(0,0,0,0.75)] transition-opacity duration-100"
-        style={{ ...previewStyle, width: PREVIEW_W, height: PREVIEW_H, opacity: preview ? 1 : 0 }}
+        style={{
+          ...previewStyle,
+          width: PREVIEW_W,
+          height: PREVIEW_H,
+          opacity: preview ? 1 : 0,
+        }}
       >
         {preview && (
           <Image

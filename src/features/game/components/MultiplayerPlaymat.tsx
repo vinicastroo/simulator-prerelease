@@ -9,13 +9,12 @@ import {
   type WheelEvent,
 } from "react";
 import { GameSettingsMenu } from "@/components/GameSettingsMenu";
+import { Button } from "@/components/ui/button";
 import { CardBack } from "@/features/playtest/components/CardBack";
 import { Playmat } from "@/features/playtest/components/Playmat";
-import { Button } from "@/components/ui/button";
-import { getGameSetup, hasPlayerKeptOpeningHand } from "@/lib/game/setup";
 import { BattlefieldArea } from "@/features/playtest/components/playmat/BattlefieldArea";
+import { BattlefieldArrowOverlay } from "@/features/playtest/components/playmat/BattlefieldArrowOverlay";
 import {
-  BATTLEFIELD_ZOOM_MAX,
   BATTLEFIELD_ZOOM_MIN,
   BATTLEFIELD_ZOOM_STEP,
 } from "@/features/playtest/components/playmat/constants";
@@ -36,6 +35,7 @@ import {
   selectAllCardsByZone,
   selectCardWithDefinition,
 } from "@/lib/game/selectors";
+import { getGameSetup, hasPlayerKeptOpeningHand } from "@/lib/game/setup";
 import type { CardInstance } from "@/lib/game/types";
 import { useMultiplayerGameContext } from "../store/MultiplayerGameProvider";
 
@@ -189,7 +189,12 @@ export function MultiplayerPlaymat({
     !opponentHasKeptOpeningHand;
   const isRollingFirstPlayer = multiCtx.isFirstPlayerRollActive;
 
-  const [opponentBattlefieldZoom, setOpponentBattlefieldZoom] = useState(BATTLEFIELD_ZOOM_MIN);
+  const [opponentBattlefieldZoom, setOpponentBattlefieldZoom] =
+    useState(BATTLEFIELD_ZOOM_MIN);
+  const [opponentBattlefieldPan, setOpponentBattlefieldPan] = useState({
+    x: 0,
+    y: 0,
+  });
   const [opponentZonePreview, setOpponentZonePreview] =
     useState<OpponentZonePreview>(null);
   const [opponentPreviewCard, setOpponentPreviewCard] =
@@ -201,15 +206,19 @@ export function MultiplayerPlaymat({
   const [mulliganPreviewAnchor, setMulliganPreviewAnchor] =
     useState<PreviewAnchor | null>(null);
 
-  const clampZoom = useCallback(
-    (v: number) =>
-      Math.max(BATTLEFIELD_ZOOM_MIN, Math.min(v, BATTLEFIELD_ZOOM_MAX)),
-    [],
-  );
+  const getNextOpponentZoom = useCallback((current: number, delta: number) => {
+    const factor = 1 + Math.abs(delta);
+    const next = delta >= 0 ? current * factor : current / factor;
+
+    return Math.max(0.001, Math.min(next, 1000));
+  }, []);
 
   const adjustOpponentZoom = useCallback(
-    (delta: number) => setOpponentBattlefieldZoom((p) => clampZoom(p + delta)),
-    [clampZoom],
+    (delta: number) =>
+      setOpponentBattlefieldZoom((current) =>
+        getNextOpponentZoom(current, delta),
+      ),
+    [getNextOpponentZoom],
   );
 
   const showOpponentPreview = useCallback(
@@ -287,6 +296,9 @@ export function MultiplayerPlaymat({
         toughness,
       };
     });
+  const opponentBattlefieldArrows = (state.battlefieldArrows ?? []).filter(
+    (arrow) => arrow.playerId === opponentPlayerId,
+  );
 
   const opponentGraveyardTop = opponentZones.graveyard.at(-1);
   const opponentExileTop = opponentZones.exile.at(-1);
@@ -347,6 +359,7 @@ export function MultiplayerPlaymat({
       <div className="flex h-screen w-screen flex-col overflow-hidden bg-[#0b0e14]">
         <GameSettingsMenu
           onReset={multiCtx.requestReset}
+          collectionHref="/decks"
           multiplayerReset={{
             open: multiCtx.hostResetAccepted || multiCtx.guestResetAccepted,
             currentPlayerAccepted:
@@ -433,6 +446,8 @@ export function MultiplayerPlaymat({
             battlefieldZoom={opponentBattlefieldZoom}
             battlefieldCards={opponentBattlefieldCards}
             activePings={multiCtx.activePings}
+            pan={opponentBattlefieldPan}
+            onPan={setOpponentBattlefieldPan}
             onWheel={handleOpponentWheel}
             onAdjustZoom={adjustOpponentZoom}
             onHoverCard={handleOpponentHover}
@@ -457,9 +472,12 @@ export function MultiplayerPlaymat({
             <Playmat
               playerName="Você"
               isRollingForFirstTurn={isRollingFirstPlayer}
+              allowInfiniteBattlefieldZoom
             />
           </div>
         </div>
+
+        <BattlefieldArrowOverlay arrows={opponentBattlefieldArrows} />
       </div>
 
       {/* Opponent zone preview modals */}

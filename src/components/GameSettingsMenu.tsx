@@ -1,6 +1,13 @@
 "use client";
 
-import { RotateCcw, Settings2 } from "lucide-react";
+import {
+  FolderOpen,
+  Keyboard,
+  RotateCcw,
+  Settings2,
+  Undo2,
+} from "lucide-react";
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,13 +32,31 @@ type MultiplayerResetStatus = {
 type GameSettingsMenuProps = {
   onReset: () => void | Promise<void>;
   multiplayerReset?: MultiplayerResetStatus;
+  collectionHref?: string;
+  simulatorHref?: string;
 };
+
+const SHORTCUTS = [
+  { keys: ["T"], label: "Virar ou desvirar a carta selecionada" },
+  { keys: ["D"], label: "Comprar 1 carta" },
+  { keys: ["S"], label: "Embaralhar o grimorio" },
+  { keys: ["U"], label: "Desfazer a ultima acao" },
+  { keys: ["Ctrl", "Z"], label: "Desfazer a ultima acao" },
+  { keys: ["Ctrl", "Shift", "Z"], label: "Refazer a ultima acao" },
+  { keys: ["W"], label: "Entrar ou sair do modo de seta" },
+  { keys: ["Esc"], label: "Cancelar seta em andamento" },
+  { keys: ["Space"], label: "Avancar fase" },
+  { keys: ["Tab"], label: "Avancar fase" },
+] as const;
 
 export function GameSettingsMenu({
   onReset,
   multiplayerReset,
+  collectionHref,
+  simulatorHref,
 }: GameSettingsMenuProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasSeenResetVote, setHasSeenResetVote] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -81,37 +106,119 @@ export function GameSettingsMenu({
   return (
     <>
       <div className="fixed bottom-4 left-4 z-[260]" ref={menuRef}>
-        <div className="relative">
-          {isMenuOpen ? (
-            <div className="absolute bottom-full left-0 mb-2 min-w-48 rounded-2xl border border-white/10 bg-[#0d1017]/95 p-2 shadow-[0_18px_42px_rgba(0,0,0,0.45)] backdrop-blur-md">
-              <button
-                type="button"
-                className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm text-white/78 transition hover:bg-white/8 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
-                onClick={() => void handleReset()}
-                disabled={
-                  isSubmitting ||
-                  multiplayerReset?.pending ||
-                  multiplayerReset?.currentPlayerAccepted
-                }
-              >
-                <RotateCcw className="size-4" />
-                <span>Resetar game</span>
-              </button>
-            </div>
-          ) : null}
-
+        <div className="flex items-center gap-2">
           <Button
             type="button"
             variant="ghost"
             size="icon"
             className="rounded-full border border-white/10 bg-black/45 text-white/75 shadow-lg backdrop-blur-md hover:bg-white/10 hover:text-white"
-            onClick={() => setIsMenuOpen((current) => !current)}
-            aria-label="Abrir configuracoes da partida"
+            onClick={() => setIsShortcutsOpen(true)}
+            aria-label="Abrir teclas de atalho"
           >
-            <Settings2 className="size-4" />
+            <Keyboard className="size-4" />
           </Button>
+
+          <div className="relative">
+            {isMenuOpen ? (
+              <div className="absolute bottom-full left-0 mb-2 min-w-48 rounded-2xl border border-white/10 bg-[#0d1017]/95 p-2 shadow-[0_18px_42px_rgba(0,0,0,0.45)] backdrop-blur-md">
+                {collectionHref ? (
+                  <Button
+                    asChild
+                    variant="ghost"
+                    className="mb-1 flex w-full items-center justify-start rounded-xl px-3 py-2 text-left text-sm text-white/78 hover:bg-white/8 hover:text-white"
+                  >
+                    <Link
+                      href={collectionHref}
+                      className="flex w-full items-center gap-2"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      <FolderOpen className="size-4" />
+                      Ir para colecao
+                    </Link>
+                  </Button>
+                ) : null}
+
+                {simulatorHref ? (
+                  <Button
+                    asChild
+                    variant="ghost"
+                    className="mb-1 flex w-full items-center justify-start rounded-xl px-3 py-2 text-left text-sm text-white/78 hover:bg-white/8 hover:text-white"
+                  >
+                    <Link
+                      href={simulatorHref}
+                      className="flex w-full items-center gap-2"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      <Undo2 className="size-4" />
+                      Voltar ao simulador
+                    </Link>
+                  </Button>
+                ) : null}
+
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm text-white/78 transition hover:bg-white/8 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                  onClick={() => void handleReset()}
+                  disabled={
+                    isSubmitting ||
+                    multiplayerReset?.pending ||
+                    multiplayerReset?.currentPlayerAccepted
+                  }
+                >
+                  <RotateCcw className="size-4" />
+                  <span>Resetar game</span>
+                </button>
+              </div>
+            ) : null}
+
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="rounded-full border border-white/10 bg-black/45 text-white/75 shadow-lg backdrop-blur-md hover:bg-white/10 hover:text-white"
+              onClick={() => setIsMenuOpen((current) => !current)}
+              aria-label="Abrir configuracoes da partida"
+            >
+              <Settings2 className="size-4" />
+            </Button>
+          </div>
         </div>
       </div>
+
+      <Dialog open={isShortcutsOpen} onOpenChange={setIsShortcutsOpen}>
+        <DialogContent className="border-white/10 bg-[#101317] text-white sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl font-black tracking-[-0.03em] text-white">
+              <Keyboard className="size-5 text-white/75" />
+              Teclas de atalho
+            </DialogTitle>
+            <DialogDescription className="text-sm leading-6 text-white/55">
+              Atalhos disponiveis durante o playtest e partidas em /game/[id].
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2">
+            {SHORTCUTS.map((shortcut) => (
+              <div
+                key={`${shortcut.keys.join("+")}-${shortcut.label}`}
+                className="flex items-center justify-between gap-4 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3"
+              >
+                <span className="text-sm text-white/80">{shortcut.label}</span>
+                <div className="flex shrink-0 items-center gap-1.5">
+                  {shortcut.keys.map((key) => (
+                    <kbd
+                      key={`${shortcut.label}-${key}`}
+                      className="rounded-md border border-white/15 bg-black/30 px-2 py-1 font-mono text-[11px] font-semibold text-white/80"
+                    >
+                      {key}
+                    </kbd>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {multiplayerReset ? (
         <Dialog open={hasSeenResetVote && multiplayerReset.open}>

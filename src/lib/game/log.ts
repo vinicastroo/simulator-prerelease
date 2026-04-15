@@ -231,6 +231,10 @@ export function buildLogEntry(
       };
     }
 
+    case "battlefield-arrow/create":
+    case "battlefield-arrow/remove":
+      return null;
+
     default:
       return null;
   }

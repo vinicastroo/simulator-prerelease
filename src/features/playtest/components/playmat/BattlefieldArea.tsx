@@ -1,8 +1,15 @@
 import type { WheelEvent } from "react";
+import { useCallback, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { CardInstance } from "@/lib/game/types";
 import { BattlefieldCard } from "./BattlefieldCard";
-import { BATTLEFIELD_ZOOM_STEP, GRID_SIZE } from "./constants";
+import {
+  BATTLEFIELD_CANVAS_SIZE,
+  BATTLEFIELD_CARD_HEIGHT,
+  BATTLEFIELD_CARD_WIDTH,
+  BATTLEFIELD_ZOOM_STEP,
+  GRID_SIZE,
+} from "./constants";
 import type { CardHoverInfo } from "./types";
 
 type BattlefieldDisplayCard = {
@@ -13,6 +20,15 @@ type BattlefieldDisplayCard = {
   cardType: string;
   power: string | null;
   toughness: string | null;
+};
+
+type Pan = { x: number; y: number };
+
+type SelectionRect = {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
 };
 
 type BattlefieldAreaProps = {
@@ -29,9 +45,16 @@ type BattlefieldAreaProps = {
   battlefieldZoom: number;
   battlefieldCards: BattlefieldDisplayCard[];
   activePings?: Set<string>;
+  selectedCardIds?: Set<string>;
+  hiddenCardIds?: Set<string>;
+  pan?: Pan;
+  onPan?: (pan: Pan) => void;
   onWheel?: (event: WheelEvent<HTMLDivElement>) => void;
   onChangeLife?: (delta: number) => void;
   onAdjustZoom?: (delta: number) => void;
+  onSelectCard?: (cardId: string, additive: boolean) => void;
+  onClearSelection?: () => void;
+  onSelectionChange?: (cardIds: string[]) => void;
   onHoverCard?: (
     cardId: string,
     info: CardHoverInfo | null,
@@ -62,9 +85,16 @@ export function BattlefieldArea({
   battlefieldZoom,
   battlefieldCards,
   activePings,
+  selectedCardIds,
+  hiddenCardIds,
+  pan: externalPan,
+  onPan,
   onWheel,
   onChangeLife,
   onAdjustZoom,
+  onSelectCard,
+  onClearSelection,
+  onSelectionChange,
   onHoverCard,
   onPingCard,
   onModifyCardPT,
@@ -72,10 +102,147 @@ export function BattlefieldArea({
   onRightClickCard,
   onEmptyRightClick,
 }: BattlefieldAreaProps) {
+  // When no external pan state is provided, manage it internally (opponent battlefield)
+  const [internalPan, setInternalPan] = useState<Pan>({ x: 0, y: 0 });
+  const pan = externalPan ?? internalPan;
+  const setPan = onPan ?? setInternalPan;
+
+  const selectionStartRef = useRef<{
+    x: number;
+    y: number;
+  } | null>(null);
+  const panStartRef = useRef<{
+    px: number;
+    py: number;
+    sx: number;
+    sy: number;
+  } | null>(null);
+  const interactionModeRef = useRef<"pan" | "select" | null>(null);
+  const [selectionRect, setSelectionRect] = useState<SelectionRect | null>(
+    null,
+  );
+
   const hudPosition =
     orientation === "top"
       ? "absolute left-3 bottom-3 z-20"
       : "absolute left-3 top-3 z-20";
+
+  // Grid background computed in screen-space so it tiles infinitely across the
+  // whole container regardless of pan position or canvas bounds.
+  const gridScreenSize = GRID_SIZE * battlefieldZoom;
+  const bgX = ((pan.x % gridScreenSize) + gridScreenSize) % gridScreenSize;
+  const bgY = ((pan.y % gridScreenSize) + gridScreenSize) % gridScreenSize;
+
+  const getCanvasPoint = useCallback(
+    (clientX: number, clientY: number, rect: DOMRect) => {
+      return {
+        x: (clientX - rect.left - pan.x) / battlefieldZoom,
+        y: (clientY - rect.top - pan.y) / battlefieldZoom,
+      };
+    },
+    [battlefieldZoom, pan.x, pan.y],
+  );
+
+  const updateSelection = useCallback(
+    (startX: number, startY: number, endX: number, endY: number) => {
+      const left = Math.min(startX, endX);
+      const top = Math.min(startY, endY);
+      const right = Math.max(startX, endX);
+      const bottom = Math.max(startY, endY);
+
+      setSelectionRect({
+        left,
+        top,
+        width: right - left,
+        height: bottom - top,
+      });
+
+      const nextSelectedIds = battlefieldCards
+        .filter(({ card }) => {
+          const cardLeft = card.battlefield?.x ?? 0;
+          const cardTop = card.battlefield?.y ?? 0;
+          const cardRight = cardLeft + BATTLEFIELD_CARD_WIDTH;
+          const cardBottom = cardTop + BATTLEFIELD_CARD_HEIGHT;
+
+          return !(
+            cardRight < left ||
+            cardLeft > right ||
+            cardBottom < top ||
+            cardTop > bottom
+          );
+        })
+        .map(({ card }) => card.id);
+
+      onSelectionChange?.(nextSelectedIds);
+    },
+    [battlefieldCards, onSelectionChange],
+  );
+
+  const handleBackdropPointerDown = (
+    e: React.PointerEvent<HTMLButtonElement>,
+  ) => {
+    if (e.button !== 0) return;
+    if (isAnyDragActive) return;
+
+    const rect = e.currentTarget.getBoundingClientRect();
+
+    e.currentTarget.setPointerCapture(e.pointerId);
+
+    if (e.ctrlKey) {
+      interactionModeRef.current = "pan";
+      panStartRef.current = {
+        px: e.clientX,
+        py: e.clientY,
+        sx: pan.x,
+        sy: pan.y,
+      };
+      return;
+    }
+
+    const point = getCanvasPoint(e.clientX, e.clientY, rect);
+    if (!point) return;
+
+    interactionModeRef.current = "select";
+    selectionStartRef.current = point;
+    onClearSelection?.();
+    setSelectionRect({ left: point.x, top: point.y, width: 0, height: 0 });
+  };
+
+  const handleBackdropPointerMove = (
+    e: React.PointerEvent<HTMLButtonElement>,
+  ) => {
+    if (interactionModeRef.current === "pan") {
+      if (!panStartRef.current) return;
+
+      setPan({
+        x: panStartRef.current.sx + (e.clientX - panStartRef.current.px),
+        y: panStartRef.current.sy + (e.clientY - panStartRef.current.py),
+      });
+      return;
+    }
+
+    if (interactionModeRef.current !== "select" || !selectionStartRef.current) {
+      return;
+    }
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const point = getCanvasPoint(e.clientX, e.clientY, rect);
+    if (!point) return;
+
+    updateSelection(
+      selectionStartRef.current.x,
+      selectionStartRef.current.y,
+      point.x,
+      point.y,
+    );
+  };
+
+  const handleBackdropPointerUp = () => {
+    interactionModeRef.current = null;
+    selectionStartRef.current = null;
+    panStartRef.current = null;
+    setSelectionRect(null);
+  };
 
   return (
     <div
@@ -95,6 +262,120 @@ export function BattlefieldArea({
       }`}
       onWheel={onWheel}
     >
+      {/*
+        Backdrop: covers 100% of the container at all times.
+        - Renders the infinite grid in screen-space so it never has edges.
+        - Receives pointer events only when clicking on empty space (cards are
+          in a higher layer and stop propagation / capture focus first).
+      */}
+      <button
+        type="button"
+        aria-label="Mover campo de batalha"
+        className="absolute inset-0 z-0 appearance-none border-0 p-0"
+        style={{
+          backgroundImage:
+            "linear-gradient(to right, rgba(255,255,255,0.08) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.08) 1px, transparent 1px)",
+          backgroundSize: `${gridScreenSize}px ${gridScreenSize}px`,
+          backgroundPosition: `${bgX}px ${bgY}px`,
+          cursor: isAnyDragActive
+            ? "default"
+            : interactionModeRef.current === "pan"
+              ? "grabbing"
+              : "crosshair",
+        }}
+        onPointerDown={handleBackdropPointerDown}
+        onPointerMove={handleBackdropPointerMove}
+        onPointerUp={handleBackdropPointerUp}
+        onPointerCancel={handleBackdropPointerUp}
+        onContextMenu={
+          onEmptyRightClick
+            ? (e) => {
+                e.preventDefault();
+                onEmptyRightClick(e.clientX, e.clientY);
+              }
+            : undefined
+        }
+      />
+
+      {/*
+        Card canvas: large fixed-size canvas that pans and zooms.
+        pointer-events: none on the div itself so that click-through on empty
+        areas reaches the backdrop; cards inside keep default pointer-events.
+      */}
+      <div
+        className="absolute top-0 left-0 z-10"
+        style={{
+          transform: `translate(${pan.x}px, ${pan.y}px) scale(${battlefieldZoom})`,
+          transformOrigin: "top left",
+          width: `${BATTLEFIELD_CANVAS_SIZE}px`,
+          height: `${BATTLEFIELD_CANVAS_SIZE}px`,
+          pointerEvents: "none",
+        }}
+      >
+        {battlefieldCards.length === 0 && (
+          <div className="pointer-events-none absolute inset-0 flex h-full items-center justify-center text-xs uppercase tracking-[0.35em] text-white/30">
+            Campo de batalha
+          </div>
+        )}
+
+        {battlefieldCards.map(
+          ({ card, name, imageUrl, manaCost, cardType, power, toughness }) => (
+            <BattlefieldCard
+              key={card.id}
+              card={card}
+              name={name}
+              imageUrl={imageUrl}
+              manaCost={manaCost}
+              cardType={cardType}
+              power={power}
+              toughness={toughness}
+              isSelected={selectedCardIds?.has(card.id)}
+              isGhosted={hiddenCardIds?.has(card.id)}
+              selectionCount={selectedCardIds?.size ?? 0}
+              onSelect={
+                onSelectCard
+                  ? (additive) => onSelectCard(card.id, additive)
+                  : undefined
+              }
+              onHover={
+                onHoverCard
+                  ? (info, target) => onHoverCard(card.id, info, target)
+                  : () => {}
+              }
+              isPinged={activePings?.has(card.id)}
+              onPing={onPingCard ? () => onPingCard(card.id) : undefined}
+              onModifyPT={
+                onModifyCardPT
+                  ? (pd, td) => onModifyCardPT(card.id, pd, td)
+                  : undefined
+              }
+              onModifyLoyalty={
+                onModifyCardLoyalty
+                  ? (d) => onModifyCardLoyalty(card.id, d)
+                  : undefined
+              }
+              onRightClick={
+                onRightClickCard
+                  ? (x, y) => onRightClickCard(card.id, x, y)
+                  : undefined
+              }
+            />
+          ),
+        )}
+
+        {selectionRect && (
+          <div
+            className="pointer-events-none absolute z-[40] border border-cyan-300/80 bg-cyan-400/10"
+            style={{
+              left: selectionRect.left,
+              top: selectionRect.top,
+              width: selectionRect.width,
+              height: selectionRect.height,
+            }}
+          />
+        )}
+      </div>
+
       {/* HUD */}
       <div
         className={`${hudPosition} flex items-center gap-3 rounded-xl border border-white/15 bg-black/35 px-3 py-2 backdrop-blur-sm`}
@@ -165,71 +446,6 @@ export function BattlefieldArea({
           </Button>
         </div>
       )}
-
-      <div
-        className="relative h-full w-full"
-        onContextMenu={
-          onEmptyRightClick
-            ? (e) => {
-                e.preventDefault();
-                onEmptyRightClick(e.clientX, e.clientY);
-              }
-            : undefined
-        }
-        style={{
-          transform: `scale(${battlefieldZoom})`,
-          transformOrigin: "top left",
-          width: `${100 / battlefieldZoom}%`,
-          height: `${100 / battlefieldZoom}%`,
-          backgroundImage:
-            "linear-gradient(to right, rgba(255,255,255,0.08) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.08) 1px, transparent 1px)",
-          backgroundSize: `${GRID_SIZE}px ${GRID_SIZE}px`,
-          backgroundPosition: "0 0",
-        }}
-      >
-        {battlefieldCards.length === 0 && (
-          <div className="pointer-events-none absolute inset-0 flex h-full items-center justify-center text-xs uppercase tracking-[0.35em] text-white/30">
-            Campo de batalha
-          </div>
-        )}
-
-        {battlefieldCards.map(
-          ({ card, name, imageUrl, manaCost, cardType, power, toughness }) => (
-            <BattlefieldCard
-              key={card.id}
-              card={card}
-              name={name}
-              imageUrl={imageUrl}
-              manaCost={manaCost}
-              cardType={cardType}
-              power={power}
-              toughness={toughness}
-              onHover={
-                onHoverCard
-                  ? (info, target) => onHoverCard(card.id, info, target)
-                  : () => {}
-              }
-              isPinged={activePings?.has(card.id)}
-              onPing={onPingCard ? () => onPingCard(card.id) : undefined}
-              onModifyPT={
-                onModifyCardPT
-                  ? (pd, td) => onModifyCardPT(card.id, pd, td)
-                  : undefined
-              }
-              onModifyLoyalty={
-                onModifyCardLoyalty
-                  ? (d) => onModifyCardLoyalty(card.id, d)
-                  : undefined
-              }
-              onRightClick={
-                onRightClickCard
-                  ? (x, y) => onRightClickCard(card.id, x, y)
-                  : undefined
-              }
-            />
-          ),
-        )}
-      </div>
     </div>
   );
 }

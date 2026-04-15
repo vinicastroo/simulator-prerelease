@@ -10,6 +10,8 @@ type ShortcutHandlers = {
   onShuffle?: () => void;
   onAdvancePhase?: () => void;
   onRetreatPhase?: () => void;
+  onToggleArrowMode?: () => void;
+  onCancelArrowMode?: () => void;
   disabled?: boolean;
 };
 
@@ -68,6 +70,14 @@ export function useKeyboardShortcuts(handlers: ShortcutHandlers) {
         case " ":
           e.preventDefault();
           handlers.onAdvancePhase?.();
+          break;
+        case "w":
+          if (e.repeat) break;
+          handlers.onToggleArrowMode?.();
+          break;
+        case "Escape":
+          if (e.repeat) break;
+          handlers.onCancelArrowMode?.();
           break;
       }
     }

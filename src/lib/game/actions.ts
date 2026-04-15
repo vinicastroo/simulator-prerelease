@@ -1,4 +1,5 @@
 import type {
+  BattlefieldArrow,
   CardDefId,
   CardDefinition,
   CardInstance,
@@ -139,4 +140,6 @@ export type GameAction =
       power: string | null;
       toughness: string | null;
     }
+  | { type: "battlefield-arrow/create"; arrow: BattlefieldArrow }
+  | { type: "battlefield-arrow/remove"; arrowId: string }
   | { type: "card/ping"; cardId: CardInstanceId };

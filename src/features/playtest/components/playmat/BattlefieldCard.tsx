@@ -20,6 +20,10 @@ type BattlefieldCardProps = {
   cardType: string;
   power: string | null;
   toughness: string | null;
+  isSelected?: boolean;
+  isGhosted?: boolean;
+  selectionCount?: number;
+  onSelect?: (additive: boolean) => void;
   onHover: (info: CardHoverInfo | null, target: HTMLElement | null) => void;
   /** Called on click so the parent can broadcast a ping to the opponent */
   onPing?: () => void;
@@ -41,6 +45,10 @@ export const BattlefieldCard = memo(function BattlefieldCard({
   cardType,
   power,
   toughness,
+  isSelected = false,
+  isGhosted = false,
+  selectionCount = 0,
+  onSelect,
   onHover,
   onPing,
   isPinged = false,
@@ -54,6 +62,24 @@ export const BattlefieldCard = memo(function BattlefieldCard({
     setPinged(true);
     onPing?.();
   }, [onPing]);
+
+  const handlePointerDownCapture = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      if (event.button !== 0) return;
+
+      if (event.shiftKey) {
+        event.preventDefault();
+        event.stopPropagation();
+        onSelect?.(true);
+        return;
+      }
+
+      if (!isSelected || selectionCount <= 1) {
+        onSelect?.(false);
+      }
+    },
+    [isSelected, onSelect, selectionCount],
+  );
 
   useEffect(() => {
     if (!isPinged) return;
@@ -90,26 +116,32 @@ export const BattlefieldCard = memo(function BattlefieldCard({
     !isDragging && card.tapped ? "rotate(90deg)" : ""
   }`;
 
-  const loyalty = card.counters["loyalty"] ?? 0;
+  const loyalty = card.counters.loyalty ?? 0;
 
   return (
+    /* biome-ignore lint/a11y/noStaticElementInteractions: draggable battlefield card contains nested interactive controls */
     <div
       ref={setNodeRef}
       draggable={false}
       className="absolute cursor-pointer select-none touch-none outline-none hover:z-10 hover:scale-105 focus:outline-none focus-visible:outline-none"
       style={{
-        opacity: isDragging ? 0 : 1,
+        opacity: isDragging || isGhosted ? 0 : 1,
         transformOrigin: "center center",
         left: card.battlefield?.x ?? 0,
         top: card.battlefield?.y ?? 0,
         transform: combinedTransform,
         zIndex: isDragging ? 999 : (card.battlefield?.z ?? 0) + 20,
         transition: isDragging ? "none" : undefined,
+        pointerEvents: isGhosted ? "none" : "auto",
       }}
       onMouseEnter={(event) => onHover({ name, imageUrl }, event.currentTarget)}
       onMouseMove={(event) => onHover({ name, imageUrl }, event.currentTarget)}
       onMouseLeave={() => onHover(null, null)}
-      onClick={handleClick}
+      onPointerDownCapture={handlePointerDownCapture}
+      onClick={(event) => {
+        if (event.shiftKey) return;
+        handleClick();
+      }}
       onKeyDown={(event) => {
         if (event.key === "Enter" || event.key === " ") handleClick();
       }}
@@ -133,6 +165,10 @@ export const BattlefieldCard = memo(function BattlefieldCard({
             className="pointer-events-none absolute inset-0 z-[60] animate-ping rounded-[4px] ring-2 ring-yellow-400/80 bg-yellow-400/15"
             style={{ animationDuration: "0.5s" }}
           />
+        )}
+
+        {isSelected && (
+          <div className="pointer-events-none absolute inset-0 z-[55] rounded-[4px] ring-2 ring-cyan-300 shadow-[0_0_0_1px_rgba(34,211,238,0.55),0_0_24px_rgba(34,211,238,0.24)]" />
         )}
 
         <ManaCostBadges cardId={card.id} manaCost={manaCost} />
@@ -178,7 +214,9 @@ export const BattlefieldCard = memo(function BattlefieldCard({
         ) && (
           <div className="absolute right-0 top-0 z-30 flex flex-col items-end gap-0.5 p-0.5">
             {Object.entries(card.counters)
-              .filter(([key, value]) => value > 0 && ABILITY_MARKER_IDS.has(key))
+              .filter(
+                ([key, value]) => value > 0 && ABILITY_MARKER_IDS.has(key),
+              )
               .map(([marker]) => (
                 <div
                   key={marker}
@@ -235,6 +273,7 @@ export const BattlefieldCard = memo(function BattlefieldCard({
             <button
               type="button"
               className="flex h-6 min-w-6 cursor-pointer items-center justify-center rounded-sm border border-white/30 bg-black/85 px-1.5 text-xs font-bold leading-none text-white transition hover:border-white/70 hover:bg-black active:scale-95"
+              onPointerDown={(e) => e.stopPropagation()}
               onClick={(e) => {
                 e.stopPropagation();
                 onModifyPT?.(1, 0);
@@ -250,6 +289,7 @@ export const BattlefieldCard = memo(function BattlefieldCard({
             <button
               type="button"
               className="flex h-6 min-w-6 cursor-pointer items-center justify-center rounded-sm border border-white/30 bg-black/85 px-1.5 text-xs font-bold leading-none text-white transition hover:border-white/70 hover:bg-black active:scale-95"
+              onPointerDown={(e) => e.stopPropagation()}
               onClick={(e) => {
                 e.stopPropagation();
                 onModifyPT?.(0, 1);
@@ -271,6 +311,7 @@ export const BattlefieldCard = memo(function BattlefieldCard({
             <button
               type="button"
               className="flex h-6 min-w-6 cursor-pointer items-center justify-center rounded-sm border border-amber-400/50 bg-black/85 px-1.5 text-xs font-bold leading-none text-amber-200 transition hover:border-amber-300 hover:bg-black active:scale-95"
+              onPointerDown={(e) => e.stopPropagation()}
               onClick={(e) => {
                 e.stopPropagation();
                 onModifyLoyalty?.(1);

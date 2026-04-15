@@ -29,6 +29,13 @@ import { useGameStore } from "../hooks/useGameStore";
 import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
 import { CardBack } from "./CardBack";
 import { BattlefieldArea } from "./playmat/BattlefieldArea";
+import { BattlefieldArrowOverlay } from "./playmat/BattlefieldArrowOverlay";
+import { BattlefieldCardMenu } from "./playmat/BattlefieldCardMenu";
+import { BattlefieldContextMenu } from "./playmat/BattlefieldContextMenu";
+import {
+  BattlefieldTokenBrowser,
+  type TokenCard,
+} from "./playmat/BattlefieldTokenBrowser";
 import {
   BATTLEFIELD_CARD_HEIGHT,
   BATTLEFIELD_CARD_WIDTH,
@@ -37,12 +44,6 @@ import {
   BATTLEFIELD_ZOOM_STEP,
   GRID_SIZE,
 } from "./playmat/constants";
-import { BattlefieldCardMenu } from "./playmat/BattlefieldCardMenu";
-import { BattlefieldContextMenu } from "./playmat/BattlefieldContextMenu";
-import {
-  BattlefieldTokenBrowser,
-  type TokenCard,
-} from "./playmat/BattlefieldTokenBrowser";
 import { HandZone } from "./playmat/HandZone";
 import { PreviewOverlay } from "./playmat/PreviewOverlay";
 import { SideZonePanel } from "./playmat/SideZonePanel";
@@ -89,9 +90,11 @@ const PHASE_ORDER: TurnPhase[] = [
 export function Playmat({
   playerName = "Você",
   isRollingForFirstTurn = false,
+  allowInfiniteBattlefieldZoom = false,
 }: {
   playerName?: string;
   isRollingForFirstTurn?: boolean;
+  allowInfiniteBattlefieldZoom?: boolean;
 }) {
   const {
     state,
@@ -135,7 +138,20 @@ export function Playmat({
   const [focusedBattlefieldCardId, setFocusedBattlefieldCardId] = useState<
     string | null
   >(null);
+  const [selectedBattlefieldCardIds, setSelectedBattlefieldCardIds] = useState<
+    string[]
+  >([]);
+  const [isArrowMode, setIsArrowMode] = useState(false);
+  const [pendingArrowStart, setPendingArrowStart] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
+  const [pendingArrowEnd, setPendingArrowEnd] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
   const [battlefieldZoom, setBattlefieldZoom] = useState(BATTLEFIELD_ZOOM_MIN);
+  const [battlefieldPan, setBattlefieldPan] = useState({ x: 0, y: 0 });
 
   const [activeDrag, setActiveDrag] = useState<ActiveDragState | null>(null);
   const [centerToast, setCenterToast] = useState<CenterToast | null>(null);
@@ -207,31 +223,36 @@ export function Playmat({
 
   const resetDragState = useCallback(() => {
     setActiveDrag(null);
-    lastPointerClientPositionRef.current = null;
     clearPreview();
   }, [clearPreview]);
 
   useEffect(() => {
-    if (!activeDrag) return;
+    const updateLastPointerPosition = (clientX: number, clientY: number) => {
+      lastPointerClientPositionRef.current = {
+        clientX,
+        clientY,
+      };
+    };
 
     const handlePointerMove = (event: PointerEvent) => {
-      lastPointerClientPositionRef.current = {
-        clientX: event.clientX,
-        clientY: event.clientY,
-      };
+      updateLastPointerPosition(event.clientX, event.clientY);
+    };
+
+    const handleMouseMove = (event: MouseEvent) => {
+      updateLastPointerPosition(event.clientX, event.clientY);
     };
 
     const handleTouchMove = (event: TouchEvent) => {
       const touch = event.touches[0] ?? event.changedTouches[0];
       if (!touch) return;
 
-      lastPointerClientPositionRef.current = {
-        clientX: touch.clientX,
-        clientY: touch.clientY,
-      };
+      updateLastPointerPosition(touch.clientX, touch.clientY);
     };
 
     window.addEventListener("pointermove", handlePointerMove, {
+      passive: true,
+    });
+    window.addEventListener("mousemove", handleMouseMove, {
       passive: true,
     });
     window.addEventListener("touchmove", handleTouchMove, {
@@ -240,9 +261,10 @@ export function Playmat({
 
     return () => {
       window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("touchmove", handleTouchMove);
     };
-  }, [activeDrag]);
+  }, []);
 
   useEffect(() => {
     const latestEntry = state.log.at(-1);
@@ -307,28 +329,27 @@ export function Playmat({
         };
       }
 
-      const battlefieldWidth = rect.width / battlefieldZoom;
-      const battlefieldHeight = rect.height / battlefieldZoom;
       const rawX = snapToGrid(
-        (clientX - rect.left) / battlefieldZoom - BATTLEFIELD_CARD_WIDTH / 2,
+        (clientX - rect.left - battlefieldPan.x) / battlefieldZoom -
+          BATTLEFIELD_CARD_WIDTH / 2,
       );
       const rawY = snapToGrid(
-        (clientY - rect.top) / battlefieldZoom - BATTLEFIELD_CARD_HEIGHT / 2,
+        (clientY - rect.top - battlefieldPan.y) / battlefieldZoom -
+          BATTLEFIELD_CARD_HEIGHT / 2,
       );
 
       return {
-        x: Math.max(
-          12,
-          Math.min(rawX, battlefieldWidth - BATTLEFIELD_CARD_WIDTH - 12),
-        ),
-        y: Math.max(
-          12,
-          Math.min(rawY, battlefieldHeight - BATTLEFIELD_CARD_HEIGHT - 12),
-        ),
+        x: Math.max(0, rawX),
+        y: Math.max(0, rawY),
         z: getNextBattlefieldZ(),
       };
     },
-    [allZones.battlefield.length, battlefieldZoom, getNextBattlefieldZ],
+    [
+      allZones.battlefield.length,
+      battlefieldPan,
+      battlefieldZoom,
+      getNextBattlefieldZ,
+    ],
   );
 
   const clampBattlefieldZoom = useCallback((value: number) => {
@@ -338,11 +359,25 @@ export function Playmat({
     );
   }, []);
 
+  const getNextBattlefieldZoom = useCallback(
+    (current: number, delta: number) => {
+      const factor = 1 + Math.abs(delta);
+      const next = delta >= 0 ? current * factor : current / factor;
+
+      if (!allowInfiniteBattlefieldZoom) {
+        return clampBattlefieldZoom(next);
+      }
+
+      return Math.max(0.001, Math.min(next, 1000));
+    },
+    [allowInfiniteBattlefieldZoom, clampBattlefieldZoom],
+  );
+
   const adjustBattlefieldZoom = useCallback(
     (delta: number) => {
-      setBattlefieldZoom((prev) => clampBattlefieldZoom(prev + delta));
+      setBattlefieldZoom((prev) => getNextBattlefieldZoom(prev, delta));
     },
-    [clampBattlefieldZoom],
+    [getNextBattlefieldZoom],
   );
 
   const handleBattlefieldWheel = useCallback(
@@ -367,6 +402,143 @@ export function Playmat({
       tapped: !card.tapped,
     });
   }, [dispatch, focusedBattlefieldCardId, state.cardInstances]);
+
+  useEffect(() => {
+    setSelectedBattlefieldCardIds((current) =>
+      current.filter(
+        (cardId) => state.cardInstances[cardId]?.zone === "battlefield",
+      ),
+    );
+    setFocusedBattlefieldCardId((current) =>
+      current && state.cardInstances[current]?.zone === "battlefield"
+        ? current
+        : null,
+    );
+  }, [state.cardInstances]);
+
+  const handleSelectBattlefieldCard = useCallback(
+    (cardId: string, additive: boolean) => {
+      setFocusedBattlefieldCardId(cardId);
+      setSelectedBattlefieldCardIds((current) => {
+        if (!additive) return [cardId];
+
+        return current.includes(cardId)
+          ? current.filter((id) => id !== cardId)
+          : [...current, cardId];
+      });
+    },
+    [],
+  );
+
+  const handleClearBattlefieldSelection = useCallback(() => {
+    setSelectedBattlefieldCardIds([]);
+    setFocusedBattlefieldCardId(null);
+  }, []);
+
+  const handleToggleArrowMode = useCallback(() => {
+    setIsArrowMode((current) => {
+      const next = !current;
+
+      if (!next) {
+        setPendingArrowStart(null);
+        setPendingArrowEnd(null);
+        return next;
+      }
+
+      const pointer = lastPointerClientPositionRef.current;
+      if (!pointer) {
+        setPendingArrowStart(null);
+        setPendingArrowEnd(null);
+        return next;
+      }
+
+      const width = Math.max(window.innerWidth, 1);
+      const height = Math.max(window.innerHeight, 1);
+      const start = {
+        x: Math.min(Math.max(pointer.clientX / width, 0), 1),
+        y: Math.min(Math.max(pointer.clientY / height, 0), 1),
+      };
+
+      setPendingArrowStart(start);
+      setPendingArrowEnd(start);
+      return next;
+    });
+  }, []);
+
+  const handleCancelArrowMode = useCallback(() => {
+    setIsArrowMode(false);
+    setPendingArrowStart(null);
+    setPendingArrowEnd(null);
+  }, []);
+
+  const handleArrowPointerMove = useCallback(
+    (point: { x: number; y: number }) => {
+      if (!isArrowMode) return;
+
+      if (!pendingArrowStart) {
+        setPendingArrowStart(point);
+        setPendingArrowEnd(point);
+        return;
+      }
+
+      setPendingArrowEnd(point);
+    },
+    [isArrowMode, pendingArrowStart],
+  );
+
+  const handleArrowCanvasClick = useCallback(
+    (point: { x: number; y: number }) => {
+      if (!isArrowMode) return;
+
+      if (!pendingArrowStart) {
+        setPendingArrowStart(point);
+        setPendingArrowEnd(point);
+        return;
+      }
+
+      const normalizePoint = (rawPoint: { x: number; y: number }) => ({
+        x: Math.min(Math.max(rawPoint.x, 0), 1),
+        y: Math.min(Math.max(rawPoint.y, 0), 1),
+      });
+
+      dispatch({
+        type: "battlefield-arrow/create",
+        arrow: {
+          id: crypto.randomUUID(),
+          playerId: localPlayerId,
+          createdByPlayerId: localPlayerId,
+          start: normalizePoint(pendingArrowStart),
+          end: normalizePoint(point),
+        },
+      });
+      setIsArrowMode(false);
+      setPendingArrowStart(null);
+      setPendingArrowEnd(null);
+    },
+    [dispatch, isArrowMode, localPlayerId, pendingArrowStart],
+  );
+
+  const handleDeleteArrow = useCallback(
+    (arrowId: string) => {
+      dispatch({ type: "battlefield-arrow/remove", arrowId });
+    },
+    [dispatch],
+  );
+
+  const getDraggedBattlefieldCardIds = useCallback(
+    (cardId: string) => {
+      if (!selectedBattlefieldCardIds.includes(cardId)) {
+        return [cardId];
+      }
+
+      const orderedSelectedIds = allZones.battlefield
+        .map((card) => card.id)
+        .filter((id) => selectedBattlefieldCardIds.includes(id));
+
+      return orderedSelectedIds.length > 0 ? orderedSelectedIds : [cardId];
+    },
+    [allZones.battlefield, selectedBattlefieldCardIds],
+  );
 
   const getZoneByClientPosition = useCallback(
     (clientX: number, clientY: number) => {
@@ -477,6 +649,7 @@ export function Playmat({
         dispatch({ type: "card/draw", playerId: localPlayerId, count: 1 });
         setActiveDrag({
           cardId: dragData.cardId,
+          cardIds: [dragData.cardId],
           from: "hand",
           over: "hand",
           origin: "library",
@@ -484,14 +657,26 @@ export function Playmat({
         return;
       }
 
+      const draggedCardIds =
+        currentZone === "battlefield"
+          ? getDraggedBattlefieldCardIds(dragData.cardId)
+          : [dragData.cardId];
+
       setActiveDrag({
         cardId: dragData.cardId,
+        cardIds: draggedCardIds,
         from: currentZone,
         over: currentZone,
         origin: currentZone,
       });
     },
-    [clearPreview, dispatch, getCardZone, localPlayerId],
+    [
+      clearPreview,
+      dispatch,
+      getCardZone,
+      getDraggedBattlefieldCardIds,
+      localPlayerId,
+    ],
   );
 
   const handleDragOver = useCallback(
@@ -503,6 +688,10 @@ export function Playmat({
       const over = resolveDropZone(event, dragData.cardId);
       setActiveDrag((current) => ({
         cardId: dragData.cardId,
+        cardIds:
+          current?.cardId === dragData.cardId
+            ? current.cardIds
+            : [dragData.cardId],
         from,
         over,
         origin:
@@ -534,6 +723,10 @@ export function Playmat({
       }
 
       const fromZone = getCardZone(dragData.cardId) ?? dragData.from;
+      const draggedCardIds =
+        activeDrag?.cardId === dragData.cardId
+          ? activeDrag.cardIds
+          : [dragData.cardId];
       const toTarget =
         resolveDropZone(event, dragData.cardId) ?? activeDrag?.over ?? null;
       if (!toTarget) {
@@ -556,7 +749,12 @@ export function Playmat({
         // When dropped via modal zone the cursor is over the modal, not the
         // battlefield — skip cursor-based positioning and use the auto-layout fallback.
         const isModalDrop = String(event.over?.id ?? "").startsWith("modal-");
-        const cursor = isModalDrop ? null : getDropClientPosition(event);
+        // Use the actual pointer position for accurate placement; fall back to
+        // the card's translated center if pointer tracking is unavailable.
+        const cursor = isModalDrop
+          ? null
+          : (lastPointerClientPositionRef.current ??
+            getDropClientPosition(event));
         const fallbackCard = state.cardInstances[dragData.cardId];
 
         const position = cursor
@@ -566,6 +764,33 @@ export function Playmat({
               y: fallbackCard?.battlefield?.y ?? 80,
               z: getNextBattlefieldZ(),
             };
+
+        if (fromZone === "battlefield" && draggedCardIds.length > 1) {
+          const anchorCard = state.cardInstances[dragData.cardId];
+          const anchorPosition = anchorCard?.battlefield;
+
+          if (anchorPosition) {
+            const deltaX = position.x - anchorPosition.x;
+            const deltaY = position.y - anchorPosition.y;
+            const nextZ = getNextBattlefieldZ();
+
+            draggedCardIds.forEach((cardId, index) => {
+              const card = state.cardInstances[cardId];
+              if (!card?.battlefield) return;
+
+              dispatch({
+                type: "card/setBattlefieldPosition",
+                cardId,
+                x: Math.max(0, card.battlefield.x + deltaX),
+                y: Math.max(0, card.battlefield.y + deltaY),
+                z: nextZ + index,
+              });
+            });
+          }
+
+          resetDragState();
+          return;
+        }
 
         if (fromZone !== "battlefield") {
           dispatch({
@@ -598,6 +823,23 @@ export function Playmat({
               ? state.players[localPlayerId].zones.library.length
               : undefined;
 
+        const orderedCardIds =
+          toTarget === "library-top"
+            ? [...draggedCardIds].reverse()
+            : draggedCardIds;
+
+        if (fromZone === "battlefield" && orderedCardIds.length > 1) {
+          dispatch({
+            type: "card/moveMany",
+            cardIds: orderedCardIds,
+            to: toZone,
+            toPlayerId: localPlayerId,
+            ...(libraryIndex !== undefined ? { index: libraryIndex } : {}),
+          });
+          resetDragState();
+          return;
+        }
+
         dispatch({
           type: "card/move",
           cardId: dragData.cardId,
@@ -612,6 +854,8 @@ export function Playmat({
     },
     [
       dispatch,
+      activeDrag?.cardId,
+      activeDrag?.cardIds,
       activeDrag?.over,
       getBattlefieldDropPosition,
       getCardZone,
@@ -644,6 +888,8 @@ export function Playmat({
     onRetreatPhase: handleRetreatPhase,
     onUndo: undo,
     onRedo: redo,
+    onToggleArrowMode: handleToggleArrowMode,
+    onCancelArrowMode: handleCancelArrowMode,
   });
 
   const life = player?.life ?? 20;
@@ -682,6 +928,11 @@ export function Playmat({
   const activeDragCard = activeDrag
     ? selectCardWithDefinition(state, activeDrag.cardId)
     : null;
+  const activeDragCards = activeDrag
+    ? activeDrag.cardIds
+        .map((cardId) => selectCardWithDefinition(state, cardId))
+        .filter((card): card is NonNullable<typeof card> => card !== null)
+    : [];
 
   const graveyardTop = allZones.graveyard.at(-1);
   const exileTop = allZones.exile.at(-1);
@@ -737,8 +988,23 @@ export function Playmat({
   const graveyardTopInfo = getStackTopInfo(graveyardTop);
   const exileTopInfo = getStackTopInfo(exileTop);
   const isAnyDragActive = Boolean(activeDrag);
+  const battlefieldArrows = (state.battlefieldArrows ?? []).filter(
+    (arrow) => arrow.playerId === localPlayerId,
+  );
+  const provisionalArrow =
+    pendingArrowStart && pendingArrowEnd
+      ? { start: pendingArrowStart, end: pendingArrowEnd }
+      : null;
+  const hiddenBattlefieldCardIds = new Set(
+    activeDrag?.origin === "battlefield" ? activeDrag.cardIds : [],
+  );
   const hiddenHandCardId =
     activeDrag?.origin === "library" ? activeDrag.cardId : null;
+
+  const handleBattlefieldSelectionChange = useCallback((cardIds: string[]) => {
+    setSelectedBattlefieldCardIds(cardIds);
+    setFocusedBattlefieldCardId(cardIds.at(-1) ?? null);
+  }, []);
 
   const handleHoverWithAnchor = useCallback(
     (info: CardHoverInfo | null, target: HTMLElement | null) => {
@@ -867,16 +1133,11 @@ export function Playmat({
         });
       }
 
-      const label = quantity === 1 ? "1 token criado" : `${quantity} tokens criados`;
+      const label =
+        quantity === 1 ? "1 token criado" : `${quantity} tokens criados`;
       setCenterToast({ id: crypto.randomUUID(), message: label });
     },
-    [
-      battlefieldRef,
-      battlefieldZoom,
-      dispatch,
-      getNextBattlefieldZ,
-      localPlayerId,
-    ],
+    [battlefieldZoom, dispatch, getNextBattlefieldZ, localPlayerId],
   );
 
   const handleAddCounter = useCallback(
@@ -974,8 +1235,10 @@ export function Playmat({
         type: "card/setPowerToughness",
         cardId,
         defId: inst.definitionId,
-        power: isNaN(currentPower) ? rawPower : String(currentPower + powerDelta),
-        toughness: isNaN(currentToughness)
+        power: Number.isNaN(currentPower)
+          ? rawPower
+          : String(currentPower + powerDelta),
+        toughness: Number.isNaN(currentToughness)
           ? rawToughness
           : String(currentToughness + toughnessDelta),
       });
@@ -987,7 +1250,7 @@ export function Playmat({
     (cardId: string, delta: number) => {
       const inst = state.cardInstances[cardId];
       if (!inst) return;
-      const current = inst.counters["loyalty"] ?? 0;
+      const current = inst.counters.loyalty ?? 0;
       dispatch({
         type: "card/setCounter",
         cardId,
@@ -1034,17 +1297,34 @@ export function Playmat({
             battlefieldZoom={battlefieldZoom}
             battlefieldCards={battlefieldCards}
             activePings={activePings}
+            selectedCardIds={new Set(selectedBattlefieldCardIds)}
+            hiddenCardIds={hiddenBattlefieldCardIds}
             onWheel={handleBattlefieldWheel}
             onChangeLife={handleChangeLife}
             onAdjustZoom={adjustBattlefieldZoom}
+            onSelectCard={handleSelectBattlefieldCard}
+            onClearSelection={handleClearBattlefieldSelection}
+            onSelectionChange={handleBattlefieldSelectionChange}
             onHoverCard={handleBattlefieldHover}
             onPingCard={(cardId) => dispatch({ type: "card/ping", cardId })}
             onModifyCardPT={handleModifyCardPT}
             onModifyCardLoyalty={handleModifyCardLoyalty}
             onRightClickCard={handleRightClickCard}
             onEmptyRightClick={handleEmptyBattlefieldRightClick}
+            pan={battlefieldPan}
+            onPan={setBattlefieldPan}
           />
         </div>
+
+        <BattlefieldArrowOverlay
+          arrows={battlefieldArrows}
+          provisionalArrow={provisionalArrow}
+          isDrawing={isArrowMode || Boolean(pendingArrowStart)}
+          interactive
+          onPointerMove={handleArrowPointerMove}
+          onCanvasClick={handleArrowCanvasClick}
+          onDeleteArrow={handleDeleteArrow}
+        />
 
         <div
           id="player-side-zone"
@@ -1113,24 +1393,29 @@ export function Playmat({
 
       <PreviewOverlay previewCard={previewCard} previewAnchor={previewAnchor} />
 
-      {cardMenu && (() => {
-        const inst = state.cardInstances[cardMenu.cardId];
-        const def = inst ? state.cardDefinitions[inst.definitionId] : null;
-        if (!inst || !def) return null;
-        return (
-          <BattlefieldCardMenu
-            cardId={cardMenu.cardId}
-            cardName={inst.customName ?? inst.tokenData?.name ?? def.name}
-            counters={inst.counters}
-            x={cardMenu.x}
-            y={cardMenu.y}
-            onClose={() => setCardMenu(null)}
-            onAddCounter={(counter) => handleAddCounter(cardMenu.cardId, counter)}
-            onRemoveCounter={(counter) => handleRemoveCounter(cardMenu.cardId, counter)}
-            onDuplicate={() => handleDuplicateAsToken(cardMenu.cardId)}
-          />
-        );
-      })()}
+      {cardMenu &&
+        (() => {
+          const inst = state.cardInstances[cardMenu.cardId];
+          const def = inst ? state.cardDefinitions[inst.definitionId] : null;
+          if (!inst || !def) return null;
+          return (
+            <BattlefieldCardMenu
+              cardId={cardMenu.cardId}
+              cardName={inst.customName ?? inst.tokenData?.name ?? def.name}
+              counters={inst.counters}
+              x={cardMenu.x}
+              y={cardMenu.y}
+              onClose={() => setCardMenu(null)}
+              onAddCounter={(counter) =>
+                handleAddCounter(cardMenu.cardId, counter)
+              }
+              onRemoveCounter={(counter) =>
+                handleRemoveCounter(cardMenu.cardId, counter)
+              }
+              onDuplicate={() => handleDuplicateAsToken(cardMenu.cardId)}
+            />
+          );
+        })()}
 
       {battlefieldContextMenu && (
         <BattlefieldContextMenu
@@ -1191,24 +1476,44 @@ export function Playmat({
           activeDrag?.origin === "graveyard" ||
           activeDrag?.origin === "exile") ? (
           <div
-            className="overflow-hidden rounded-[4px] shadow-2xl ring-1 ring-white/15"
+            className="relative"
             style={{
-              width: `${BATTLEFIELD_CARD_WIDTH}px`,
-              height: `${BATTLEFIELD_CARD_HEIGHT}px`,
+              width: `${BATTLEFIELD_CARD_WIDTH + 24}px`,
+              height: `${BATTLEFIELD_CARD_HEIGHT + 24}px`,
             }}
           >
-            {activeDragCard.definition.imageUrl ? (
-              <Image
-                src={activeDragCard.definition.imageUrl}
-                alt={activeDragCard.definition.name}
-                width={BATTLEFIELD_CARD_WIDTH}
-                height={BATTLEFIELD_CARD_HEIGHT}
-                className="h-full w-full object-cover"
-                unoptimized
-              />
-            ) : (
-              <CardBack className="h-full w-full" />
-            )}
+            {activeDragCards.slice(0, 3).map((card, index) => (
+              <div
+                key={card.instance.id}
+                className="absolute overflow-hidden rounded-[4px] shadow-2xl ring-1 ring-white/15"
+                style={{
+                  width: `${BATTLEFIELD_CARD_WIDTH}px`,
+                  height: `${BATTLEFIELD_CARD_HEIGHT}px`,
+                  left: `${index * 12}px`,
+                  top: `${index * 8}px`,
+                  zIndex: index + 1,
+                }}
+              >
+                {card.definition.imageUrl ? (
+                  <Image
+                    src={card.definition.imageUrl}
+                    alt={card.definition.name}
+                    width={BATTLEFIELD_CARD_WIDTH}
+                    height={BATTLEFIELD_CARD_HEIGHT}
+                    className="h-full w-full object-cover"
+                    unoptimized
+                  />
+                ) : (
+                  <CardBack className="h-full w-full" />
+                )}
+              </div>
+            ))}
+
+            {activeDragCards.length > 1 ? (
+              <div className="absolute right-0 top-0 z-10 flex min-w-8 items-center justify-center rounded-full border border-white/10 bg-black/85 px-2 py-1 text-xs font-bold text-white shadow-lg">
+                {activeDragCards.length}
+              </div>
+            ) : null}
           </div>
         ) : null}
       </DragOverlay>

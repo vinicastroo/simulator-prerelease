@@ -65,6 +65,20 @@ export type CardInstance = {
   } | null;
 };
 
+export type BattlefieldArrow = {
+  id: string;
+  playerId: PlayerId;
+  createdByPlayerId: PlayerId;
+  start: {
+    x: number;
+    y: number;
+  };
+  end: {
+    x: number;
+    y: number;
+  };
+};
+
 export type PlayerState = {
   id: PlayerId;
   name: string;
@@ -123,6 +137,7 @@ export type GameState = {
   phase: TurnPhase;
   cardDefinitions: Record<CardDefId, CardDefinition>;
   cardInstances: Record<CardInstanceId, CardInstance>;
+  battlefieldArrows: BattlefieldArrow[];
   log: ActionLogEntry[];
   setup?: GameSetupState;
 };

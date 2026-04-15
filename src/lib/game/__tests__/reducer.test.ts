@@ -432,4 +432,32 @@ describe("gameReducer", () => {
       expect(state.cardInstances[inst.id]).toBeUndefined();
     });
   });
+
+  describe("battlefield arrows", () => {
+    it("creates and removes shared battlefield arrows", () => {
+      const p = makePlayer();
+      let state = createInitialGameState([p]);
+
+      state = gameReducer(state, {
+        type: "battlefield-arrow/create",
+        arrow: {
+          id: "arrow-1",
+          playerId: p.id,
+          createdByPlayerId: p.id,
+          start: { x: 120, y: 80 },
+          end: { x: 300, y: 220 },
+        },
+      });
+
+      expect(state.battlefieldArrows).toHaveLength(1);
+      expect(state.battlefieldArrows[0]?.id).toBe("arrow-1");
+
+      state = gameReducer(state, {
+        type: "battlefield-arrow/remove",
+        arrowId: "arrow-1",
+      });
+
+      expect(state.battlefieldArrows).toEqual([]);
+    });
+  });
 });

@@ -148,7 +148,9 @@ function moveCard(
             ...player,
             zones: {
               ...player.zones,
-              battlefield: player.zones.battlefield.filter((id) => id !== cardId),
+              battlefield: player.zones.battlefield.filter(
+                (id) => id !== cardId,
+              ),
             },
           },
         },
@@ -914,6 +916,20 @@ function applyAction(state: GameState, action: GameAction): GameState {
         },
       };
     }
+
+    case "battlefield-arrow/create":
+      return {
+        ...state,
+        battlefieldArrows: [...(state.battlefieldArrows ?? []), action.arrow],
+      };
+
+    case "battlefield-arrow/remove":
+      return {
+        ...state,
+        battlefieldArrows: (state.battlefieldArrows ?? []).filter(
+          (arrow) => arrow.id !== action.arrowId,
+        ),
+      };
 
     case "card/ping":
       // UI-only signal — no state change; broadcast via Pusher for opponent to react

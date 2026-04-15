@@ -225,10 +225,12 @@ function PlaytestSurface({
   playerName,
   enableDeckTools,
   showOpeningHand,
+  simulatorKitId,
 }: {
   playerName: string;
   enableDeckTools: boolean;
   showOpeningHand: boolean;
+  simulatorKitId?: string;
 }) {
   const { state, dispatch, localPlayerId, reset } = useGameStore();
   const didPrepareOpeningHandRef = useRef(false);
@@ -328,7 +330,13 @@ function PlaytestSurface({
     <div className="relative h-screen w-screen overflow-hidden">
       <Playmat playerName={playerName} />
       {enableDeckTools && <DeckLoaderPanel />}
-      <GameSettingsMenu onReset={handleReset} />
+      <GameSettingsMenu
+        onReset={handleReset}
+        collectionHref="/decks"
+        simulatorHref={
+          simulatorKitId ? `/simulator/${simulatorKitId}` : undefined
+        }
+      />
       <OpeningHandModal
         cards={openingHandCards}
         open={isOpeningHandOpen}
@@ -474,10 +482,12 @@ export function PlaytestClient({
   initialDeck,
   playerName = "Você",
   enableDeckTools = false,
+  simulatorKitId,
 }: {
   initialDeck?: PlaytestInitialDeck;
   playerName?: string;
   enableDeckTools?: boolean;
+  simulatorKitId?: string;
 }) {
   return (
     <GameProvider playerName={playerName} initialDeck={initialDeck}>
@@ -485,6 +495,7 @@ export function PlaytestClient({
         playerName={playerName}
         enableDeckTools={enableDeckTools}
         showOpeningHand={Boolean(initialDeck)}
+        simulatorKitId={simulatorKitId}
       />
     </GameProvider>
   );

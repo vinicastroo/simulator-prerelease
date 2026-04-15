@@ -32,7 +32,7 @@ export async function POST(
       action,
       actorUserId: userId,
     });
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, seq: clientVersion ?? null });
   }
 
   const result = await (async () => {
