@@ -4,7 +4,11 @@ import Image from "next/image";
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import type { CardInstance } from "@/lib/game/types";
 import { CardBack } from "../CardBack";
-import { BATTLEFIELD_CARD_HEIGHT, BATTLEFIELD_CARD_WIDTH } from "./constants";
+import {
+  ABILITY_MARKER_IDS,
+  BATTLEFIELD_CARD_HEIGHT,
+  BATTLEFIELD_CARD_WIDTH,
+} from "./constants";
 import { ManaCostBadges } from "./ManaCostBadges";
 import type { CardHoverInfo, DragCardData } from "./types";
 
@@ -168,15 +172,47 @@ export const BattlefieldCard = memo(function BattlefieldCard({
             </div>
           )}
 
+        {/* Ability marker icons — top-right corner row */}
+        {Object.entries(card.counters).some(
+          ([key, value]) => value > 0 && ABILITY_MARKER_IDS.has(key),
+        ) && (
+          <div className="absolute right-0 top-0 z-30 flex flex-col items-end gap-0.5 p-0.5">
+            {Object.entries(card.counters)
+              .filter(([key, value]) => value > 0 && ABILITY_MARKER_IDS.has(key))
+              .map(([marker]) => (
+                <div
+                  key={marker}
+                  className="flex h-5 w-5 items-center justify-center rounded-full border border-cyan-400/50 bg-black/80 shadow-[0_0_4px_rgba(34,211,238,0.4)]"
+                  title={marker}
+                >
+                  <Image
+                    src={`/ability/${marker}.svg`}
+                    alt={marker}
+                    width={14}
+                    height={14}
+                    className="h-[70%] w-[70%] object-contain brightness-[2] invert"
+                    unoptimized
+                    draggable={false}
+                  />
+                </div>
+              ))}
+          </div>
+        )}
+
+        {/* Regular counters — bottom strip */}
         {Object.entries(card.counters).some(
           ([key, value]) =>
-            value > 0 && !(isPlaneswalker && key === "loyalty"),
+            value > 0 &&
+            !ABILITY_MARKER_IDS.has(key) &&
+            !(isPlaneswalker && key === "loyalty"),
         ) && (
           <div className="absolute -bottom-1 left-0 right-0 flex flex-wrap justify-center gap-0.5">
             {Object.entries(card.counters)
               .filter(
                 ([key, value]) =>
-                  value > 0 && !(isPlaneswalker && key === "loyalty"),
+                  value > 0 &&
+                  !ABILITY_MARKER_IDS.has(key) &&
+                  !(isPlaneswalker && key === "loyalty"),
               )
               .map(([counter, value]) => (
                 <span

@@ -1,7 +1,9 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { ABILITY_MARKERS } from "./constants";
 
 type BattlefieldCardMenuProps = {
   cardId: string;
@@ -57,8 +59,8 @@ export function BattlefieldCardMenu({
   if (!mounted) return null;
 
   // Smart positioning — keep menu inside the viewport
-  const MENU_W = 240;
-  const MENU_H = 360;
+  const MENU_W = 264;
+  const MENU_H = 520;
   const MARGIN = 12;
   const left = Math.max(
     MARGIN,
@@ -81,7 +83,7 @@ export function BattlefieldCardMenu({
   return createPortal(
     <div
       ref={menuRef}
-      className="fixed z-[9998] flex w-60 flex-col overflow-hidden rounded-2xl border border-white/12 bg-[#0e1420]/95 shadow-[0_8px_40px_rgba(0,0,0,0.6)] backdrop-blur-md"
+      className="fixed z-[9998] flex w-[264px] flex-col overflow-hidden rounded-2xl border border-white/12 bg-[#0e1420]/95 shadow-[0_8px_40px_rgba(0,0,0,0.6)] backdrop-blur-md"
       style={{ left, top }}
       onPointerDown={(e) => e.stopPropagation()}
     >
@@ -160,6 +162,45 @@ export function BattlefieldCardMenu({
           >
             +
           </button>
+        </div>
+      </div>
+
+      {/* Ability markers */}
+      <div className="border-t border-white/10 px-3 py-2.5">
+        <p className="mb-2 px-1 text-[10px] font-bold uppercase tracking-[0.22em] text-white/40">
+          Marcadores de habilidade
+        </p>
+        <div className="grid grid-cols-6 gap-1">
+          {ABILITY_MARKERS.map((marker) => {
+            const active = (counters[marker.id] ?? 0) > 0;
+            return (
+              <button
+                key={marker.id}
+                type="button"
+                title={marker.label}
+                className={`group relative flex h-9 w-9 items-center justify-center rounded-lg border transition active:scale-90 ${
+                  active
+                    ? "border-cyan-400/60 bg-cyan-500/20 shadow-[0_0_6px_rgba(34,211,238,0.3)]"
+                    : "border-white/10 bg-white/[0.03] hover:border-white/25 hover:bg-white/[0.08]"
+                }`}
+                onClick={() =>
+                  active
+                    ? onRemoveCounter(marker.id)
+                    : onAddCounter(marker.id)
+                }
+              >
+                <Image
+                  src={`/ability/${marker.id}.svg`}
+                  alt={marker.label}
+                  width={20}
+                  height={20}
+                  className={`h-5 w-5 object-contain transition ${active ? "brightness-[2] invert" : "opacity-50 invert group-hover:opacity-80"}`}
+                  unoptimized
+                  draggable={false}
+                />
+              </button>
+            );
+          })}
         </div>
       </div>
 
