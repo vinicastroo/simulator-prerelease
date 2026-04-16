@@ -175,19 +175,14 @@ export function Sidebar() {
   const [draggingSidebarCardId, setDraggingSidebarCardId] = useState<
     string | null
   >(null);
-  const [draggingFromDeck, setDraggingFromDeck] = useState(false);
 
   // Called by CardRow when a deck-list card starts/ends dragging.
-  // Mirrors the state into the shared context so the sidebar switches to
-  // drop-zone mode and shows the "Remover do deck" target.
-  const handleDeckCardDragState = useCallback(
-    (id: string | null) => {
-      setDraggingSidebarCardId(id);
-      setDraggingFromDeck(id !== null);
-      setDraggingCard(id);
-    },
-    [setDraggingCard],
-  );
+  // We deliberately do NOT call setDraggingCard here — doing so causes
+  // the sidebar to switch to drop-zone mode, which removes the dragged
+  // <li> from the DOM and cancels the HTML5 drag operation.
+  const handleDeckCardDragState = useCallback((id: string | null) => {
+    setDraggingSidebarCardId(id);
+  }, []);
 
   // Prefetch the playtest route while the user is still on the simulator so
   // the navigation feels instant when they click the Playtest button.
@@ -363,22 +358,6 @@ export function Sidebar() {
             setDraggingCard(null);
           }}
         />
-
-        {draggingFromDeck && (
-          <>
-            <div className="h-px bg-gradient-to-r from-transparent via-[#31456f]/70 to-transparent flex-shrink-0" />
-            <DropZonePanel
-              dataZone="remove"
-              label="Remover do deck"
-              colorClass="data-[active=true]:bg-red-500/15 data-[active=true]:border-red-400/60"
-              icon="↩"
-              onDropCard={(ids) => {
-                setDeckZone(ids, null);
-                setDraggingCard(null);
-              }}
-            />
-          </>
-        )}
 
         <div className="relative px-4 py-3 text-[11px] text-white/25 text-center flex-shrink-0 border-t border-white/5">
           Solte sobre uma zona para adicionar
@@ -679,6 +658,15 @@ export function Sidebar() {
             <div className="h-8" />
           </div>
         </ScrollArea>
+
+        {draggingSidebarCardId !== null && (
+          <RemoveDeckZone
+            onDrop={(ids) => {
+              setDeckZone(ids, null);
+              setDraggingSidebarCardId(null);
+            }}
+          />
+        )}
       </aside>
 
       <AnimatePresence>
@@ -765,6 +753,44 @@ interface DropZonePanelProps {
   colorClass: string;
   icon: string;
   onDropCard: (ids: string[]) => void;
+}
+
+function RemoveDeckZone({ onDrop }: { onDrop: (ids: string[]) => void }) {
+  const [active, setActive] = useState(false);
+  return (
+    <section
+      aria-label="Remover do deck"
+      className="flex-shrink-0 border-t border-white/8"
+      onDragOver={(e) => {
+        e.preventDefault();
+        setActive(true);
+      }}
+      onDragLeave={() => setActive(false)}
+      onDrop={(e) => {
+        e.preventDefault();
+        setActive(false);
+        const raw = e.dataTransfer.getData("application/x-placed-card-ids");
+        const ids: string[] = (() => {
+          try {
+            const parsed = JSON.parse(raw);
+            return Array.isArray(parsed)
+              ? parsed
+              : [e.dataTransfer.getData("application/x-placed-card-id")];
+          } catch {
+            return [e.dataTransfer.getData("application/x-placed-card-id")];
+          }
+        })();
+        onDrop(ids.filter(Boolean));
+      }}
+    >
+      <div
+        className={`mx-3 my-2 flex items-center justify-center gap-2 rounded-xl border border-dashed px-3 py-3 text-xs transition-colors ${active ? "border-red-400/60 bg-red-500/20 text-red-200/80" : "border-red-400/40 bg-red-500/10 text-red-300/70"}`}
+      >
+        <span className="text-base leading-none">↩</span>
+        <span>Solte aqui para remover do deck</span>
+      </div>
+    </section>
+  );
 }
 
 const DropZonePanel = forwardRef<HTMLElement, DropZonePanelProps>(
