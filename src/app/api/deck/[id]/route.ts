@@ -26,6 +26,17 @@ export async function DELETE(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  // Remove child records that block the delete due to FK constraints
+  await prisma.placedCard.deleteMany({ where: { kitId: id } });
+  await prisma.gameRoom.updateMany({
+    where: { hostKitId: id },
+    data: { hostKitId: null },
+  });
+  await prisma.gameRoom.updateMany({
+    where: { guestKitId: id },
+    data: { guestKitId: null },
+  });
+
   await prisma.prereleaseKit.delete({ where: { id } });
 
   return NextResponse.json({ ok: true });
