@@ -23,18 +23,26 @@ type BattlefieldCardProps = {
   isSelected?: boolean;
   isGhosted?: boolean;
   selectionCount?: number;
-  onSelect?: (additive: boolean) => void;
-  onHover: (info: CardHoverInfo | null, target: HTMLElement | null) => void;
+  onSelect?: (cardId: string, additive: boolean) => void;
+  onHover: (
+    cardId: string,
+    info: CardHoverInfo | null,
+    target: HTMLElement | null,
+  ) => void;
   /** Called on click so the parent can broadcast a ping to the opponent */
-  onPing?: () => void;
+  onPing?: (cardId: string) => void;
   /** True when the opponent pinged this card (received via Pusher) */
   isPinged?: boolean;
   /** Left click = +1 on that stat, right click = -1 */
-  onModifyPT?: (powerDelta: number, toughnessDelta: number) => void;
+  onModifyPT?: (
+    cardId: string,
+    powerDelta: number,
+    toughnessDelta: number,
+  ) => void;
   /** Left click = +1 loyalty, right click = -1 loyalty */
-  onModifyLoyalty?: (delta: number) => void;
+  onModifyLoyalty?: (cardId: string, delta: number) => void;
   /** Right-click anywhere on the card (except P/T and loyalty boxes) */
-  onRightClick?: (x: number, y: number) => void;
+  onRightClick?: (cardId: string, x: number, y: number) => void;
 };
 
 export const BattlefieldCard = memo(function BattlefieldCard({
@@ -60,8 +68,8 @@ export const BattlefieldCard = memo(function BattlefieldCard({
 
   const handleClick = useCallback(() => {
     setPinged(true);
-    onPing?.();
-  }, [onPing]);
+    onPing?.(card.id);
+  }, [card.id, onPing]);
 
   const handlePointerDownCapture = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
@@ -70,15 +78,15 @@ export const BattlefieldCard = memo(function BattlefieldCard({
       if (event.shiftKey) {
         event.preventDefault();
         event.stopPropagation();
-        onSelect?.(true);
+        onSelect?.(card.id, true);
         return;
       }
 
       if (!isSelected || selectionCount <= 1) {
-        onSelect?.(false);
+        onSelect?.(card.id, false);
       }
     },
-    [isSelected, onSelect, selectionCount],
+    [card.id, isSelected, onSelect, selectionCount],
   );
 
   useEffect(() => {
@@ -135,12 +143,20 @@ export const BattlefieldCard = memo(function BattlefieldCard({
         pointerEvents: isGhosted ? "none" : "auto",
       }}
       onMouseEnter={(event) =>
-        onHover({ name, imageUrl, power, toughness, cardType }, event.currentTarget)
+        onHover(
+          card.id,
+          { name, imageUrl, power, toughness, cardType },
+          event.currentTarget,
+        )
       }
       onMouseMove={(event) =>
-        onHover({ name, imageUrl, power, toughness, cardType }, event.currentTarget)
+        onHover(
+          card.id,
+          { name, imageUrl, power, toughness, cardType },
+          event.currentTarget,
+        )
       }
-      onMouseLeave={() => onHover(null, null)}
+      onMouseLeave={() => onHover(card.id, null, null)}
       onPointerDownCapture={handlePointerDownCapture}
       onClick={(event) => {
         if (event.shiftKey) return;
@@ -152,7 +168,7 @@ export const BattlefieldCard = memo(function BattlefieldCard({
       onContextMenu={(event) => {
         event.preventDefault();
         event.stopPropagation();
-        onRightClick?.(event.clientX, event.clientY);
+        onRightClick?.(card.id, event.clientX, event.clientY);
       }}
       {...listeners}
       {...attributes}
@@ -280,12 +296,12 @@ export const BattlefieldCard = memo(function BattlefieldCard({
               onPointerDown={(e) => e.stopPropagation()}
               onClick={(e) => {
                 e.stopPropagation();
-                onModifyPT?.(1, 0);
+                onModifyPT?.(card.id, 1, 0);
               }}
               onContextMenu={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                onModifyPT?.(-1, 0);
+                onModifyPT?.(card.id, -1, 0);
               }}
             >
               {power}
@@ -296,12 +312,12 @@ export const BattlefieldCard = memo(function BattlefieldCard({
               onPointerDown={(e) => e.stopPropagation()}
               onClick={(e) => {
                 e.stopPropagation();
-                onModifyPT?.(0, 1);
+                onModifyPT?.(card.id, 0, 1);
               }}
               onContextMenu={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                onModifyPT?.(0, -1);
+                onModifyPT?.(card.id, 0, -1);
               }}
             >
               {toughness}
@@ -318,12 +334,12 @@ export const BattlefieldCard = memo(function BattlefieldCard({
               onPointerDown={(e) => e.stopPropagation()}
               onClick={(e) => {
                 e.stopPropagation();
-                onModifyLoyalty?.(1);
+                onModifyLoyalty?.(card.id, 1);
               }}
               onContextMenu={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                onModifyLoyalty?.(-1);
+                onModifyLoyalty?.(card.id, -1);
               }}
             >
               {loyalty}

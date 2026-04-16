@@ -55,6 +55,17 @@ export async function POST(
   // ── 2. Short transaction: mark ready + claim ACTIVE atomically ────────────
   // Only fast DB writes here — no kit data queries, no CPU-heavy work.
   const claimed = await prisma.$transaction(async (tx) => {
+    // Guard: read current status before touching ready flags.
+    // If the game is already ACTIVE (e.g. a player somehow calls /ready again
+    // after missing the game-started Pusher event), we must NOT set hostReady /
+    // guestReady — those fields double as reset-vote flags in-game and a stale
+    // `true` value would cause the reset dialog to open for the other player.
+    const current = await tx.gameRoom.findUnique({
+      where: { id: roomId },
+      select: { status: true },
+    });
+    if (current?.status === "ACTIVE") return false;
+
     const data = isHost ? { hostReady: true } : { guestReady: true };
     await tx.gameRoom.update({ where: { id: roomId }, data });
 

@@ -1,4 +1,4 @@
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import ReactDOM from "react-dom";
 import { requireSessionUser } from "@/lib/auth-session";
 import type { GameState } from "@/lib/game/types";
@@ -11,21 +11,23 @@ export default async function GamePage({ params }: Props) {
   const user = await requireSessionUser();
   const { id: roomId } = await params;
 
-  const room = await prisma.gameRoom.findUnique({
+  const roomInclude = {
+    hostUser: { select: { id: true, name: true } },
+    guestUser: { select: { id: true, name: true } },
+    hostKit: { select: { id: true, college: true } },
+    guestKit: { select: { id: true, college: true } },
+  } as const;
+
+  let room = await prisma.gameRoom.findUnique({
     where: { id: roomId },
-    include: {
-      hostUser: { select: { id: true, name: true } },
-      guestUser: { select: { id: true, name: true } },
-      hostKit: { select: { id: true, college: true } },
-      guestKit: { select: { id: true, college: true } },
-    },
+    include: roomInclude,
   });
 
   if (!room) notFound();
 
-  const isHost = room.hostUserId === user.id;
-  const isGuest = room.guestUserId === user.id;
-  const isNew = !isHost && !isGuest;
+  let isHost = room.hostUserId === user.id;
+  let isGuest = room.guestUserId === user.id;
+  let isNew = !isHost && !isGuest;
 
   // Room is full — neither host nor guest
   if (isNew && room.guestUserId !== null) {
@@ -43,12 +45,43 @@ export default async function GamePage({ params }: Props) {
 
   // Register as guest
   if (isNew) {
-    await prisma.gameRoom.update({
-      where: { id: roomId },
+    const joined = await prisma.gameRoom.updateMany({
+      where: { id: roomId, guestUserId: null },
       data: { guestUserId: user.id },
     });
-    // Redirect to same page so re-fetch picks up updated room
-    redirect(`/game/${roomId}`);
+
+    if (joined.count === 0) {
+      room = await prisma.gameRoom.findUnique({
+        where: { id: roomId },
+        include: roomInclude,
+      });
+
+      if (!room) notFound();
+
+      if (room.guestUserId !== user.id) {
+        return (
+          <div className="flex min-h-screen items-center justify-center bg-[#0b0e14] p-4">
+            <div className="rounded-2xl border border-white/10 bg-[#0d1017] p-6 text-center">
+              <h1 className="text-xl font-bold text-white">Sala cheia</h1>
+              <p className="mt-2 text-sm text-white/50">
+                Esta sala ja esta com 2 jogadores.
+              </p>
+            </div>
+          </div>
+        );
+      }
+    } else {
+      room = await prisma.gameRoom.findUnique({
+        where: { id: roomId },
+        include: roomInclude,
+      });
+
+      if (!room) notFound();
+    }
+
+    isHost = room.hostUserId === user.id;
+    isGuest = room.guestUserId === user.id;
+    isNew = !isHost && !isGuest;
   }
 
   // Preload all card images so the browser fetches them in parallel with
@@ -62,11 +95,14 @@ export default async function GamePage({ params }: Props) {
     }
   }
 
-  const kits = await prisma.prereleaseKit.findMany({
-    where: { userId: user.id },
-    select: { id: true, college: true },
-    orderBy: { createdAt: "desc" },
-  });
+  const kits =
+    room.status === "ACTIVE"
+      ? []
+      : await prisma.prereleaseKit.findMany({
+          where: { userId: user.id },
+          select: { id: true, college: true },
+          orderBy: { createdAt: "desc" },
+        });
 
   const myRole = isHost ? "host" : "guest";
   const myPlayerId = isHost ? room.hostPlayerId : room.guestPlayerId;

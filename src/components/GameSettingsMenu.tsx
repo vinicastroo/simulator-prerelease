@@ -1,12 +1,12 @@
 "use client";
 
 import {
+  ArrowLeft,
   FolderOpen,
   Keyboard,
   RotateCcw,
   ScrollText,
   Settings2,
-  Undo2,
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
@@ -38,17 +38,13 @@ type GameSettingsMenuProps = {
   collectionHref?: string;
   simulatorHref?: string;
   log?: ActionLogEntry[];
-  onUndo?: () => void;
-  canUndo?: boolean;
 };
 
 const SHORTCUTS = [
   { keys: ["T"], label: "Virar ou desvirar a carta selecionada" },
   { keys: ["D"], label: "Comprar 1 carta" },
   { keys: ["S"], label: "Embaralhar o grimorio" },
-  { keys: ["U"], label: "Desfazer a ultima acao" },
-  { keys: ["Ctrl", "Z"], label: "Desfazer a ultima acao" },
-  { keys: ["Ctrl", "Shift", "Z"], label: "Refazer a ultima acao" },
+
   { keys: ["W"], label: "Entrar ou sair do modo de seta" },
   { keys: ["Esc"], label: "Cancelar seta em andamento" },
   { keys: ["Space"], label: "Avancar fase" },
@@ -61,8 +57,6 @@ export function GameSettingsMenu({
   collectionHref,
   simulatorHref,
   log,
-  onUndo,
-  canUndo = false,
 }: GameSettingsMenuProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
@@ -179,23 +173,11 @@ export function GameSettingsMenu({
                       className="flex w-full items-center gap-2"
                       onClick={() => setIsMenuOpen(false)}
                     >
-                      <Undo2 className="size-4" />
+                      <ArrowLeft className="size-4" />
                       Voltar ao simulador
                     </Link>
                   </Button>
                 ) : null}
-
-                {onUndo && (
-                  <button
-                    type="button"
-                    className="mb-1 flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm text-white/78 transition hover:bg-white/8 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
-                    onClick={() => { onUndo(); setIsMenuOpen(false); }}
-                    disabled={!canUndo}
-                  >
-                    <Undo2 className="size-4" />
-                    <span>Desfazer</span>
-                  </button>
-                )}
 
                 <button
                   type="button"

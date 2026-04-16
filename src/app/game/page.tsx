@@ -1,8 +1,11 @@
-import Link from "next/link";
+import { redirect } from "next/navigation";
 import { TopNav } from "@/components/TopNav";
+import { NewRoomButton } from "@/features/game/components/NewRoomButton";
 import { RoomListClient } from "@/features/game/components/RoomListClient";
 import { requireSessionUser } from "@/lib/auth-session";
 import { prisma } from "@/lib/prisma";
+import { pusherServer } from "@/lib/pusher-server";
+import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +16,7 @@ function collegeLabel(college: string) {
 export default async function GameListPage() {
   const user = await requireSessionUser();
 
-  const [rooms, myActiveRoom] = await Promise.all([
+  const [rooms, myActiveRoom, myOpenRoom] = await Promise.all([
     prisma.gameRoom.findMany({
       where: { status: "WAITING", guestUserId: null },
       include: {
@@ -31,9 +34,23 @@ export default async function GameListPage() {
       select: { id: true },
       orderBy: { updatedAt: "desc" },
     }),
+    prisma.gameRoom.findFirst({
+      where: { hostUserId: user.id, status: "WAITING", guestUserId: null },
+      select: { id: true },
+      orderBy: { createdAt: "desc" },
+    }),
   ]);
 
-  const myOpenRoom = rooms.find((r) => r.hostUserId === user.id);
+  async function createRoom() {
+    "use server";
+    const sessionUser = await requireSessionUser();
+    const room = await prisma.gameRoom.create({
+      data: { hostUserId: sessionUser.id },
+      select: { id: true },
+    });
+    await pusherServer.trigger("lobby", "room-opened", { id: room.id });
+    redirect(`/game/${room.id}`);
+  }
 
   return (
     <div className="min-h-screen bg-[#08090d] text-white">
@@ -57,16 +74,8 @@ export default async function GameListPage() {
               >
                 Minha sala
               </Link>
-            ) : (
-              !myActiveRoom && (
-                <Link
-                  href="/game/new"
-                  className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-1.5 text-[11px] font-bold uppercase tracking-[0.2em] text-white/70 hover:bg-white/[0.08] transition-colors"
-                >
-                  + Nova sala
-                </Link>
-              )
-            )}
+            ) : null}
+            <NewRoomButton createRoom={createRoom} />
           </div>
         </header>
 
@@ -92,6 +101,12 @@ export default async function GameListPage() {
             createdAt: r.createdAt.toISOString(),
             isOwn: r.hostUserId === user.id,
           }))}
+          newRoomButton={
+            <NewRoomButton
+              createRoom={createRoom}
+              className="mt-2 rounded-full border border-white/10 bg-white/[0.04] px-5 py-2 text-[11px] font-bold uppercase tracking-[0.2em] text-white/70 hover:bg-white/[0.08] transition-colors"
+            />
+          }
         />
       </div>
     </div>

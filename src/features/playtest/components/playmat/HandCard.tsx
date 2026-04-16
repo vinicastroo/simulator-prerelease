@@ -1,13 +1,16 @@
 import { useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import Image from "next/image";
-import { memo, useMemo } from "react";
+import { memo } from "react";
 import type { CardInstance } from "@/lib/game/types";
 import { CardBack } from "../CardBack";
-import { HAND_CARD_HEIGHT, HAND_CARD_SPACING, HAND_CARD_WIDTH } from "./constants";
+import {
+  HAND_CARD_HEIGHT,
+  HAND_CARD_SPACING,
+  HAND_CARD_WIDTH,
+} from "./constants";
 import { ManaCostBadges } from "./ManaCostBadges";
 import type { CardHoverInfo, DragCardData } from "./types";
-import { parseManaCost } from "./utils";
 
 type HandCardProps = {
   card: CardInstance;
@@ -41,7 +44,6 @@ export const HandCard = memo(function HandCard({
       } satisfies DragCardData,
     });
 
-  const symbols = useMemo(() => parseManaCost(manaCost), [manaCost]);
   const xOffset = (index - (total - 1) / 2) * HAND_CARD_SPACING;
   const rotate = (index - (total - 1) / 2) * 3;
   const yOffset = Math.abs(index - (total - 1) / 2) * 4;
@@ -71,7 +73,6 @@ export const HandCard = memo(function HandCard({
         transition: isDragging ? "none" : undefined,
       }}
       onMouseEnter={(event) => onHover({ name, imageUrl }, event.currentTarget)}
-      onMouseMove={(event) => onHover({ name, imageUrl }, event.currentTarget)}
       onMouseLeave={() => onHover(null, null)}
       onContextMenu={(event) => event.preventDefault()}
       {...listeners}

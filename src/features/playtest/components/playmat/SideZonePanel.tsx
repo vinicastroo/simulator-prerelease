@@ -4,7 +4,7 @@ import { useDndMonitor, useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import Image from "next/image";
 import type { ReactNode } from "react";
-import { useMemo, useState } from "react";
+import { memo, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   ContextMenu,
@@ -50,7 +50,7 @@ type SideZoneShellProps = {
   children: ReactNode;
 };
 
-function SideZoneShell({
+const SideZoneShell = memo(function SideZoneShell({
   label,
   count,
   isOver,
@@ -87,7 +87,7 @@ function SideZoneShell({
       {children}
     </div>
   );
-}
+});
 
 // ---------------------------------------------------------------------------
 // Card frame
@@ -123,7 +123,7 @@ type StackZoneProps = {
   onHoverTop: (info: CardHoverInfo | null, target: HTMLElement | null) => void;
 };
 
-function StackZone({
+const StackZone = memo(function StackZone({
   zone,
   label,
   top,
@@ -145,7 +145,8 @@ function StackZone({
       setRef={setRef}
       onView={onView}
     >
-      <div
+      <button
+        type="button"
         className="relative h-[140px] w-[100px] cursor-pointer overflow-hidden rounded-[8px] border border-white/20 bg-white/[0.02] transition hover:border-white/40"
         onClick={onView}
       >
@@ -162,10 +163,10 @@ function StackZone({
             vazio
           </span>
         )}
-      </div>
+      </button>
     </SideZoneShell>
   );
-}
+});
 
 // ---------------------------------------------------------------------------
 // Library zone with context menu
@@ -191,8 +192,7 @@ type LibraryViewCard = {
   imageUrl: string | null;
 };
 
-
-function LibraryViewCardButton({
+const LibraryViewCardButton = memo(function LibraryViewCardButton({
   card,
   onHover,
 }: {
@@ -249,7 +249,7 @@ function LibraryViewCardButton({
       </span>
     </button>
   );
-}
+});
 
 type LibraryZoneProps = {
   topId: string | null;
@@ -262,7 +262,7 @@ type LibraryZoneProps = {
   onDraw: () => void;
 };
 
-function LibraryZone({
+const LibraryZone = memo(function LibraryZone({
   topId,
   count,
   isOverTop,
@@ -296,6 +296,10 @@ function LibraryZone({
 
   // --- dialog state ---
   const [revealOpen, setRevealOpen] = useState(false);
+  const [revealPreviewCard, setRevealPreviewCard] =
+    useState<CardHoverInfo | null>(null);
+  const [revealPreviewAnchor, setRevealPreviewAnchor] =
+    useState<PreviewAnchor | null>(null);
   const [millOpen, setMillOpen] = useState(false);
   const [millCount, setMillCount] = useState("1");
   const [drawOpen, setDrawOpen] = useState(false);
@@ -345,15 +349,14 @@ function LibraryZone({
       );
   }, [libraryFilter, libraryIds, state]);
 
-  const topCardInfo = topId
-    ? (() => {
-        const sel = selectCardWithDefinition(state, topId);
-        return {
-          name: sel?.definition.name ?? "Carta",
-          imageUrl: sel?.definition.imageUrl ?? null,
-        };
-      })()
-    : null;
+  const topCardInfo = useMemo(() => {
+    if (!topId) return null;
+    const sel = selectCardWithDefinition(state, topId);
+    return {
+      name: sel?.definition.name ?? "Carta",
+      imageUrl: sel?.definition.imageUrl ?? null,
+    };
+  }, [state, topId]);
 
   // --- handlers ---
   const handleRevealTop = () => {
@@ -566,10 +569,7 @@ function LibraryZone({
               >
                 View in library
               </ContextMenuItem>
-              <ContextMenuItem
-                onSelect={handleShuffle}
-                disabled={count === 0}
-              >
+              <ContextMenuItem onSelect={handleShuffle} disabled={count === 0}>
                 Shuffle
               </ContextMenuItem>
             </ContextMenuContent>
@@ -611,14 +611,34 @@ function LibraryZone({
           {topCardInfo && (
             <div className="flex flex-col items-center gap-3 py-2">
               {topCardInfo.imageUrl ? (
-                <Image
-                  src={topCardInfo.imageUrl}
-                  alt={topCardInfo.name}
-                  width={200}
-                  height={279}
-                  className="rounded-[10px] border border-white/10"
-                  unoptimized
-                />
+                <button
+                  type="button"
+                  className="bg-transparent p-0"
+                  onMouseEnter={(event) => {
+                    setRevealPreviewCard({
+                      name: topCardInfo.name,
+                      imageUrl: topCardInfo.imageUrl,
+                    });
+                    const rect = event.currentTarget.getBoundingClientRect();
+                    setRevealPreviewAnchor({
+                      x: rect.left + rect.width / 2,
+                      y: rect.top,
+                    });
+                  }}
+                  onMouseLeave={() => {
+                    setRevealPreviewCard(null);
+                    setRevealPreviewAnchor(null);
+                  }}
+                >
+                  <Image
+                    src={topCardInfo.imageUrl}
+                    alt={topCardInfo.name}
+                    width={200}
+                    height={279}
+                    className="rounded-[10px] border border-white/10"
+                    unoptimized
+                  />
+                </button>
               ) : (
                 <p className="text-sm text-white/70">{topCardInfo.name}</p>
               )}
@@ -959,9 +979,7 @@ function LibraryZone({
             {/* Scrollable card grid — dimmed while dragging */}
             <div
               className={`h-full overflow-y-auto p-5 transition-opacity duration-200 ${
-                isDraggingFromLibrary
-                  ? "pointer-events-none opacity-20"
-                  : ""
+                isDraggingFromLibrary ? "pointer-events-none opacity-20" : ""
               }`}
             >
               {libraryViewCards.length === 0 ? (
@@ -1021,6 +1039,10 @@ function LibraryZone({
         </DialogContent>
       </Dialog>
       <PreviewOverlay
+        previewCard={revealPreviewCard}
+        previewAnchor={revealPreviewAnchor}
+      />
+      <PreviewOverlay
         previewCard={scryPreviewCard}
         previewAnchor={scryPreviewAnchor}
       />
@@ -1034,7 +1056,7 @@ function LibraryZone({
       />
     </>
   );
-}
+});
 
 // ---------------------------------------------------------------------------
 // Public panel
@@ -1073,7 +1095,7 @@ type SideZonePanelProps = {
   onDraw: () => void;
 };
 
-export function SideZonePanel({
+export const SideZonePanel = memo(function SideZonePanel({
   graveyardTop,
   graveyardTopName,
   graveyardTopImageUrl,
@@ -1141,4 +1163,4 @@ export function SideZonePanel({
       />
     </aside>
   );
-}
+});

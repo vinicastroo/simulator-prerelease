@@ -1,6 +1,7 @@
 "use client";
 
 import { useDroppable } from "@dnd-kit/core";
+import { memo } from "react";
 
 export const MODAL_DROP_ZONES = [
   {
@@ -39,7 +40,7 @@ export const MODAL_DROP_ZONES = [
   },
 ] as const;
 
-export function ModalDropZone({
+export const ModalDropZone = memo(function ModalDropZone({
   id,
   label,
   idleClass,
@@ -56,10 +57,10 @@ export function ModalDropZone({
       <span className="text-sm font-semibold">{label}</span>
     </div>
   );
-}
+});
 
 /** Renders the 2×2 grid + cancel row used by both library and zone-preview modals. */
-export function ModalDropZoneOverlay() {
+export const ModalDropZoneOverlay = memo(function ModalDropZoneOverlay() {
   return (
     <div className="absolute inset-0 flex flex-col gap-3 p-5">
       <div className="grid flex-1 grid-cols-2 gap-3">
@@ -70,4 +71,4 @@ export function ModalDropZoneOverlay() {
       <ModalDropZone {...MODAL_DROP_ZONES[4]} />
     </div>
   );
-}
+});

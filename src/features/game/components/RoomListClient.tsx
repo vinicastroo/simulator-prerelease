@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
@@ -23,7 +24,13 @@ function relativeTime(iso: string) {
   return `${diffH}h atrás`;
 }
 
-export function RoomListClient({ initialRooms }: { initialRooms: RoomRow[] }) {
+export function RoomListClient({
+  initialRooms,
+  newRoomButton,
+}: {
+  initialRooms: RoomRow[];
+  newRoomButton?: ReactNode;
+}) {
   const router = useRouter();
 
   useEffect(() => {
@@ -49,12 +56,7 @@ export function RoomListClient({ initialRooms }: { initialRooms: RoomRow[] }) {
         <p className="text-sm text-white/30">
           Crie uma sala e convide um amigo.
         </p>
-        <Link
-          href="/game/new"
-          className="mt-2 rounded-full border border-white/10 bg-white/[0.04] px-5 py-2 text-[11px] font-bold uppercase tracking-[0.2em] text-white/70 hover:bg-white/[0.08] transition-colors"
-        >
-          + Nova sala
-        </Link>
+        {newRoomButton}
       </div>
     );
   }

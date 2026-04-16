@@ -3,7 +3,7 @@
 import { useDndMonitor, useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import { CardBack } from "../CardBack";
 import { ModalDropZoneOverlay } from "./ModalDropZones";
 import type { CardHoverInfo, DragCardData } from "./types";
@@ -28,7 +28,7 @@ type ZonePreviewModalProps = {
 // Draggable card inside the modal
 // ---------------------------------------------------------------------------
 
-function ZonePreviewCardButton({
+const ZonePreviewCardButton = memo(function ZonePreviewCardButton({
   card,
   zone,
   onHover,
@@ -59,7 +59,10 @@ function ZonePreviewCardButton({
       onMouseEnter={
         onHover
           ? (e) =>
-              onHover({ name: card.name, imageUrl: card.imageUrl }, e.currentTarget)
+              onHover(
+                { name: card.name, imageUrl: card.imageUrl },
+                e.currentTarget,
+              )
           : undefined
       }
       onMouseLeave={onHover ? () => onHover(null, null) : undefined}
@@ -85,13 +88,13 @@ function ZonePreviewCardButton({
       </span>
     </button>
   );
-}
+});
 
 // ---------------------------------------------------------------------------
 // Modal body — uses useDndMonitor to detect drags from within itself
 // ---------------------------------------------------------------------------
 
-function ZonePreviewModalBody({
+const ZonePreviewModalBody = memo(function ZonePreviewModalBody({
   zone,
   cards,
   onClose,
@@ -101,7 +104,9 @@ function ZonePreviewModalBody({
 
   useDndMonitor({
     onDragStart(event) {
-      const data = event.active.data.current as { behavior?: string } | undefined;
+      const data = event.active.data.current as
+        | { behavior?: string }
+        | undefined;
       if (data?.behavior === "move-from-zone-modal") {
         setIsDraggingFromModal(true);
       }
@@ -114,7 +119,10 @@ function ZonePreviewModalBody({
     },
   });
 
-  const label = zone === "graveyard" ? "Cemitério" : "Exílio";
+  const label = useMemo(
+    () => (zone === "graveyard" ? "Cemitério" : "Exílio"),
+    [zone],
+  );
 
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70">
@@ -188,13 +196,15 @@ function ZonePreviewModalBody({
       </div>
     </div>
   );
-}
+});
 
 // ---------------------------------------------------------------------------
 // Public component — guards the null zone case
 // ---------------------------------------------------------------------------
 
-export function ZonePreviewModal(props: ZonePreviewModalProps) {
+export const ZonePreviewModal = memo(function ZonePreviewModal(
+  props: ZonePreviewModalProps,
+) {
   const { zone, onClose } = props;
 
   useEffect(() => {
@@ -208,4 +218,4 @@ export function ZonePreviewModal(props: ZonePreviewModalProps) {
 
   if (!zone) return null;
   return <ZonePreviewModalBody {...props} zone={zone} />;
-}
+});

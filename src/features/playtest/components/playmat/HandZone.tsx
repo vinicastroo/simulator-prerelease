@@ -1,3 +1,4 @@
+import { memo } from "react";
 import type { CardInstance } from "@/lib/game/types";
 import { HandCard } from "./HandCard";
 import type { CardHoverInfo } from "./types";
@@ -18,7 +19,7 @@ type HandZoneProps = {
   onHoverCard: (info: CardHoverInfo | null, target: HTMLElement | null) => void;
 };
 
-export function HandZone({
+export const HandZone = memo(function HandZone({
   setRefs,
   isActiveDropTarget,
   isAnyDragActive,
@@ -59,4 +60,4 @@ export function HandZone({
       )}
     </div>
   );
-}
+});

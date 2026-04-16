@@ -7,6 +7,7 @@ import {
   useContext,
   useMemo,
   useOptimistic,
+  useRef,
   useState,
   useTransition,
 } from "react";
@@ -118,6 +119,73 @@ function applyOptimistic(
   return state;
 }
 
+// ─── Hardcoded basic land templates for instant optimistic updates ────────────
+
+type BasicLandName = "Plains" | "Island" | "Swamp" | "Mountain" | "Forest";
+
+const BASIC_LAND_TEMPLATES: Record<BasicLandName, PlacedCardState["card"]> = {
+  Plains: {
+    id: "__tpl_plains__",
+    name: "Plains",
+    rarity: "COMMON",
+    set: "sta",
+    colors: [],
+    manaCost: null,
+    cmc: 0,
+    typeLine: "Basic Land — Plains",
+    imagePath: "",
+    collectorNumber: "0",
+  },
+  Island: {
+    id: "__tpl_island__",
+    name: "Island",
+    rarity: "COMMON",
+    set: "sta",
+    colors: [],
+    manaCost: null,
+    cmc: 0,
+    typeLine: "Basic Land — Island",
+    imagePath: "",
+    collectorNumber: "0",
+  },
+  Swamp: {
+    id: "__tpl_swamp__",
+    name: "Swamp",
+    rarity: "COMMON",
+    set: "sta",
+    colors: [],
+    manaCost: null,
+    cmc: 0,
+    typeLine: "Basic Land — Swamp",
+    imagePath: "",
+    collectorNumber: "0",
+  },
+  Mountain: {
+    id: "__tpl_mountain__",
+    name: "Mountain",
+    rarity: "COMMON",
+    set: "sta",
+    colors: [],
+    manaCost: null,
+    cmc: 0,
+    typeLine: "Basic Land — Mountain",
+    imagePath: "",
+    collectorNumber: "0",
+  },
+  Forest: {
+    id: "__tpl_forest__",
+    name: "Forest",
+    rarity: "COMMON",
+    set: "sta",
+    colors: [],
+    manaCost: null,
+    cmc: 0,
+    typeLine: "Basic Land — Forest",
+    imagePath: "",
+    collectorNumber: "0",
+  },
+};
+
 // ─── Context shape ────────────────────────────────────────────────────────────
 
 type PrereleaseContextValue = {
@@ -154,6 +222,21 @@ export function PrereleaseProvider({
     applyOptimistic,
   );
   const [draggingCardId, setDraggingCard] = useState<string | null>(null);
+
+  // Cards added locally this session (not yet reflected in initialCards).
+  // Using useState instead of useOptimistic so they survive transition reverts.
+  const [addedCards, setAddedCards] = useState<PlacedCardState[]>([]);
+  const addedCardsRef = useRef(addedCards);
+  addedCardsRef.current = addedCards;
+
+  // Merged view: optimistic positions/zones + locally-added cards
+  const allCards = useMemo(() => {
+    const knownIds = new Set(optimisticCards.map((c) => c.id));
+    return [
+      ...optimisticCards,
+      ...addedCards.filter((c) => !knownIds.has(c.id)),
+    ];
+  }, [optimisticCards, addedCards]);
 
   const moveCard = useCallback(
     (id: string, posX: number, posY: number, zIndex: number) => {
@@ -198,10 +281,35 @@ export function PrereleaseProvider({
   );
 
   const addBasicLandsToKit = useCallback(
-    (
-      landName: "Plains" | "Island" | "Swamp" | "Mountain" | "Forest",
-      quantity: number,
-    ): Promise<void> => {
+    (landName: BasicLandName, quantity: number): Promise<void> => {
+      // Generate temporary IDs for the placeholder cards
+      const now = Date.now();
+      const placeholderIds = Array.from(
+        { length: quantity },
+        (_, i) => `__opt__${landName}__${now}__${i}`,
+      );
+
+      // Use an existing card of this type as template (better data), or fall back
+      // to the hardcoded minimal template so the count updates instantly.
+      const existingTemplate = addedCardsRef.current.find(
+        (c) => c.card.name === landName,
+      );
+      const cardTemplate = existingTemplate?.card ?? BASIC_LAND_TEMPLATES[landName];
+
+      // Immediately add placeholders — user sees the count change right away
+      const placeholders: PlacedCardState[] = placeholderIds.map((id) => ({
+        id,
+        cardId: cardTemplate.id,
+        posX: -9999,
+        posY: -9999,
+        zIndex: 0,
+        isMainDeck: true,
+        isFoil: false,
+        isPromo: false,
+        card: cardTemplate,
+      }));
+      setAddedCards((prev) => [...prev, ...placeholders]);
+
       return new Promise<void>((resolve) => {
         startTransition(async () => {
           try {
@@ -211,7 +319,9 @@ export function PrereleaseProvider({
               quantity,
               true,
             );
-            const optimisticCards: PlacedCardState[] = createdCards.map(
+
+            // Replace placeholders with real server data
+            const realCards: PlacedCardState[] = createdCards.map(
               (created) => ({
                 id: created.id,
                 cardId: created.cardId,
@@ -247,8 +357,16 @@ export function PrereleaseProvider({
               }),
             );
 
-            dispatch({ type: "ADD_CARDS", cards: optimisticCards });
+            setAddedCards((prev) => {
+              const placeholderIdSet = new Set(placeholderIds);
+              return [...prev.filter((c) => !placeholderIdSet.has(c.id)), ...realCards];
+            });
           } catch (err) {
+            // Roll back placeholders on error
+            setAddedCards((prev) => {
+              const placeholderIdSet = new Set(placeholderIds);
+              return prev.filter((c) => !placeholderIdSet.has(c.id));
+            });
             console.error("Falha ao adicionar terrenos básicos:", err);
           } finally {
             resolve();
@@ -256,12 +374,12 @@ export function PrereleaseProvider({
         });
       });
     },
-    [dispatch, kitId],
+    [kitId],
   );
 
   const contextValue = useMemo(
     () => ({
-      cards: optimisticCards,
+      cards: allCards,
       isPending,
       kitId,
       moveCard,
@@ -272,7 +390,7 @@ export function PrereleaseProvider({
       setDraggingCard,
     }),
     [
-      optimisticCards,
+      allCards,
       isPending,
       kitId,
       moveCard,

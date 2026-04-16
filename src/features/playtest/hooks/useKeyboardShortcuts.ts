@@ -5,8 +5,7 @@ import { useEffect } from "react";
 type ShortcutHandlers = {
   onTap?: () => void;
   onDraw?: () => void;
-  onUndo?: () => void;
-  onRedo?: () => void;
+
   onShuffle?: () => void;
   onAdvancePhase?: () => void;
   onRetreatPhase?: () => void;
@@ -34,15 +33,6 @@ export function useKeyboardShortcuts(handlers: ShortcutHandlers) {
 
       const key = e.key.toLowerCase();
 
-      if ((e.ctrlKey || e.metaKey) && key === "z") {
-        e.preventDefault();
-        if (e.shiftKey) {
-          handlers.onRedo?.();
-        } else {
-          handlers.onUndo?.();
-        }
-        return;
-      }
 
       if (e.ctrlKey || e.metaKey) return;
 
@@ -61,9 +51,7 @@ export function useKeyboardShortcuts(handlers: ShortcutHandlers) {
         case "d":
           handlers.onDraw?.();
           break;
-        case "u":
-          handlers.onUndo?.();
-          break;
+
         case "s":
           handlers.onShuffle?.();
           break;

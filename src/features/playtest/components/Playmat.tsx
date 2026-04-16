@@ -15,8 +15,10 @@ import {
 } from "@dnd-kit/core";
 import Image from "next/image";
 import {
+  Profiler,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type WheelEvent,
@@ -46,7 +48,10 @@ import {
   HAND_CARD_SPACING,
 } from "./playmat/constants";
 import { HandZone } from "./playmat/HandZone";
-import { PreviewOverlay } from "./playmat/PreviewOverlay";
+import {
+  HoverPreviewHost,
+  type HoverPreviewHandle,
+} from "./playmat/HoverPreviewHost";
 import { SideZonePanel } from "./playmat/SideZonePanel";
 import type {
   ActiveDragState,
@@ -54,7 +59,6 @@ import type {
   DragCardData,
   DropTargetId,
   LibraryDropTarget,
-  PreviewAnchor,
 } from "./playmat/types";
 import {
   getClientPositionFromEvent,
@@ -100,14 +104,23 @@ export function Playmat({
   const {
     state,
     dispatch,
-    undo,
-    redo,
+
     localPlayerId,
     player,
     allZones,
     zoneCount,
     activePings,
   } = useGameStore();
+  const {
+    activePlayerId,
+    battlefieldArrows: allBattlefieldArrows,
+    cardDefinitions,
+    cardInstances,
+    log,
+    phase,
+    players,
+    turnNumber,
+  } = state;
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -128,10 +141,6 @@ export function Playmat({
     clientY: number;
   } | null>(null);
 
-  const [previewCard, setPreviewCard] = useState<CardHoverInfo | null>(null);
-  const [previewAnchor, setPreviewAnchor] = useState<PreviewAnchor | null>(
-    null,
-  );
   const [zonePreview, setZonePreview] = useState<"graveyard" | "exile" | null>(
     null,
   );
@@ -156,6 +165,8 @@ export function Playmat({
   const [activeDrag, setActiveDrag] = useState<ActiveDragState | null>(null);
   const [centerToast, setCenterToast] = useState<CenterToast | null>(null);
   const lastHandledLogIdRef = useRef<string | null>(null);
+  const hoverPreviewRef = useRef<HoverPreviewHandle | null>(null);
+  const nextTurnAudioRef = useRef<HTMLAudioElement | null>(null);
 
   type CardMenuState = { cardId: string; x: number; y: number };
   const [cardMenu, setCardMenu] = useState<CardMenuState | null>(null);
@@ -184,26 +195,8 @@ export function Playmat({
     [],
   );
 
-  const updatePreviewAnchor = useCallback((target: HTMLElement | null) => {
-    if (!target) {
-      setPreviewAnchor(null);
-      return;
-    }
-
-    const rect = target.getBoundingClientRect();
-    setPreviewAnchor({
-      x: rect.left + rect.width / 2,
-      y: rect.top + rect.height * 0.5,
-    });
-  }, []);
-
-  const handleHover = useCallback((info: CardHoverInfo | null) => {
-    setPreviewCard(info);
-  }, []);
-
   const clearPreview = useCallback(() => {
-    setPreviewCard(null);
-    setPreviewAnchor(null);
+    hoverPreviewRef.current?.clear();
   }, []);
 
   const handleDraw = useCallback(() => {
@@ -212,14 +205,14 @@ export function Playmat({
   }, [dispatch, localPlayerId, zoneCount]);
 
   const handleShuffle = useCallback(() => {
-    const library = shuffleCardIds(state.players[localPlayerId].zones.library);
+    const library = shuffleCardIds(players[localPlayerId].zones.library);
     dispatch({
       type: "zone/shuffle",
       playerId: localPlayerId,
       zone: "library",
       orderedIds: library,
     });
-  }, [dispatch, localPlayerId, state.players]);
+  }, [dispatch, localPlayerId, players]);
 
   const resetDragState = useCallback(() => {
     setActiveDrag(null);
@@ -267,7 +260,7 @@ export function Playmat({
   }, []);
 
   useEffect(() => {
-    const latestEntry = state.log.at(-1);
+    const latestEntry = log.at(-1);
     if (!latestEntry) return;
 
     if (lastHandledLogIdRef.current === null) {
@@ -278,6 +271,13 @@ export function Playmat({
     if (lastHandledLogIdRef.current === latestEntry.id) return;
     lastHandledLogIdRef.current = latestEntry.id;
 
+    if (latestEntry.actionType === "turn/passTurn") {
+      const audio = nextTurnAudioRef.current ?? new Audio("/next-turn.mp3");
+      audio.currentTime = 0;
+      nextTurnAudioRef.current = audio;
+      void audio.play().catch(() => {});
+    }
+
     if (
       latestEntry.actionType !== "turn/passTurn" &&
       latestEntry.actionType !== "card/draw"
@@ -286,7 +286,7 @@ export function Playmat({
     }
 
     setCenterToast({ id: latestEntry.id, message: latestEntry.description });
-  }, [state.log]);
+  }, [log]);
 
   useEffect(() => {
     if (!centerToast) return;
@@ -302,10 +302,10 @@ export function Playmat({
 
   const getCardZone = useCallback(
     (cardId: string) => {
-      const zone = state.cardInstances[cardId]?.zone;
+      const zone = cardInstances[cardId]?.zone;
       return zone && isZoneName(zone) ? zone : null;
     },
-    [state.cardInstances],
+    [cardInstances],
   );
 
   const getNextBattlefieldZ = useCallback(() => {
@@ -405,16 +405,14 @@ export function Playmat({
 
   useEffect(() => {
     setSelectedBattlefieldCardIds((current) =>
-      current.filter(
-        (cardId) => state.cardInstances[cardId]?.zone === "battlefield",
-      ),
+      current.filter((cardId) => cardInstances[cardId]?.zone === "battlefield"),
     );
     setFocusedBattlefieldCardId((current) =>
-      current && state.cardInstances[current]?.zone === "battlefield"
+      current && cardInstances[current]?.zone === "battlefield"
         ? current
         : null,
     );
-  }, [state.cardInstances]);
+  }, [cardInstances]);
 
   const handleSelectBattlefieldCard = useCallback(
     (cardId: string, additive: boolean) => {
@@ -620,7 +618,7 @@ export function Playmat({
       }
 
       if (overId && String(overId) !== cardId) {
-        const overCard = state.cardInstances[String(overId)];
+        const overCard = cardInstances[String(overId)];
         if (overCard && isZoneName(overCard.zone)) {
           return overCard.zone;
         }
@@ -628,7 +626,7 @@ export function Playmat({
 
       return null;
     },
-    [getZoneByClientPosition, isLibraryDropTarget, state.cardInstances],
+    [cardInstances, getZoneByClientPosition, isLibraryDropTarget],
   );
 
   const handleDragStart = useCallback(
@@ -755,7 +753,7 @@ export function Playmat({
           ? null
           : (lastPointerClientPositionRef.current ??
             getDropClientPosition(event));
-        const fallbackCard = state.cardInstances[dragData.cardId];
+        const fallbackCard = cardInstances[dragData.cardId];
 
         const position = cursor
           ? getBattlefieldDropPosition(cursor.clientX, cursor.clientY)
@@ -766,23 +764,34 @@ export function Playmat({
             };
 
         if (fromZone === "battlefield" && draggedCardIds.length > 1) {
-          const anchorCard = state.cardInstances[dragData.cardId];
-          const anchorPosition = anchorCard?.battlefield;
+          const draggedCards = draggedCardIds
+            .map((cardId) => {
+              const card = cardInstances[cardId];
+              return card?.battlefield
+                ? { cardId, battlefield: card.battlefield }
+                : null;
+            })
+            .filter(
+              (
+                card,
+              ): card is {
+                cardId: string;
+                battlefield: NonNullable<CardInstance["battlefield"]>;
+              } => card !== null,
+            );
 
-          if (anchorPosition) {
-            const deltaX = position.x - anchorPosition.x;
-            const deltaY = position.y - anchorPosition.y;
+          if (draggedCards.length > 0) {
             const nextZ = getNextBattlefieldZ();
+            const spacing = BATTLEFIELD_CARD_WIDTH + GRID_SIZE / 2;
+            const startX =
+              position.x - ((draggedCards.length - 1) * spacing) / 2;
 
-            draggedCardIds.forEach((cardId, index) => {
-              const card = state.cardInstances[cardId];
-              if (!card?.battlefield) return;
-
+            draggedCards.forEach(({ cardId, battlefield }, index) => {
               dispatch({
                 type: "card/setBattlefieldPosition",
                 cardId,
-                x: Math.max(0, card.battlefield.x + deltaX),
-                y: Math.max(0, card.battlefield.y + deltaY),
+                x: Math.max(0, startX + index * spacing),
+                y: Math.max(0, position.y),
                 z: nextZ + index,
               });
             });
@@ -819,7 +828,7 @@ export function Playmat({
       if (fromZone === "hand" && toZone === "hand") {
         const pointerPos = lastPointerClientPositionRef.current;
         const handRect = handRef.current?.getBoundingClientRect();
-        const currentHand = state.players[localPlayerId].zones.hand;
+        const currentHand = players[localPlayerId].zones.hand;
 
         if (pointerPos && handRect && currentHand.length > 1) {
           const handCenterX = handRect.left + handRect.width / 2;
@@ -854,7 +863,7 @@ export function Playmat({
           toTarget === "library-top"
             ? 0
             : toTarget === "library-bottom"
-              ? state.players[localPlayerId].zones.library.length
+              ? players[localPlayerId].zones.library.length
               : undefined;
 
         const orderedCardIds =
@@ -898,18 +907,18 @@ export function Playmat({
       localPlayerId,
       resolveDropZone,
       resetDragState,
-      state.cardInstances,
-      state.players,
+      cardInstances,
+      players,
     ],
   );
 
   const handleRetreatPhase = useCallback(() => {
-    const idx = PHASE_ORDER.indexOf(state.phase);
+    const idx = PHASE_ORDER.indexOf(phase);
     if (idx <= 0) return;
     const previousPhase = PHASE_ORDER[idx - 1];
     if (!previousPhase) return;
     dispatch({ type: "turn/setPhase", phase: previousPhase });
-  }, [dispatch, state.phase]);
+  }, [dispatch, phase]);
 
   useKeyboardShortcuts({
     onTap: handleTapFocusedBattlefieldCard,
@@ -920,87 +929,109 @@ export function Playmat({
       dispatch({ type: "turn/passTurn" });
     },
     onRetreatPhase: handleRetreatPhase,
-    onUndo: undo,
-    onRedo: redo,
+
     onToggleArrowMode: handleToggleArrowMode,
     onCancelArrowMode: handleCancelArrowMode,
   });
 
   const life = player?.life ?? 20;
-  const turnLabel = `Turno ${state.turnNumber}`;
+  const turnLabel = `Turno ${turnNumber}`;
 
-  const handCards = allZones.hand.map((card) => {
-    const selected = selectCardWithDefinition(state, card.id);
-    return {
-      card,
-      name: selected?.definition.name ?? "carta",
-      imageUrl: selected?.definition.imageUrl ?? null,
-      manaCost: selected?.definition.manaCost ?? "",
-    };
-  });
+  const handCards = useMemo(
+    () =>
+      allZones.hand.map((card) => {
+        const selected = selectCardWithDefinition(state, card.id);
+        return {
+          card,
+          name: selected?.definition.name ?? "carta",
+          imageUrl: selected?.definition.imageUrl ?? null,
+          manaCost: selected?.definition.manaCost ?? "",
+        };
+      }),
+    [allZones.hand, state],
+  );
 
-  const battlefieldCards = allZones.battlefield.map((card) => {
-    const selected = selectCardWithDefinition(state, card.id);
-    const definitionType = selected?.definition.type ?? "";
-    const definitionPower = selected?.definition.power ?? null;
-    const definitionToughness = selected?.definition.toughness ?? null;
-    const cardType = card.tokenData?.type ?? definitionType;
-    const power = definitionPower ?? card.tokenData?.power ?? null;
-    const toughness = definitionToughness ?? card.tokenData?.toughness ?? null;
+  const battlefieldCards = useMemo(
+    () =>
+      allZones.battlefield.map((card) => {
+        const selected = selectCardWithDefinition(state, card.id);
+        const definitionType = selected?.definition.type ?? "";
+        const definitionPower = selected?.definition.power ?? null;
+        const definitionToughness = selected?.definition.toughness ?? null;
+        const cardType = card.tokenData?.type ?? definitionType;
+        const power = definitionPower ?? card.tokenData?.power ?? null;
+        const toughness =
+          definitionToughness ?? card.tokenData?.toughness ?? null;
 
-    return {
-      card,
-      name: selected?.definition.name ?? "carta",
-      imageUrl: card.faceDown ? null : (selected?.definition.imageUrl ?? null),
-      manaCost: selected?.definition.manaCost ?? "",
-      cardType,
-      power,
-      toughness,
-    };
-  });
+        return {
+          card,
+          name: selected?.definition.name ?? "carta",
+          imageUrl: card.faceDown
+            ? null
+            : (selected?.definition.imageUrl ?? null),
+          manaCost: selected?.definition.manaCost ?? "",
+          cardType,
+          power,
+          toughness,
+        };
+      }),
+    [allZones.battlefield, state],
+  );
 
-  const activeDragCard = activeDrag
-    ? selectCardWithDefinition(state, activeDrag.cardId)
-    : null;
-  const activeDragCards = activeDrag
-    ? activeDrag.cardIds
-        .map((cardId) => selectCardWithDefinition(state, cardId))
-        .filter((card): card is NonNullable<typeof card> => card !== null)
-    : [];
+  const activeDragCard = useMemo(
+    () =>
+      activeDrag ? selectCardWithDefinition(state, activeDrag.cardId) : null,
+    [activeDrag, state],
+  );
+  const activeDragCards = useMemo(
+    () =>
+      activeDrag
+        ? activeDrag.cardIds
+            .map((cardId) => selectCardWithDefinition(state, cardId))
+            .filter((card): card is NonNullable<typeof card> => card !== null)
+        : [],
+    [activeDrag, state],
+  );
 
   const graveyardTop = allZones.graveyard.at(-1);
   const exileTop = allZones.exile.at(-1);
   const libraryTop = allZones.library[0] ?? null;
 
-  const graveyardPreviewCards: ZonePreviewCard[] = allZones.graveyard.map(
-    (card) => {
-      const selected = selectCardWithDefinition(state, card.id);
-      return {
-        id: card.id,
-        name:
-          card.customName ??
-          card.tokenData?.name ??
-          selected?.definition.name ??
-          "Carta",
-        imageUrl:
-          card.tokenData?.imageUrl ?? selected?.definition.imageUrl ?? null,
-      };
-    },
+  const graveyardPreviewCards: ZonePreviewCard[] = useMemo(
+    () =>
+      allZones.graveyard.map((card) => {
+        const selected = selectCardWithDefinition(state, card.id);
+        return {
+          id: card.id,
+          name:
+            card.customName ??
+            card.tokenData?.name ??
+            selected?.definition.name ??
+            "Carta",
+          imageUrl:
+            card.tokenData?.imageUrl ?? selected?.definition.imageUrl ?? null,
+        };
+      }),
+    [allZones.graveyard, state],
   );
 
-  const exilePreviewCards: ZonePreviewCard[] = allZones.exile.map((card) => {
-    const selected = selectCardWithDefinition(state, card.id);
-    return {
-      id: card.id,
-      name:
-        card.customName ??
-        card.tokenData?.name ??
-        selected?.definition.name ??
-        "Carta",
-      imageUrl:
-        card.tokenData?.imageUrl ?? selected?.definition.imageUrl ?? null,
-    };
-  });
+  const exilePreviewCards: ZonePreviewCard[] = useMemo(
+    () =>
+      allZones.exile.map((card) => {
+        const selected = selectCardWithDefinition(state, card.id);
+        return {
+          id: card.id,
+          name:
+            card.customName ??
+            card.tokenData?.name ??
+            selected?.definition.name ??
+            "Carta",
+          imageUrl:
+            card.tokenData?.imageUrl ?? selected?.definition.imageUrl ?? null,
+        };
+      }),
+    [allZones.exile, state],
+  );
 
   const getStackTopInfo = useCallback(
     (card: CardInstance | undefined) => {
@@ -1022,18 +1053,113 @@ export function Playmat({
   const graveyardTopInfo = getStackTopInfo(graveyardTop);
   const exileTopInfo = getStackTopInfo(exileTop);
   const isAnyDragActive = Boolean(activeDrag);
-  const battlefieldArrows = (state.battlefieldArrows ?? []).filter(
-    (arrow) => arrow.playerId === localPlayerId,
+  const battlefieldArrows = useMemo(
+    () =>
+      (allBattlefieldArrows ?? []).filter(
+        (arrow) => arrow.playerId === localPlayerId,
+      ),
+    [allBattlefieldArrows, localPlayerId],
   );
   const provisionalArrow =
     pendingArrowStart && pendingArrowEnd
       ? { start: pendingArrowStart, end: pendingArrowEnd }
       : null;
-  const hiddenBattlefieldCardIds = new Set(
-    activeDrag?.origin === "battlefield" ? activeDrag.cardIds : [],
+  const hiddenBattlefieldCardIds = useMemo(
+    () =>
+      new Set(activeDrag?.origin === "battlefield" ? activeDrag.cardIds : []),
+    [activeDrag],
+  );
+  const selectedBattlefieldCardIdSet = useMemo(
+    () => new Set(selectedBattlefieldCardIds),
+    [selectedBattlefieldCardIds],
   );
   const hiddenHandCardId =
     activeDrag?.origin === "library" ? activeDrag.cardId : null;
+
+  const handlePingCard = useCallback(
+    (cardId: string) => dispatch({ type: "card/ping", cardId }),
+    [dispatch],
+  );
+
+  const setBattlefieldRefs = useCallback(
+    (node: HTMLDivElement | null) => {
+      battlefieldRef.current = node;
+      battlefieldDrop.setNodeRef(node);
+    },
+    [battlefieldDrop],
+  );
+
+  const setHandRefs = useCallback(
+    (node: HTMLDivElement | null) => {
+      handRef.current = node;
+      handDrop.setNodeRef(node);
+    },
+    [handDrop],
+  );
+
+  const setGraveyardRefs = useCallback(
+    (node: HTMLDivElement | null) => {
+      graveyardRef.current = node;
+      graveyardDrop.setNodeRef(node);
+    },
+    [graveyardDrop],
+  );
+
+  const setExileRefs = useCallback(
+    (node: HTMLDivElement | null) => {
+      exileRef.current = node;
+      exileDrop.setNodeRef(node);
+    },
+    [exileDrop],
+  );
+
+  const setLibraryTopRefs = useCallback(
+    (node: HTMLDivElement | null) => {
+      libraryTopRef.current = node;
+      libraryTopDrop.setNodeRef(node);
+    },
+    [libraryTopDrop],
+  );
+
+  const setLibraryBottomRefs = useCallback(
+    (node: HTMLDivElement | null) => {
+      libraryBottomRef.current = node;
+      libraryBottomDrop.setNodeRef(node);
+    },
+    [libraryBottomDrop],
+  );
+
+  const openGraveyardPreview = useCallback(
+    () => setZonePreview("graveyard"),
+    [],
+  );
+  const openExilePreview = useCallback(() => setZonePreview("exile"), []);
+  const closeZonePreview = useCallback(() => setZonePreview(null), []);
+  const closeCardMenu = useCallback(() => setCardMenu(null), []);
+  const closeBattlefieldContextMenu = useCallback(
+    () => setBattlefieldContextMenu(null),
+    [],
+  );
+  const openTokenBrowser = useCallback(() => setTokenBrowserOpen(true), []);
+  const closeTokenBrowser = useCallback(() => setTokenBrowserOpen(false), []);
+
+  const graveyardCount = zoneCount("graveyard");
+  const exileCount = zoneCount("exile");
+  const libraryCount = zoneCount("library");
+
+  const handleProfilerRender = useCallback(
+    (
+      id: string,
+      phase: "mount" | "update" | "nested-update",
+      actualDuration: number,
+    ) => {
+      if (process.env.NODE_ENV !== "development") return;
+      if (actualDuration < 16) return;
+
+      console.info(`[profile] ${id} ${phase}: ${actualDuration.toFixed(1)}ms`);
+    },
+    [],
+  );
 
   const handleBattlefieldSelectionChange = useCallback((cardIds: string[]) => {
     setSelectedBattlefieldCardIds(cardIds);
@@ -1042,10 +1168,14 @@ export function Playmat({
 
   const handleHoverWithAnchor = useCallback(
     (info: CardHoverInfo | null, target: HTMLElement | null) => {
-      handleHover(info);
-      updatePreviewAnchor(target);
+      if (!info || !target) {
+        hoverPreviewRef.current?.clear();
+        return;
+      }
+
+      hoverPreviewRef.current?.show(info, target);
     },
-    [handleHover, updatePreviewAnchor],
+    [],
   );
 
   const handleBattlefieldHover = useCallback(
@@ -1296,128 +1426,189 @@ export function Playmat({
   );
 
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={pointerWithin}
-      onDragStart={handleDragStart}
-      onDragOver={handleDragOver}
-      onDragEnd={handleDragEnd}
-      onDragCancel={handleDragCancel}
-    >
-      <section
-        id="player-battlefield"
-        className="flex flex-col gap-4 rounded-2xl h-full  flex-1"
+    <>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={pointerWithin}
+        onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
+        onDragEnd={handleDragEnd}
+        onDragCancel={handleDragCancel}
       >
-        {/* Local player battlefield */}
-        <div
-          id="battlefield"
-          className="min-h-0 overflow-hidden"
-          style={{ flex: "1 1 0" }}
-        >
-          <BattlefieldArea
-            setRefs={(node) => {
-              battlefieldRef.current = node;
-              battlefieldDrop.setNodeRef(node);
-            }}
-            isActiveDropTarget={battlefieldDrop.isOver}
-            isAnyDragActive={isAnyDragActive}
-            interactive={true}
-            isActiveTurn={state.activePlayerId === localPlayerId}
-            isRollingForFirstTurn={isRollingForFirstTurn}
-            orientation="bottom"
-            playerName={playerName}
-            life={life}
-            turnLabel={turnLabel}
-            battlefieldZoom={battlefieldZoom}
-            battlefieldCards={battlefieldCards}
-            activePings={activePings}
-            selectedCardIds={new Set(selectedBattlefieldCardIds)}
-            hiddenCardIds={hiddenBattlefieldCardIds}
-            onWheel={handleBattlefieldWheel}
-            onChangeLife={handleChangeLife}
-            onAdjustZoom={adjustBattlefieldZoom}
-            onSelectCard={handleSelectBattlefieldCard}
-            onClearSelection={handleClearBattlefieldSelection}
-            onSelectionChange={handleBattlefieldSelectionChange}
-            onHoverCard={handleBattlefieldHover}
-            onPingCard={(cardId) => dispatch({ type: "card/ping", cardId })}
-            onModifyCardPT={handleModifyCardPT}
-            onModifyCardLoyalty={handleModifyCardLoyalty}
-            onRightClickCard={handleRightClickCard}
-            onEmptyRightClick={handleEmptyBattlefieldRightClick}
-            pan={battlefieldPan}
-            onPan={setBattlefieldPan}
-          />
-        </div>
+        <Profiler id="PlaymatDndTree" onRender={handleProfilerRender}>
+          <section
+            id="player-battlefield"
+            className="flex flex-col gap-4 rounded-2xl h-full  flex-1"
+          >
+            {/* Local player battlefield */}
+            <div
+              id="battlefield"
+              className="min-h-0 overflow-hidden"
+              style={{ flex: "1 1 0" }}
+            >
+              <Profiler id="BattlefieldArea" onRender={handleProfilerRender}>
+                <BattlefieldArea
+                  setRefs={setBattlefieldRefs}
+                  isActiveDropTarget={battlefieldDrop.isOver}
+                  isAnyDragActive={isAnyDragActive}
+                  interactive={true}
+                  isActiveTurn={activePlayerId === localPlayerId}
+                  isRollingForFirstTurn={isRollingForFirstTurn}
+                  orientation="bottom"
+                  playerName={playerName}
+                  life={life}
+                  turnLabel={turnLabel}
+                  battlefieldZoom={battlefieldZoom}
+                  battlefieldCards={battlefieldCards}
+                  activePings={activePings}
+                  selectedCardIds={selectedBattlefieldCardIdSet}
+                  hiddenCardIds={hiddenBattlefieldCardIds}
+                  onWheel={handleBattlefieldWheel}
+                  onChangeLife={handleChangeLife}
+                  onAdjustZoom={adjustBattlefieldZoom}
+                  onSelectCard={handleSelectBattlefieldCard}
+                  onClearSelection={handleClearBattlefieldSelection}
+                  onSelectionChange={handleBattlefieldSelectionChange}
+                  onHoverCard={handleBattlefieldHover}
+                  onPingCard={handlePingCard}
+                  onModifyCardPT={handleModifyCardPT}
+                  onModifyCardLoyalty={handleModifyCardLoyalty}
+                  onRightClickCard={handleRightClickCard}
+                  onEmptyRightClick={handleEmptyBattlefieldRightClick}
+                  pan={battlefieldPan}
+                  onPan={setBattlefieldPan}
+                />
+              </Profiler>
+            </div>
 
-        <BattlefieldArrowOverlay
-          arrows={battlefieldArrows}
-          provisionalArrow={provisionalArrow}
-          isDrawing={isArrowMode || Boolean(pendingArrowStart)}
-          interactive
-          onPointerMove={handleArrowPointerMove}
-          onCanvasClick={handleArrowCanvasClick}
-          onDeleteArrow={handleDeleteArrow}
-        />
+            <BattlefieldArrowOverlay
+              arrows={battlefieldArrows}
+              provisionalArrow={provisionalArrow}
+              isDrawing={isArrowMode || Boolean(pendingArrowStart)}
+              interactive
+              onPointerMove={handleArrowPointerMove}
+              onCanvasClick={handleArrowCanvasClick}
+              onDeleteArrow={handleDeleteArrow}
+            />
 
-        <div
-          id="player-side-zone"
-          className="flex flex-row items-stretch justify-end gap-4 -mb-4 relative z-10 pr-3"
-        >
-          <HandZone
-            setRefs={(node) => {
-              handRef.current = node;
-              handDrop.setNodeRef(node);
-            }}
-            isActiveDropTarget={handDrop.isOver}
-            isAnyDragActive={isAnyDragActive}
-            hiddenCardId={hiddenHandCardId}
-            handCards={handCards}
-            onHoverCard={handleHandHover}
-          />
+            <div
+              id="player-side-zone"
+              className="flex flex-row items-stretch justify-end gap-4 -mb-4 relative z-10 pr-3"
+            >
+              <Profiler id="HandZone" onRender={handleProfilerRender}>
+                <HandZone
+                  setRefs={setHandRefs}
+                  isActiveDropTarget={handDrop.isOver}
+                  isAnyDragActive={isAnyDragActive}
+                  hiddenCardId={hiddenHandCardId}
+                  handCards={handCards}
+                  onHoverCard={handleHandHover}
+                />
+              </Profiler>
 
-          <SideZonePanel
-            graveyardTop={graveyardTop}
-            graveyardTopName={graveyardTopInfo?.name ?? "Carta"}
-            graveyardTopImageUrl={graveyardTopInfo?.imageUrl ?? null}
-            graveyardCount={zoneCount("graveyard")}
-            graveyardIsOver={graveyardDrop.isOver}
-            setGraveyardRef={(node) => {
-              graveyardRef.current = node;
-              graveyardDrop.setNodeRef(node);
-            }}
-            onViewGraveyard={() => setZonePreview("graveyard")}
-            onHoverGraveyardTop={handleHoverWithAnchor}
-            exileTop={exileTop}
-            exileTopName={exileTopInfo?.name ?? "Carta"}
-            exileTopImageUrl={exileTopInfo?.imageUrl ?? null}
-            exileCount={zoneCount("exile")}
-            exileIsOver={exileDrop.isOver}
-            setExileRef={(node) => {
-              exileRef.current = node;
-              exileDrop.setNodeRef(node);
-            }}
-            onViewExile={() => setZonePreview("exile")}
-            onHoverExileTop={handleHoverWithAnchor}
-            libraryTopId={libraryTop?.id ?? null}
-            libraryCount={zoneCount("library")}
-            libraryTopIsOver={libraryTopDrop.isOver}
-            libraryBottomIsOver={libraryBottomDrop.isOver}
-            setLibraryTopRef={(node) => {
-              libraryTopRef.current = node;
-              libraryTopDrop.setNodeRef(node);
-            }}
-            setLibraryBottomRef={(node) => {
-              libraryBottomRef.current = node;
-              libraryBottomDrop.setNodeRef(node);
-            }}
-            isAnyDragActive={isAnyDragActive}
-            onDraw={handleDraw}
-          />
-        </div>
-      </section>
+              <Profiler id="SideZonePanel" onRender={handleProfilerRender}>
+                <SideZonePanel
+                  graveyardTop={graveyardTop}
+                  graveyardTopName={graveyardTopInfo?.name ?? "Carta"}
+                  graveyardTopImageUrl={graveyardTopInfo?.imageUrl ?? null}
+                  graveyardCount={graveyardCount}
+                  graveyardIsOver={graveyardDrop.isOver}
+                  setGraveyardRef={setGraveyardRefs}
+                  onViewGraveyard={openGraveyardPreview}
+                  onHoverGraveyardTop={handleHoverWithAnchor}
+                  exileTop={exileTop}
+                  exileTopName={exileTopInfo?.name ?? "Carta"}
+                  exileTopImageUrl={exileTopInfo?.imageUrl ?? null}
+                  exileCount={exileCount}
+                  exileIsOver={exileDrop.isOver}
+                  setExileRef={setExileRefs}
+                  onViewExile={openExilePreview}
+                  onHoverExileTop={handleHoverWithAnchor}
+                  libraryTopId={libraryTop?.id ?? null}
+                  libraryCount={libraryCount}
+                  libraryTopIsOver={libraryTopDrop.isOver}
+                  libraryBottomIsOver={libraryBottomDrop.isOver}
+                  setLibraryTopRef={setLibraryTopRefs}
+                  setLibraryBottomRef={setLibraryBottomRefs}
+                  isAnyDragActive={isAnyDragActive}
+                  onDraw={handleDraw}
+                />
+              </Profiler>
+            </div>
+          </section>
 
-      <PreviewOverlay previewCard={previewCard} previewAnchor={previewAnchor} />
+          <Profiler id="ZonePreviewModal" onRender={handleProfilerRender}>
+            <ZonePreviewModal
+              zone={zonePreview}
+              cards={
+                zonePreview === "graveyard"
+                  ? graveyardPreviewCards
+                  : exilePreviewCards
+              }
+              onClose={closeZonePreview}
+              onHoverCard={handleHoverWithAnchor}
+            />
+          </Profiler>
+
+          <DragOverlay zIndex={400} dropAnimation={null}>
+            {activeDragCard &&
+            (activeDrag?.origin === "battlefield" ||
+              activeDrag?.origin === "library" ||
+              activeDrag?.origin === "graveyard" ||
+              activeDrag?.origin === "exile") ? (
+              <div
+                className="relative"
+                style={{
+                  width: `${BATTLEFIELD_CARD_WIDTH + 24}px`,
+                  height: `${BATTLEFIELD_CARD_HEIGHT + 24}px`,
+                }}
+              >
+                {activeDragCards.slice(0, 3).map((card, index) => (
+                  <div
+                    key={card.instance.id}
+                    className="absolute overflow-hidden rounded-[4px] shadow-2xl ring-1 ring-white/15"
+                    style={{
+                      width: `${BATTLEFIELD_CARD_WIDTH}px`,
+                      height: `${BATTLEFIELD_CARD_HEIGHT}px`,
+                      left: `${index * 12}px`,
+                      top: `${index * 8}px`,
+                      zIndex: index + 1,
+                    }}
+                  >
+                    {card.definition.imageUrl ? (
+                      <Image
+                        src={card.definition.imageUrl}
+                        alt={card.definition.name}
+                        width={BATTLEFIELD_CARD_WIDTH}
+                        height={BATTLEFIELD_CARD_HEIGHT}
+                        className="h-full w-full object-cover"
+                        unoptimized
+                      />
+                    ) : (
+                      <CardBack className="h-full w-full" />
+                    )}
+                  </div>
+                ))}
+
+                {activeDragCards.length > 1 ? (
+                  <div className="absolute right-0 top-0 z-10 flex min-w-8 items-center justify-center rounded-full border border-white/10 bg-black/85 px-2 py-1 text-xs font-bold text-white shadow-lg">
+                    {activeDragCards.length}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+          </DragOverlay>
+
+          {activeDrag && (
+            <div
+              className="pointer-events-none fixed inset-0 z-[150]"
+              aria-hidden="true"
+            />
+          )}
+        </Profiler>
+      </DndContext>
+
+      <HoverPreviewHost ref={hoverPreviewRef} gap={28} />
 
       {cardMenu &&
         (() => {
@@ -1431,7 +1622,7 @@ export function Playmat({
               counters={inst.counters}
               x={cardMenu.x}
               y={cardMenu.y}
-              onClose={() => setCardMenu(null)}
+              onClose={closeCardMenu}
               onAddCounter={(counter) =>
                 handleAddCounter(cardMenu.cardId, counter)
               }
@@ -1447,28 +1638,17 @@ export function Playmat({
         <BattlefieldContextMenu
           x={battlefieldContextMenu.x}
           y={battlefieldContextMenu.y}
-          onClose={() => setBattlefieldContextMenu(null)}
-          onCreateToken={() => setTokenBrowserOpen(true)}
+          onClose={closeBattlefieldContextMenu}
+          onCreateToken={openTokenBrowser}
         />
       )}
 
       {tokenBrowserOpen && (
         <BattlefieldTokenBrowser
-          onClose={() => setTokenBrowserOpen(false)}
+          onClose={closeTokenBrowser}
           onCreateToken={handleCreateTokenFromBrowser}
         />
       )}
-
-      <ZonePreviewModal
-        zone={zonePreview}
-        cards={
-          zonePreview === "graveyard"
-            ? graveyardPreviewCards
-            : exilePreviewCards
-        }
-        onClose={() => setZonePreview(null)}
-        onHoverCard={handleHoverWithAnchor}
-      />
 
       {centerToast ? (
         <div
@@ -1480,62 +1660,6 @@ export function Playmat({
           </div>
         </div>
       ) : null}
-
-      <DragOverlay zIndex={400} dropAnimation={null}>
-        {activeDragCard &&
-        (activeDrag?.origin === "battlefield" ||
-          activeDrag?.origin === "library" ||
-          activeDrag?.origin === "graveyard" ||
-          activeDrag?.origin === "exile") ? (
-          <div
-            className="relative"
-            style={{
-              width: `${BATTLEFIELD_CARD_WIDTH + 24}px`,
-              height: `${BATTLEFIELD_CARD_HEIGHT + 24}px`,
-            }}
-          >
-            {activeDragCards.slice(0, 3).map((card, index) => (
-              <div
-                key={card.instance.id}
-                className="absolute overflow-hidden rounded-[4px] shadow-2xl ring-1 ring-white/15"
-                style={{
-                  width: `${BATTLEFIELD_CARD_WIDTH}px`,
-                  height: `${BATTLEFIELD_CARD_HEIGHT}px`,
-                  left: `${index * 12}px`,
-                  top: `${index * 8}px`,
-                  zIndex: index + 1,
-                }}
-              >
-                {card.definition.imageUrl ? (
-                  <Image
-                    src={card.definition.imageUrl}
-                    alt={card.definition.name}
-                    width={BATTLEFIELD_CARD_WIDTH}
-                    height={BATTLEFIELD_CARD_HEIGHT}
-                    className="h-full w-full object-cover"
-                    unoptimized
-                  />
-                ) : (
-                  <CardBack className="h-full w-full" />
-                )}
-              </div>
-            ))}
-
-            {activeDragCards.length > 1 ? (
-              <div className="absolute right-0 top-0 z-10 flex min-w-8 items-center justify-center rounded-full border border-white/10 bg-black/85 px-2 py-1 text-xs font-bold text-white shadow-lg">
-                {activeDragCards.length}
-              </div>
-            ) : null}
-          </div>
-        ) : null}
-      </DragOverlay>
-
-      {activeDrag && (
-        <div
-          className="pointer-events-none fixed inset-0 z-[150]"
-          aria-hidden="true"
-        />
-      )}
-    </DndContext>
+    </>
   );
 }

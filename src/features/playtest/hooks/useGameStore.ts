@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback, useMemo } from "react";
 import {
   selectActivePlayer,
   selectAllCardsByZone,
@@ -27,41 +28,77 @@ export function useGameStore() {
     activePings,
   } = useGameContext();
 
-  const player = selectPlayer(state, localPlayerId);
-  const activePlayer = selectActivePlayer(state);
-  const allZones = selectAllCardsByZone(state, localPlayerId);
-  const battlefieldLands = selectBattlefieldLands(state, localPlayerId);
-  const battlefieldNonLands = selectBattlefieldNonLands(state, localPlayerId);
+  const player = useMemo(
+    () => selectPlayer(state, localPlayerId),
+    [state, localPlayerId],
+  );
+  const activePlayer = useMemo(() => selectActivePlayer(state), [state]);
+  const allZones = useMemo(
+    () => selectAllCardsByZone(state, localPlayerId),
+    [state, localPlayerId],
+  );
+  const battlefieldLands = useMemo(
+    () => selectBattlefieldLands(state, localPlayerId),
+    [state, localPlayerId],
+  );
+  const battlefieldNonLands = useMemo(
+    () => selectBattlefieldNonLands(state, localPlayerId),
+    [state, localPlayerId],
+  );
 
-  function zoneCount(zone: ZoneName) {
-    return selectZoneCount(state, localPlayerId, zone);
-  }
+  const zoneCount = useCallback(
+    (zone: ZoneName) => selectZoneCount(state, localPlayerId, zone),
+    [state, localPlayerId],
+  );
 
-  function cardWithDef(cardId: string) {
-    return selectCardWithDefinition(state, cardId);
-  }
+  const cardWithDef = useCallback(
+    (cardId: string) => selectCardWithDefinition(state, cardId),
+    [state],
+  );
 
-  function cardName(cardId: string) {
-    return selectCardName(state, cardId);
-  }
+  const cardName = useCallback(
+    (cardId: string) => selectCardName(state, cardId),
+    [state],
+  );
 
-  return {
-    state,
-    dispatch,
-    undo,
-    redo,
-    reset,
-    canUndo,
-    canRedo,
-    localPlayerId,
-    player,
-    activePlayer,
-    allZones,
-    battlefieldLands,
-    battlefieldNonLands,
-    zoneCount,
-    cardWithDef,
-    cardName,
-    activePings,
-  };
+  return useMemo(
+    () => ({
+      state,
+      dispatch,
+      undo,
+      redo,
+      reset,
+      canUndo,
+      canRedo,
+      localPlayerId,
+      player,
+      activePlayer,
+      allZones,
+      battlefieldLands,
+      battlefieldNonLands,
+      zoneCount,
+      cardWithDef,
+      cardName,
+      activePings,
+    }),
+    [
+      state,
+      dispatch,
+      undo,
+      redo,
+      reset,
+      canUndo,
+      canRedo,
+      localPlayerId,
+      player,
+      activePlayer,
+      allZones,
+      battlefieldLands,
+      battlefieldNonLands,
+      zoneCount,
+      cardWithDef,
+      cardName,
+      activePings,
+    ],
+  );
 }

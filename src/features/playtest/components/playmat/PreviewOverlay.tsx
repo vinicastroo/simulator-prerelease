@@ -1,14 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { CardPreview } from "../CardPreview";
+import {
+  CardPreview,
+  getCardPreviewHeight,
+  PREVIEW_WIDTH,
+} from "../CardPreview";
 import type { CardHoverInfo, PreviewAnchor } from "./types";
 
-const PREVIEW_WIDTH = 340;
-const PREVIEW_HEIGHT = 475;
 const PREVIEW_MARGIN = 16;
-const PREVIEW_GAP = 2;
+const DEFAULT_PREVIEW_GAP = 16;
 
 function getPreviewScale(viewportWidth: number) {
   if (viewportWidth >= 1024) return 0.85;
@@ -20,82 +22,99 @@ type PreviewOverlayProps = {
   previewCard: CardHoverInfo | null;
   previewAnchor: PreviewAnchor | null;
   preferBelow?: boolean;
+  gap?: number;
 };
 
-export function PreviewOverlay({
+export const PreviewOverlay = memo(function PreviewOverlay({
   previewCard,
   previewAnchor,
   preferBelow = false,
+  gap = DEFAULT_PREVIEW_GAP,
 }: PreviewOverlayProps) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  if (!previewCard || !previewAnchor || !mounted) return null;
+  const { left, top, previewWidth, previewHeight, scale } = useMemo(() => {
+    if (!previewAnchor) {
+      return {
+        left: 0,
+        top: 0,
+        previewWidth: 0,
+        previewHeight: 0,
+        scale: 1,
+      };
+    }
 
-  const viewportWidth =
-    typeof window === "undefined" ? 1280 : window.innerWidth;
-  const viewportHeight =
-    typeof window === "undefined" ? 720 : window.innerHeight;
-  const scale = getPreviewScale(viewportWidth);
-  const previewWidth = PREVIEW_WIDTH * scale;
-  const previewHeight = PREVIEW_HEIGHT * scale;
-  const verticalOffset = Math.min(24, previewWidth * 0.06);
-  const availableAbove = previewAnchor.y - PREVIEW_MARGIN;
-  const availableBelow = viewportHeight - previewAnchor.y - PREVIEW_MARGIN;
-  const availableRight = viewportWidth - previewAnchor.x - PREVIEW_MARGIN;
-  const availableLeft = previewAnchor.x - PREVIEW_MARGIN;
+    const viewportWidth =
+      typeof window === "undefined" ? 1280 : window.innerWidth;
+    const viewportHeight =
+      typeof window === "undefined" ? 720 : window.innerHeight;
+    const previewHeightBase = getCardPreviewHeight(previewCard ?? {});
+    const scale = getPreviewScale(viewportWidth);
+    const previewWidth = PREVIEW_WIDTH * scale;
+    const previewHeight = previewHeightBase * scale;
+    const verticalOffset = Math.min(24, previewWidth * 0.06);
+    const availableAbove = previewAnchor.y - PREVIEW_MARGIN;
+    const availableBelow = viewportHeight - previewAnchor.y - PREVIEW_MARGIN;
+    const availableRight = viewportWidth - previewAnchor.x - PREVIEW_MARGIN;
+    const availableLeft = previewAnchor.x - PREVIEW_MARGIN;
 
-  let left = previewAnchor.x - verticalOffset;
-  let top = preferBelow
-    ? previewAnchor.y + PREVIEW_GAP
-    : previewAnchor.y - previewHeight - PREVIEW_GAP;
+    let left = previewAnchor.x - verticalOffset;
+    let top = preferBelow
+      ? previewAnchor.y + gap
+      : previewAnchor.y - previewHeight - gap;
 
-  if (preferBelow) {
-    if (availableBelow >= previewHeight) {
+    if (preferBelow) {
+      if (availableBelow >= previewHeight) {
+        left = previewAnchor.x - verticalOffset;
+        top = previewAnchor.y + gap;
+      } else if (availableRight >= previewWidth) {
+        left = previewAnchor.x + gap;
+        top = previewAnchor.y - previewHeight / 2;
+      } else if (availableLeft >= previewWidth) {
+        left = previewAnchor.x - previewWidth - gap;
+        top = previewAnchor.y - previewHeight / 2;
+      } else {
+        left = previewAnchor.x - verticalOffset;
+        top = previewAnchor.y - previewHeight - gap;
+      }
+    } else if (availableAbove >= previewHeight) {
       left = previewAnchor.x - verticalOffset;
-      top = previewAnchor.y + PREVIEW_GAP;
+      top = previewAnchor.y - previewHeight - gap;
     } else if (availableRight >= previewWidth) {
-      left = previewAnchor.x + PREVIEW_GAP;
+      left = previewAnchor.x + gap;
       top = previewAnchor.y - previewHeight / 2;
     } else if (availableLeft >= previewWidth) {
-      left = previewAnchor.x - previewWidth - PREVIEW_GAP;
+      left = previewAnchor.x - previewWidth - gap;
       top = previewAnchor.y - previewHeight / 2;
-    } else {
+    } else if (availableBelow >= previewHeight) {
       left = previewAnchor.x - verticalOffset;
-      top = previewAnchor.y - previewHeight - PREVIEW_GAP;
+      top = previewAnchor.y + gap;
+    } else {
+      top = Math.max(
+        PREVIEW_MARGIN,
+        Math.min(
+          previewAnchor.y - previewHeight / 2,
+          viewportHeight - previewHeight - PREVIEW_MARGIN,
+        ),
+      );
     }
-  } else if (availableAbove >= previewHeight) {
-    left = previewAnchor.x - verticalOffset;
-    top = previewAnchor.y - previewHeight - PREVIEW_GAP;
-  } else if (availableRight >= previewWidth) {
-    left = previewAnchor.x + PREVIEW_GAP;
-    top = previewAnchor.y - previewHeight / 2;
-  } else if (availableLeft >= previewWidth) {
-    left = previewAnchor.x - previewWidth - PREVIEW_GAP;
-    top = previewAnchor.y - previewHeight / 2;
-  } else if (availableBelow >= previewHeight) {
-    left = previewAnchor.x - verticalOffset;
-    top = previewAnchor.y + PREVIEW_GAP;
-  } else {
+
+    left = Math.max(
+      PREVIEW_MARGIN,
+      Math.min(left, viewportWidth - previewWidth - PREVIEW_MARGIN),
+    );
     top = Math.max(
       PREVIEW_MARGIN,
-      Math.min(
-        previewAnchor.y - previewHeight / 2,
-        viewportHeight - previewHeight - PREVIEW_MARGIN,
-      ),
+      Math.min(top, viewportHeight - previewHeight - PREVIEW_MARGIN),
     );
-  }
 
-  left = Math.max(
-    PREVIEW_MARGIN,
-    Math.min(left, viewportWidth - previewWidth - PREVIEW_MARGIN),
-  );
-  top = Math.max(
-    PREVIEW_MARGIN,
-    Math.min(top, viewportHeight - previewHeight - PREVIEW_MARGIN),
-  );
+    return { left, top, previewWidth, previewHeight, scale };
+  }, [gap, preferBelow, previewAnchor, previewCard]);
+
+  if (!previewCard || !previewAnchor || !mounted) return null;
 
   return createPortal(
     <div
@@ -122,4 +141,4 @@ export function PreviewOverlay({
     </div>,
     document.body,
   );
-}
+});

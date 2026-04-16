@@ -1,5 +1,5 @@
 import type { WheelEvent } from "react";
-import { useCallback, useRef, useState } from "react";
+import { memo, useCallback, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { CardInstance } from "@/lib/game/types";
 import { BattlefieldCard } from "./BattlefieldCard";
@@ -71,7 +71,7 @@ type BattlefieldAreaProps = {
   onEmptyRightClick?: (x: number, y: number) => void;
 };
 
-export function BattlefieldArea({
+export const BattlefieldArea = memo(function BattlefieldArea({
   setRefs,
   isActiveDropTarget,
   isAnyDragActive,
@@ -251,9 +251,9 @@ export function BattlefieldArea({
         isRollingForFirstTurn
           ? "animate-pulse border-violet-300 shadow-[0_0_0_2px_rgba(196,181,253,0.5),0_0_34px_rgba(168,85,247,0.35)]"
           : isActiveTurn && orientation === "bottom"
-            ? "battlefield-active-turn"
+            ? "border-emerald-300/30 shadow-[0_0_0_1px_rgba(52,211,153,0.18),0_0_24px_rgba(52,211,153,0.18)]"
             : isActiveTurn && orientation === "top"
-              ? "border-amber-400/50 shadow-[0_0_0_1px_rgba(251,191,36,0.2),0_0_24px_rgba(251,191,36,0.14)]"
+              ? "border-amber-300/30 shadow-[0_0_0_1px_rgba(252,211,77,0.16),0_0_24px_rgba(251,191,36,0.14)]"
               : "border-dashed border-white/15"
       } ${
         interactive && isAnyDragActive
@@ -264,6 +264,16 @@ export function BattlefieldArea({
       }`}
       onWheel={onWheel}
     >
+      {isActiveTurn && !isRollingForFirstTurn ? (
+        <div
+          className={`pointer-events-none absolute inset-0 z-[5] rounded-2xl ${
+            orientation === "bottom"
+              ? "battlefield-active-turn-overlay"
+              : "battlefield-active-turn-overlay-opponent"
+          }`}
+        />
+      ) : null}
+
       {/*
         Backdrop: covers 100% of the container at all times.
         - Renders the infinite grid in screen-space so it never has edges.
@@ -334,33 +344,13 @@ export function BattlefieldArea({
               isSelected={selectedCardIds?.has(card.id)}
               isGhosted={hiddenCardIds?.has(card.id)}
               selectionCount={selectedCardIds?.size ?? 0}
-              onSelect={
-                onSelectCard
-                  ? (additive) => onSelectCard(card.id, additive)
-                  : undefined
-              }
-              onHover={
-                onHoverCard
-                  ? (info, target) => onHoverCard(card.id, info, target)
-                  : () => {}
-              }
+              onSelect={onSelectCard}
+              onHover={onHoverCard ?? noopHover}
               isPinged={activePings?.has(card.id)}
-              onPing={onPingCard ? () => onPingCard(card.id) : undefined}
-              onModifyPT={
-                onModifyCardPT
-                  ? (pd, td) => onModifyCardPT(card.id, pd, td)
-                  : undefined
-              }
-              onModifyLoyalty={
-                onModifyCardLoyalty
-                  ? (d) => onModifyCardLoyalty(card.id, d)
-                  : undefined
-              }
-              onRightClick={
-                onRightClickCard
-                  ? (x, y) => onRightClickCard(card.id, x, y)
-                  : undefined
-              }
+              onPing={onPingCard}
+              onModifyPT={onModifyCardPT}
+              onModifyLoyalty={onModifyCardLoyalty}
+              onRightClick={onRightClickCard}
             />
           ),
         )}
@@ -450,4 +440,6 @@ export function BattlefieldArea({
       )}
     </div>
   );
-}
+});
+
+function noopHover() {}

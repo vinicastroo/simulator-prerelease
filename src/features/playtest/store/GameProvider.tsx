@@ -6,6 +6,7 @@ import {
   type ReactNode,
   useCallback,
   useContext,
+  useMemo,
   useReducer,
   useRef,
 } from "react";
@@ -135,23 +136,22 @@ export function GameProvider({
   const redo = useCallback(() => setHistory({ type: "__redo" }), []);
   const reset = useCallback(() => setHistory({ type: "__reset" }), []);
 
-  return (
-    <GameContext.Provider
-      value={{
-        state: history.present,
-        dispatch,
-        undo,
-        redo,
-        reset,
-        canUndo: canUndo(history),
-        canRedo: canRedo(history),
-        localPlayerId,
-        activePings: new Set<string>(),
-      }}
-    >
-      {children}
-    </GameContext.Provider>
+  const value = useMemo(
+    () => ({
+      state: history.present,
+      dispatch,
+      undo,
+      redo,
+      reset,
+      canUndo: canUndo(history),
+      canRedo: canRedo(history),
+      localPlayerId,
+      activePings: new Set<string>(),
+    }),
+    [history, dispatch, undo, redo, reset, localPlayerId],
   );
+
+  return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────

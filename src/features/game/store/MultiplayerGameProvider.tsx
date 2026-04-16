@@ -7,6 +7,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useReducer,
   useRef,
   useState,
@@ -282,6 +283,11 @@ export function MultiplayerGameProvider({
   useEffect(() => {
     const client = getPusherClient();
     const channel = client.subscribe(`game-${roomId}`);
+    const handleConnected = () => {
+      setIsConnected(true);
+      void resyncState();
+    };
+    const handleDisconnected = () => setIsConnected(false);
 
     channel.bind("pusher:subscription_succeeded", () => setIsConnected(true));
     channel.bind("pusher:subscription_error", () => setIsConnected(false));
@@ -354,46 +360,84 @@ export function MultiplayerGameProvider({
 
     setIsConnected(true);
 
-    // Reconnect → resync
-    client.connection.bind("connected", () => {
-      setIsConnected(true);
+    // On mount: resync immediately if the SSR snapshot has either reset flag set.
+    // This clears stale hostReady/guestReady values that may have been left over
+    // from the lobby "ready" flow (e.g. a player who missed the game-started
+    // Pusher event and clicked ready again while the game was already ACTIVE).
+    if (initialHostResetAccepted || initialGuestResetAccepted) {
       void resyncState();
-    });
+    }
 
-    client.connection.bind("disconnected", () => setIsConnected(false));
+    // Reconnect → resync
+    client.connection.bind("connected", handleConnected);
+    client.connection.bind("disconnected", handleDisconnected);
 
     return () => {
       channel.unbind_all();
       client.unsubscribe(`game-${roomId}`);
+      client.connection.unbind("connected", handleConnected);
+      client.connection.unbind("disconnected", handleDisconnected);
     };
-  }, [roomId, myUserId, addPing, resyncState]);
+  }, [
+    roomId,
+    myUserId,
+    addPing,
+    resyncState,
+    initialHostResetAccepted,
+    initialGuestResetAccepted,
+  ]);
+
+  const value = useMemo(
+    () => ({
+      state,
+      dispatch,
+      requestReset,
+      cancelReset,
+      keepOpeningHand,
+      localPlayerId,
+      opponentPlayerId,
+      roomId,
+      isConnected,
+      myRole,
+      myUserId,
+      activePings,
+      hostResetAccepted,
+      guestResetAccepted,
+      isResetPending,
+      stateVersion,
+      resetSyncVersion,
+      isFirstPlayerRollActive,
+      firstPlayerRollWinnerId,
+      isActionPending: pendingActionCount > 0,
+      mulliganToastMessage,
+    }),
+    [
+      state,
+      dispatch,
+      requestReset,
+      cancelReset,
+      keepOpeningHand,
+      localPlayerId,
+      opponentPlayerId,
+      roomId,
+      isConnected,
+      myRole,
+      myUserId,
+      activePings,
+      hostResetAccepted,
+      guestResetAccepted,
+      isResetPending,
+      stateVersion,
+      resetSyncVersion,
+      isFirstPlayerRollActive,
+      firstPlayerRollWinnerId,
+      pendingActionCount,
+      mulliganToastMessage,
+    ],
+  );
 
   return (
-    <MultiplayerGameContext.Provider
-      value={{
-        state,
-        dispatch,
-        requestReset,
-        cancelReset,
-        keepOpeningHand,
-        localPlayerId,
-        opponentPlayerId,
-        roomId,
-        isConnected,
-        myRole,
-        myUserId,
-        activePings,
-        hostResetAccepted,
-        guestResetAccepted,
-        isResetPending,
-        stateVersion,
-        resetSyncVersion,
-        isFirstPlayerRollActive,
-        firstPlayerRollWinnerId,
-        isActionPending: pendingActionCount > 0,
-        mulliganToastMessage,
-      }}
-    >
+    <MultiplayerGameContext.Provider value={value}>
       {children}
     </MultiplayerGameContext.Provider>
   );

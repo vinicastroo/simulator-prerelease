@@ -1,5 +1,3 @@
-"use client";
-
 import type { GameRoomStatus } from "@prisma/client";
 import { GameLobby } from "@/features/game/components/GameLobby";
 import type { GameState } from "@/lib/game/types";

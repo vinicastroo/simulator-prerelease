@@ -176,6 +176,7 @@ export async function addBasicLandsToKit(
     ),
   );
 
-  revalidatePath(`/simulator/${kitId}`);
+  // No revalidatePath here — the client handles the optimistic update immediately
+  // and replaces placeholders with real data from the returned createdCards.
   return createdCards;
 }

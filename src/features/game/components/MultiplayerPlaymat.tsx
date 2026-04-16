@@ -6,6 +6,7 @@ import Image from "next/image";
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type WheelEvent,
@@ -53,6 +54,8 @@ type OpponentStackInfo = {
   topName: string;
   topImageUrl: string | null;
 };
+
+const EMPTY_STACK_INFO: OpponentStackInfo = { topName: "", topImageUrl: null };
 
 type OpponentBattlefieldCard = {
   card: CardInstance;
@@ -163,22 +166,31 @@ export function MultiplayerPlaymat({
     }
   }, [localPlayer?.zones.hand.length]);
 
-  const openingHandCards = (localPlayer?.zones.hand ?? [])
-    .map((cardId) => {
-      const instance = multiCtx.state.cardInstances[cardId];
-      if (!instance) return null;
-      const definition = multiCtx.state.cardDefinitions[instance.definitionId];
-      if (!definition) return null;
-      return {
-        id: cardId,
-        name: definition.name,
-        imageUrl: definition.imageUrl,
-      };
-    })
-    .filter(
-      (c): c is { id: string; name: string; imageUrl: string | null } =>
-        c !== null,
-    );
+  const openingHandCards = useMemo(
+    () =>
+      (localPlayer?.zones.hand ?? [])
+        .map((cardId) => {
+          const instance = multiCtx.state.cardInstances[cardId];
+          if (!instance) return null;
+          const definition =
+            multiCtx.state.cardDefinitions[instance.definitionId];
+          if (!definition) return null;
+          return {
+            id: cardId,
+            name: definition.name,
+            imageUrl: definition.imageUrl,
+          };
+        })
+        .filter(
+          (c): c is { id: string; name: string; imageUrl: string | null } =>
+            c !== null,
+        ),
+    [
+      localPlayer?.zones.hand,
+      multiCtx.state.cardDefinitions,
+      multiCtx.state.cardInstances,
+    ],
+  );
 
   const isPreparing =
     isOpeningHandOpen &&
@@ -273,106 +285,131 @@ export function MultiplayerPlaymat({
   );
 
   // Build a GameContext value that bridges multiplayer state → solo Playmat
-  const gameCtxValue: GameContextValue = {
-    state: multiCtx.state,
-    dispatch: multiCtx.dispatch,
-    undo: () => {},
-    redo: () => {},
-    reset: () => {},
-    canUndo: false,
-    canRedo: false,
-    localPlayerId: multiCtx.localPlayerId,
-    activePings: multiCtx.activePings,
-  };
+  const noop = useCallback(() => {}, []);
+
+  const gameCtxValue: GameContextValue = useMemo(
+    () => ({
+      state: multiCtx.state,
+      dispatch: multiCtx.dispatch,
+      undo: noop,
+      redo: noop,
+      reset: noop,
+      canUndo: false,
+      canRedo: false,
+      localPlayerId: multiCtx.localPlayerId,
+      activePings: multiCtx.activePings,
+    }),
+    [
+      multiCtx.state,
+      multiCtx.dispatch,
+      multiCtx.localPlayerId,
+      multiCtx.activePings,
+      noop,
+    ],
+  );
 
   const { state, opponentPlayerId } = multiCtx;
-  const opponentZones = selectAllCardsByZone(state, opponentPlayerId);
+  const opponentZones = useMemo(
+    () => selectAllCardsByZone(state, opponentPlayerId),
+    [state, opponentPlayerId],
+  );
   const opponentPlayer = state.players[opponentPlayerId] ?? null;
 
-  const opponentBattlefieldCards: OpponentBattlefieldCard[] =
-    opponentZones.battlefield.map((card) => {
-      const selected = selectCardWithDefinition(state, card.id);
-      const definitionType = selected?.definition.type ?? "";
-      const cardType = card.tokenData?.type ?? definitionType;
-      const power = selected?.definition.power ?? card.tokenData?.power ?? null;
-      const toughness =
-        selected?.definition.toughness ?? card.tokenData?.toughness ?? null;
+  const opponentBattlefieldCards: OpponentBattlefieldCard[] = useMemo(
+    () =>
+      opponentZones.battlefield.map((card) => {
+        const selected = selectCardWithDefinition(state, card.id);
+        const definitionType = selected?.definition.type ?? "";
+        const cardType = card.tokenData?.type ?? definitionType;
+        const power =
+          selected?.definition.power ?? card.tokenData?.power ?? null;
+        const toughness =
+          selected?.definition.toughness ?? card.tokenData?.toughness ?? null;
 
-      return {
-        card,
-        name: selected?.definition.name ?? "carta",
-        imageUrl: card.faceDown
-          ? null
-          : (selected?.definition.imageUrl ?? null),
-        manaCost: selected?.definition.manaCost ?? "",
-        cardType,
-        power,
-        toughness,
-      };
-    });
+        return {
+          card,
+          name: selected?.definition.name ?? "carta",
+          imageUrl: card.faceDown
+            ? null
+            : (selected?.definition.imageUrl ?? null),
+          manaCost: selected?.definition.manaCost ?? "",
+          cardType,
+          power,
+          toughness,
+        };
+      }),
+    [opponentZones.battlefield, state],
+  );
   // Mirror the opponent's arrow Y coordinates: the opponent drew them relative to
   // their own screen (battlefield at the bottom), but we display their battlefield
   // at the top of our screen, so Y must be flipped (y' = 1 - y).
-  const opponentBattlefieldArrows = (state.battlefieldArrows ?? [])
-    .filter((arrow) => arrow.playerId === opponentPlayerId)
-    .map((arrow) => ({
-      ...arrow,
-      start: { x: arrow.start.x, y: 1 - arrow.start.y },
-      end: { x: arrow.end.x, y: 1 - arrow.end.y },
-    }));
+  const opponentBattlefieldArrows = useMemo(
+    () =>
+      (state.battlefieldArrows ?? [])
+        .filter((arrow) => arrow.playerId === opponentPlayerId)
+        .map((arrow) => ({
+          ...arrow,
+          start: { x: arrow.start.x, y: 1 - arrow.start.y },
+          end: { x: arrow.end.x, y: 1 - arrow.end.y },
+        })),
+    [state.battlefieldArrows, opponentPlayerId],
+  );
 
   const opponentGraveyardTop = opponentZones.graveyard.at(-1);
   const opponentExileTop = opponentZones.exile.at(-1);
 
-  const emptyStackInfo: OpponentStackInfo = { topName: "", topImageUrl: null };
+  const opponentGraveyardTopInfo: OpponentStackInfo = useMemo(() => {
+    if (!opponentGraveyardTop) return EMPTY_STACK_INFO;
+    const sel = selectCardWithDefinition(state, opponentGraveyardTop.id);
+    return {
+      topName: sel?.definition.name ?? "Carta",
+      topImageUrl: sel?.definition.imageUrl ?? null,
+    };
+  }, [opponentGraveyardTop, state]);
 
-  const opponentGraveyardTopInfo: OpponentStackInfo = opponentGraveyardTop
-    ? (() => {
-        const sel = selectCardWithDefinition(state, opponentGraveyardTop.id);
+  const opponentExileTopInfo: OpponentStackInfo = useMemo(() => {
+    if (!opponentExileTop) return EMPTY_STACK_INFO;
+    const sel = selectCardWithDefinition(state, opponentExileTop.id);
+    return {
+      topName: sel?.definition.name ?? "Carta",
+      topImageUrl: sel?.definition.imageUrl ?? null,
+    };
+  }, [opponentExileTop, state]);
+
+  const opponentGraveyardPreviewCards: ZonePreviewCard[] = useMemo(
+    () =>
+      opponentZones.graveyard.map((card) => {
+        const sel = selectCardWithDefinition(state, card.id);
         return {
-          topName: sel?.definition.name ?? "Carta",
-          topImageUrl: sel?.definition.imageUrl ?? null,
+          id: card.id,
+          name:
+            card.customName ??
+            card.tokenData?.name ??
+            sel?.definition.name ??
+            "Carta",
+          imageUrl:
+            card.tokenData?.imageUrl ?? sel?.definition.imageUrl ?? null,
         };
-      })()
-    : emptyStackInfo;
+      }),
+    [opponentZones.graveyard, state],
+  );
 
-  const opponentExileTopInfo: OpponentStackInfo = opponentExileTop
-    ? (() => {
-        const sel = selectCardWithDefinition(state, opponentExileTop.id);
+  const opponentExilePreviewCards: ZonePreviewCard[] = useMemo(
+    () =>
+      opponentZones.exile.map((card) => {
+        const sel = selectCardWithDefinition(state, card.id);
         return {
-          topName: sel?.definition.name ?? "Carta",
-          topImageUrl: sel?.definition.imageUrl ?? null,
+          id: card.id,
+          name:
+            card.customName ??
+            card.tokenData?.name ??
+            sel?.definition.name ??
+            "Carta",
+          imageUrl:
+            card.tokenData?.imageUrl ?? sel?.definition.imageUrl ?? null,
         };
-      })()
-    : emptyStackInfo;
-
-  const opponentGraveyardPreviewCards: ZonePreviewCard[] =
-    opponentZones.graveyard.map((card) => {
-      const sel = selectCardWithDefinition(state, card.id);
-      return {
-        id: card.id,
-        name:
-          card.customName ??
-          card.tokenData?.name ??
-          sel?.definition.name ??
-          "Carta",
-        imageUrl: card.tokenData?.imageUrl ?? sel?.definition.imageUrl ?? null,
-      };
-    });
-
-  const opponentExilePreviewCards: ZonePreviewCard[] = opponentZones.exile.map(
-    (card) => {
-      const sel = selectCardWithDefinition(state, card.id);
-      return {
-        id: card.id,
-        name:
-          card.customName ??
-          card.tokenData?.name ??
-          sel?.definition.name ??
-          "Carta",
-        imageUrl: card.tokenData?.imageUrl ?? sel?.definition.imageUrl ?? null,
-      };
-    },
+      }),
+    [opponentZones.exile, state],
   );
 
   return (
@@ -531,6 +568,7 @@ export function MultiplayerPlaymat({
         previewCard={opponentPreviewCard}
         previewAnchor={opponentPreviewAnchor}
         preferBelow
+        gap={28}
       />
 
       {isWaitingForOpponentKeep && (
@@ -707,7 +745,9 @@ function TurnIndicator({
   isMyTurn: boolean;
 }) {
   const accentColor = isMyTurn ? "#7fb08f" : "#9aa8c4";
-  const borderColor = isMyTurn ? "rgba(127,176,143,0.35)" : "rgba(154,168,196,0.2)";
+  const borderColor = isMyTurn
+    ? "rgba(127,176,143,0.35)"
+    : "rgba(154,168,196,0.2)";
   const glowColor = isMyTurn
     ? "0 0 18px rgba(127,176,143,0.18)"
     : "0 2px 12px rgba(0,0,0,0.4)";
@@ -735,11 +775,11 @@ function TurnIndicator({
       )}
 
       {/* Arrow: up = opponent's turn, down = my turn */}
-      {isMyTurn
-        ? <ArrowDown size={14} style={{ color: accentColor }} />
-        : <ArrowUp size={14} style={{ color: accentColor }} />
-      }
+      {isMyTurn ? (
+        <ArrowDown size={14} style={{ color: accentColor }} />
+      ) : (
+        <ArrowUp size={14} style={{ color: accentColor }} />
+      )}
     </div>
   );
 }
-
