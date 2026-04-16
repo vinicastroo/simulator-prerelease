@@ -190,6 +190,18 @@ export function MultiplayerPlaymat({
     hasKeptOpeningHand &&
     !opponentHasKeptOpeningHand;
   const isRollingFirstPlayer = multiCtx.isFirstPlayerRollActive;
+  const firstPlayerRollWinnerId = multiCtx.firstPlayerRollWinnerId;
+
+  // Show "X vai primeiro!" for 2 s after the roll animation ends
+  const [rollResultWinnerId, setRollResultWinnerId] = useState<string | null>(
+    null,
+  );
+  useEffect(() => {
+    if (isRollingFirstPlayer || !firstPlayerRollWinnerId) return;
+    setRollResultWinnerId(firstPlayerRollWinnerId);
+    const t = window.setTimeout(() => setRollResultWinnerId(null), 2000);
+    return () => window.clearTimeout(t);
+  }, [isRollingFirstPlayer, firstPlayerRollWinnerId]);
 
   const [opponentBattlefieldZoom, setOpponentBattlefieldZoom] =
     useState(BATTLEFIELD_ZOOM_MIN);
@@ -532,14 +544,25 @@ export function MultiplayerPlaymat({
         </div>
       )}
 
-      {isRollingFirstPlayer && (
+      {(isRollingFirstPlayer || rollResultWinnerId) && (
         <div className="pointer-events-none fixed inset-x-0 top-5 z-[650] flex justify-center px-4">
-          <div className="flex items-center gap-3 rounded-2xl border border-violet-400/35 bg-violet-950/88 px-5 py-2.5 shadow-[0_8px_32px_rgba(167,139,250,0.25)] backdrop-blur-md">
-            <span className="h-2 w-2 animate-ping rounded-full bg-violet-400" />
-            <span className="text-[13px] font-semibold text-violet-100">
-              Sorteando quem joga primeiro...
-            </span>
-          </div>
+          {isRollingFirstPlayer ? (
+            <div className="flex items-center gap-3 rounded-2xl border border-violet-400/35 bg-violet-950/88 px-5 py-2.5 shadow-[0_8px_32px_rgba(167,139,250,0.25)] backdrop-blur-md">
+              <span className="h-2 w-2 animate-ping rounded-full bg-violet-400" />
+              <span className="text-[13px] font-semibold text-violet-100">
+                Sorteando quem joga primeiro...
+              </span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3 rounded-2xl border border-violet-400/60 bg-violet-950/95 px-5 py-2.5 shadow-[0_8px_32px_rgba(167,139,250,0.35)] backdrop-blur-md">
+              <span className="text-base">🎲</span>
+              <span className="text-[13px] font-semibold text-violet-100">
+                {rollResultWinnerId === multiCtx.localPlayerId
+                  ? "Você vai primeiro!"
+                  : `${multiCtx.state.players[rollResultWinnerId ?? ""]?.name ?? "Oponente"} vai primeiro!`}
+              </span>
+            </div>
+          )}
         </div>
       )}
 
