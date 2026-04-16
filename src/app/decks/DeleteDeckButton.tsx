@@ -11,8 +11,18 @@ export function DeleteDeckButton({ deckId }: { deckId: string }) {
 
   async function handleDelete() {
     setLoading(true);
-    await fetch(`/api/deck/${deckId}`, { method: "DELETE" });
-    router.refresh();
+    try {
+      const res = await fetch(`/api/deck/${deckId}`, { method: "DELETE" });
+      if (!res.ok) {
+        setLoading(false);
+        setConfirming(false);
+        return;
+      }
+      router.refresh();
+    } catch {
+      setLoading(false);
+      setConfirming(false);
+    }
   }
 
   if (confirming) {

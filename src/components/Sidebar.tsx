@@ -20,9 +20,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { Input } from "@/components/ui/input";
 import {
   type PlacedCardState,
   usePrerelease,
@@ -78,8 +78,7 @@ function sortCards(cards: PlacedCardState[], mode: SortMode = "cmc") {
     switch (mode) {
       case "cmc":
         return (
-          a.card.cmc - b.card.cmc ||
-          a.card.name.localeCompare(b.card.name)
+          a.card.cmc - b.card.cmc || a.card.name.localeCompare(b.card.name)
         );
       case "rarity":
         return (
@@ -96,6 +95,8 @@ function sortCards(cards: PlacedCardState[], mode: SortMode = "cmc") {
         );
       case "name":
         return a.card.name.localeCompare(b.card.name);
+      default:
+        return 0;
     }
   });
 }
@@ -142,7 +143,10 @@ export function Sidebar() {
     useState(false);
   const [mainDeckSort, setMainDeckSort] = useState<SortMode>("cmc");
 
-  const mainDeck = sortCards(cards.filter((c) => c.isMainDeck === true), mainDeckSort);
+  const mainDeck = sortCards(
+    cards.filter((c) => c.isMainDeck === true),
+    mainDeckSort,
+  );
   const sideboard = sortCards(cards.filter((c) => c.isMainDeck === false));
   const groupedMainDeck = groupDeckCards(mainDeck);
   const groupedSideboard = groupDeckCards(sideboard);
@@ -150,7 +154,9 @@ export function Sidebar() {
     c.card.typeLine.includes("Creature"),
   ).length;
   const colorCounts = getColorCounts(mainDeck);
-  const recommendedLands = recommendBasicLands(cards.filter((c) => c.isMainDeck === true));
+  const recommendedLands = recommendBasicLands(
+    cards.filter((c) => c.isMainDeck === true),
+  );
   const currentLands = currentBasicLandCounts(mainDeck);
   const curveEntries = getManaCurve(mainDeck);
 
@@ -435,14 +441,19 @@ export function Sidebar() {
                     <span className="font-mono text-[22px] font-black leading-none tabular-nums text-[#d8e4ff]">
                       {mainDeck.length}
                     </span>
-                    <span className="font-mono text-[9px] text-white/30">/40</span>
+                    <span className="font-mono text-[9px] text-white/30">
+                      /40
+                    </span>
                   </div>
                 </div>
 
                 {/* Color breakdown */}
                 <div className="mt-3 flex items-center justify-between">
                   {COLOR_ORDER.map((color) => (
-                    <div key={color} className="flex flex-col items-center gap-1.5">
+                    <div
+                      key={color}
+                      className="flex flex-col items-center gap-1.5"
+                    >
                       <span className="relative h-4 w-4 flex-shrink-0">
                         <Image
                           src={MANA_ICON_SRC[color]}
@@ -451,7 +462,9 @@ export function Sidebar() {
                           className="object-contain opacity-85"
                         />
                       </span>
-                      <span className={`font-mono text-[18px] font-black tabular-nums leading-none ${COLOR_TEXT[color]}`}>
+                      <span
+                        className={`font-mono text-[18px] font-black tabular-nums leading-none ${COLOR_TEXT[color]}`}
+                      >
                         {colorCounts[color]}
                       </span>
                     </div>
@@ -513,13 +526,14 @@ export function Sidebar() {
                 </p>
                 <div className="mt-1.5 flex items-center gap-1">
                   {["W", "U", "B", "R", "G"].map((c) => (
-                    <img
+                    <Image
                       key={c}
                       src={`/${c}.svg`}
                       alt={c}
                       width={12}
                       height={12}
                       className="opacity-70"
+                      unoptimized
                     />
                   ))}
                 </div>
@@ -583,6 +597,7 @@ export function Sidebar() {
                       onHoverEnd={handleHoverEnd}
                       onOpen={handleOpen}
                       onDragStateChange={setDraggingSidebarCardId}
+                      onRemove={(ids) => setDeckZone(ids, null)}
                     />
                   ))}
                 </ul>
@@ -625,6 +640,7 @@ export function Sidebar() {
                       onHoverEnd={handleHoverEnd}
                       onOpen={handleOpen}
                       onDragStateChange={setDraggingSidebarCardId}
+                      onRemove={(ids) => setDeckZone(ids, null)}
                     />
                   ))}
                 </ul>
@@ -777,7 +793,10 @@ interface SectionHeaderProps {
 }
 
 const SectionHeader = forwardRef<HTMLDivElement, SectionHeaderProps>(
-  function SectionHeader({ label, count, dataZone, isActive = false, extra }, ref) {
+  function SectionHeader(
+    { label, count, dataZone, isActive = false, extra },
+    ref,
+  ) {
     return (
       <div
         ref={ref}
@@ -817,6 +836,7 @@ function CardRow({
   onHoverEnd,
   onOpen,
   onDragStateChange,
+  onRemove,
 }: {
   card: PlacedCardState;
   count?: number;
@@ -826,6 +846,7 @@ function CardRow({
   onHoverEnd?: () => void;
   onOpen?: (card: PlacedCardState) => void;
   onDragStateChange?: (id: string | null) => void;
+  onRemove?: (ids: string[]) => void;
 }) {
   return (
     <li
@@ -902,6 +923,20 @@ function CardRow({
               colors={card.card.colors as string[]}
               cmc={card.card.cmc}
             />
+            {onRemove && (
+              <button
+                type="button"
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRemove(dragIds);
+                }}
+                className="ml-0.5 flex h-4 w-4 items-center justify-center rounded text-white/0 transition group-hover:text-white/35 hover:!text-white/80"
+                title="Remover do deck"
+              >
+                ×
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -1123,7 +1158,7 @@ function SummaryMetricRow({
 }
 
 function BasicLandRow({
-  name,
+  name: _name,
   label,
   symbol,
   disabled,
@@ -1146,7 +1181,10 @@ function BasicLandRow({
   const prevRecommended = useRef(recommended);
   const prevCurrent = useRef(current);
   useEffect(() => {
-    if (prevRecommended.current !== recommended || prevCurrent.current !== current) {
+    if (
+      prevRecommended.current !== recommended ||
+      prevCurrent.current !== current
+    ) {
       prevRecommended.current = recommended;
       prevCurrent.current = current;
       setQty(Math.max(1, recommended - current));
@@ -1154,10 +1192,13 @@ function BasicLandRow({
   }, [recommended, current]);
 
   const diff = recommended - current;
-  const diffLabel =
-    diff > 0 ? `+${diff}` : diff < 0 ? `${diff}` : "✓";
+  const diffLabel = diff > 0 ? `+${diff}` : diff < 0 ? `${diff}` : "✓";
   const diffColor =
-    diff > 0 ? "text-[#7ab0e0]" : diff < 0 ? "text-[#e87060]" : "text-[#60b878]";
+    diff > 0
+      ? "text-[#7ab0e0]"
+      : diff < 0
+        ? "text-[#e87060]"
+        : "text-[#60b878]";
 
   return (
     <div className="flex items-center justify-between gap-2 rounded-2xl bg-[#14191f] px-2.5 py-2 shadow-[0_0_0_1px_rgba(49,69,111,0.22)]">
@@ -1480,36 +1521,75 @@ function DeckIcon({ className = "h-5 w-5" }: { className?: string }) {
 
 const MANA_ICON_SRC: Record<string, string> = {
   // Generic
-  "0": "/0.svg", "1": "/1.svg", "2": "/2.svg", "3": "/3.svg", "4": "/4.svg",
-  "5": "/5.svg", "6": "/6.svg", "7": "/7.svg", "8": "/8.svg", "9": "/9.svg",
-  "10": "/10.svg", "11": "/11.svg", "12": "/12.svg", "13": "/13.svg",
-  "14": "/14.svg", "15": "/15.svg", "16": "/16.svg", "17": "/17.svg",
-  "18": "/18.svg", "19": "/19.svg", "20": "/20.svg",
+  "0": "/0.svg",
+  "1": "/1.svg",
+  "2": "/2.svg",
+  "3": "/3.svg",
+  "4": "/4.svg",
+  "5": "/5.svg",
+  "6": "/6.svg",
+  "7": "/7.svg",
+  "8": "/8.svg",
+  "9": "/9.svg",
+  "10": "/10.svg",
+  "11": "/11.svg",
+  "12": "/12.svg",
+  "13": "/13.svg",
+  "14": "/14.svg",
+  "15": "/15.svg",
+  "16": "/16.svg",
+  "17": "/17.svg",
+  "18": "/18.svg",
+  "19": "/19.svg",
+  "20": "/20.svg",
   X: "/X.svg",
   // Basic colors
-  W: "/W.svg", U: "/U.svg", B: "/B.svg", R: "/R.svg", G: "/G.svg",
+  W: "/W.svg",
+  U: "/U.svg",
+  B: "/B.svg",
+  R: "/R.svg",
+  G: "/G.svg",
   C: "/C.svg",
   // Hybrid — token format inside {}: e.g. {W/U} → token "W/U"
-  "W/U": "/WU.svg", "W/B": "/WB.svg",
-  "U/B": "/UB.svg", "U/R": "/UR.svg",
-  "B/R": "/BR.svg", "B/G": "/BG.svg",
-  "R/G": "/RG.svg", "R/W": "/RW.svg",
-  "G/W": "/GW.svg", "G/U": "/GU.svg",
+  "W/U": "/WU.svg",
+  "W/B": "/WB.svg",
+  "U/B": "/UB.svg",
+  "U/R": "/UR.svg",
+  "B/R": "/BR.svg",
+  "B/G": "/BG.svg",
+  "R/G": "/RG.svg",
+  "R/W": "/RW.svg",
+  "G/W": "/GW.svg",
+  "G/U": "/GU.svg",
   // 2/color hybrid — e.g. {2/W}
-  "2/W": "/2W.svg", "2/U": "/2U.svg", "2/B": "/2B.svg",
-  "2/R": "/2R.svg", "2/G": "/2G.svg",
+  "2/W": "/2W.svg",
+  "2/U": "/2U.svg",
+  "2/B": "/2B.svg",
+  "2/R": "/2R.svg",
+  "2/G": "/2G.svg",
   // Phyrexian — e.g. {W/P}
-  "W/P": "/WP.svg", "U/P": "/UP.svg", "B/P": "/BP.svg",
-  "R/P": "/RP.svg", "G/P": "/GP.svg",
+  "W/P": "/WP.svg",
+  "U/P": "/UP.svg",
+  "B/P": "/BP.svg",
+  "R/P": "/RP.svg",
+  "G/P": "/GP.svg",
   // Hybrid phyrexian — e.g. {W/U/P}
-  "W/U/P": "/WUP.svg", "W/B/P": "/WBP.svg",
-  "U/B/P": "/UBP.svg", "U/R/P": "/URP.svg",
-  "B/R/P": "/BRP.svg", "B/G/P": "/BGP.svg",
-  "R/G/P": "/RGP.svg", "R/W/P": "/RWP.svg",
-  "G/W/P": "/GWP.svg", "G/U/P": "/GUP.svg",
+  "W/U/P": "/WUP.svg",
+  "W/B/P": "/WBP.svg",
+  "U/B/P": "/UBP.svg",
+  "U/R/P": "/URP.svg",
+  "B/R/P": "/BRP.svg",
+  "B/G/P": "/BGP.svg",
+  "R/G/P": "/RGP.svg",
+  "R/W/P": "/RWP.svg",
+  "G/W/P": "/GWP.svg",
+  "G/U/P": "/GUP.svg",
   // Colorless hybrid — e.g. {C/W}
-  "C/W": "/CW.svg", "C/U": "/CU.svg", "C/B": "/CB.svg",
-  "C/R": "/CR.svg", "C/G": "/CG.svg",
+  "C/W": "/CW.svg",
+  "C/U": "/CU.svg",
+  "C/B": "/CB.svg",
+  "C/R": "/CR.svg",
+  "C/G": "/CG.svg",
 };
 
 const BASIC_LANDS = [
@@ -1591,10 +1671,8 @@ function recommendBasicLands(
 
   // Floor all, then add 1 to colors with largest fractional remainder
   for (const col of usedColors) result[col] = Math.floor(raw[col]);
-  let remaining = budget - usedColors.reduce((s, col) => s + result[col], 0);
-  const byFrac = [...usedColors].sort(
-    (a, b) => (raw[b] % 1) - (raw[a] % 1),
-  );
+  const remaining = budget - usedColors.reduce((s, col) => s + result[col], 0);
+  const byFrac = [...usedColors].sort((a, b) => (raw[b] % 1) - (raw[a] % 1));
   for (let i = 0; i < remaining && i < byFrac.length; i++) {
     result[byFrac[i]]++;
   }
@@ -1605,7 +1683,9 @@ function recommendBasicLands(
 /**
  * Count current basic lands in main deck by name.
  */
-function currentBasicLandCounts(cards: PlacedCardState[]): Record<string, number> {
+function currentBasicLandCounts(
+  cards: PlacedCardState[],
+): Record<string, number> {
   const counts: Record<string, number> = { W: 0, U: 0, B: 0, R: 0, G: 0 };
   for (const c of cards) {
     for (const col of BASIC_COLORS) {
