@@ -1,5 +1,6 @@
 "use client";
 
+import { DndContext } from "@dnd-kit/core";
 import { ArrowDown, ArrowUp } from "lucide-react";
 import Image from "next/image";
 import {
@@ -497,17 +498,21 @@ export function MultiplayerPlaymat({
         <BattlefieldArrowOverlay arrows={opponentBattlefieldArrows} />
       </div>
 
-      {/* Opponent zone preview modals */}
-      <ZonePreviewModal
-        zone={opponentZonePreview}
-        cards={
-          opponentZonePreview === "graveyard"
-            ? opponentGraveyardPreviewCards
-            : opponentExilePreviewCards
-        }
-        onClose={() => setOpponentZonePreview(null)}
-        onHoverCard={showOpponentPreview}
-      />
+      {/* Opponent zone preview modals — wrapped in its own DndContext so that
+          useDndMonitor / useDraggable inside ZonePreviewModal work correctly
+          even though this modal lives outside Playmat's DndContext. */}
+      <DndContext>
+        <ZonePreviewModal
+          zone={opponentZonePreview}
+          cards={
+            opponentZonePreview === "graveyard"
+              ? opponentGraveyardPreviewCards
+              : opponentExilePreviewCards
+          }
+          onClose={() => setOpponentZonePreview(null)}
+          onHoverCard={showOpponentPreview}
+        />
+      </DndContext>
 
       {/* Opponent battlefield card hover preview */}
       <PreviewOverlay

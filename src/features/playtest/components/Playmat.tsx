@@ -945,8 +945,8 @@ export function Playmat({
     const definitionPower = selected?.definition.power ?? null;
     const definitionToughness = selected?.definition.toughness ?? null;
     const cardType = card.tokenData?.type ?? definitionType;
-    const power = card.tokenData?.power ?? definitionPower;
-    const toughness = card.tokenData?.toughness ?? definitionToughness;
+    const power = definitionPower ?? card.tokenData?.power;
+    const toughness = definitionToughness ?? card.tokenData?.toughness;
 
     return {
       card,
@@ -1261,8 +1261,8 @@ export function Playmat({
       if (!inst) return;
       const def = state.cardDefinitions[inst.definitionId];
       if (!def) return;
-      const rawPower = inst.tokenData?.power ?? def.power ?? "0";
-      const rawToughness = inst.tokenData?.toughness ?? def.toughness ?? "0";
+      const rawPower = def.power ?? inst.tokenData?.power ?? "0";
+      const rawToughness = def.toughness ?? inst.tokenData?.toughness ?? "0";
       const currentPower = parseInt(rawPower, 10);
       const currentToughness = parseInt(rawToughness, 10);
       dispatch({
