@@ -28,6 +28,7 @@ export default function GameError({
         {error.stack}
       </pre>
       <button
+        type="button"
         onClick={reset}
         className="mt-4 rounded-full border border-white/10 px-5 py-2 text-sm text-white/60 hover:bg-white/5"
       >

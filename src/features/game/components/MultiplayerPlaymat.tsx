@@ -32,8 +32,10 @@ import {
   type ZonePreviewCard,
   ZonePreviewModal,
 } from "@/features/playtest/components/playmat/ZonePreviewModal";
-import type { GameContextValue } from "@/features/playtest/store/GameProvider";
-import { GameContext } from "@/features/playtest/store/GameProvider";
+import {
+  GameContext,
+  type GameContextValue,
+} from "@/features/playtest/store/useGameStore";
 import {
   selectAllCardsByZone,
   selectCardWithDefinition,
@@ -221,6 +223,8 @@ export function MultiplayerPlaymat({
     x: 0,
     y: 0,
   });
+  const [opponentBattlefieldEl, setOpponentBattlefieldEl] =
+    useState<HTMLDivElement | null>(null);
   const [opponentZonePreview, setOpponentZonePreview] =
     useState<OpponentZonePreview>(null);
   const [opponentPreviewCard, setOpponentPreviewCard] =
@@ -487,6 +491,7 @@ export function MultiplayerPlaymat({
               count: opponentZones.exile.length,
             }}
             libraryCount={opponentZones.library.length}
+            shuffleCount={multiCtx.opponentShuffleCount}
             onViewGraveyard={() => setOpponentZonePreview("graveyard")}
             onViewExile={() => setOpponentZonePreview("exile")}
             onHoverGraveyardTop={showOpponentPreview}
@@ -502,6 +507,7 @@ export function MultiplayerPlaymat({
           style={{ height: "35vh" }}
         >
           <BattlefieldArea
+            setRefs={setOpponentBattlefieldEl}
             isActiveDropTarget={false}
             isAnyDragActive={false}
             interactive={false}
@@ -544,7 +550,12 @@ export function MultiplayerPlaymat({
           </div>
         </div>
 
-        <BattlefieldArrowOverlay arrows={opponentBattlefieldArrows} />
+        <BattlefieldArrowOverlay
+          arrows={opponentBattlefieldArrows}
+          containerEl={opponentBattlefieldEl}
+          pan={opponentBattlefieldPan}
+          zoom={opponentBattlefieldZoom}
+        />
       </div>
 
       {/* Opponent zone preview modals — wrapped in its own DndContext so that
@@ -720,7 +731,7 @@ export function MultiplayerPlaymat({
 
 // ─── Turn / Phase indicator ───────────────────────────────────────────────────
 
-const PHASE_LABELS: Record<string, string> = {
+const _PHASE_LABELS: Record<string, string> = {
   untap: "Desentortar",
   upkeep: "Manutenção",
   draw: "Compra",

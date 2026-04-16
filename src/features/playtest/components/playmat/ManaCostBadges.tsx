@@ -23,12 +23,12 @@ export function ManaCostBadges({ cardId, manaCost }: ManaCostBadgesProps) {
           occurrences[symbol] = count;
           return { symbol, key: `${cardId}-g${groupIndex}-${symbol}-${count}` };
         });
-
         return (
-          <Fragment key={groupIndex}>
+          // biome-ignore lint/suspicious/noArrayIndexKey: mana cost groups have no stable ID beyond position
+          <Fragment key={`${cardId}-g${groupIndex}`}>
             {groupIndex > 0 && (
               <span className="z-10 px-0.5 text-[7px] font-bold text-white/60">
-                //
+                {/* // */}
               </span>
             )}
             <div className="flex items-center -space-x-1">

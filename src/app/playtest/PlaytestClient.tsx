@@ -20,8 +20,10 @@ import type {
   PreviewAnchor,
 } from "@/features/playtest/components/playmat/types";
 import { useDeckLoader } from "@/features/playtest/hooks/useDeckLoader";
-import { useGameStore } from "@/features/playtest/hooks/useGameStore";
-import { GameProvider } from "@/features/playtest/store/GameProvider";
+import {
+  GameStoreProvider,
+  useGameStore,
+} from "@/features/playtest/store/useGameStore";
 import { shuffleCardIds } from "@/lib/game/shuffle";
 import type { CardDefinition, CardInstance } from "@/lib/game/types";
 
@@ -491,13 +493,13 @@ export function PlaytestClient({
   simulatorKitId?: string;
 }) {
   return (
-    <GameProvider playerName={playerName} initialDeck={initialDeck}>
+    <GameStoreProvider playerName={playerName} initialDeck={initialDeck}>
       <PlaytestSurface
         playerName={playerName}
         enableDeckTools={enableDeckTools}
         showOpeningHand={Boolean(initialDeck)}
         simulatorKitId={simulatorKitId}
       />
-    </GameProvider>
+    </GameStoreProvider>
   );
 }

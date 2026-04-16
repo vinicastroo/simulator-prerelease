@@ -1,8 +1,9 @@
 "use client";
 
 import { Trash2 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import type { BattlefieldArrow } from "@/lib/game/types";
+import { BATTLEFIELD_CANVAS_SIZE } from "./constants";
 
 type ArrowPoint = {
   x: number;
@@ -17,26 +18,67 @@ type BattlefieldArrowOverlayProps = {
   onPointerMove?: (point: ArrowPoint) => void;
   onCanvasClick?: (point: ArrowPoint) => void;
   onDeleteArrow?: (arrowId: string) => void;
+  /** Outer container element of the battlefield (no CSS transform applied). */
+  containerEl?: HTMLDivElement | null;
+  /** Current pan offset applied to the battlefield canvas. */
+  pan?: ArrowPoint;
+  /** Current zoom scale applied to the battlefield canvas. */
+  zoom?: number;
 };
 
-function toViewportPoint(point: ArrowPoint, width: number, height: number) {
-  if (point.x > 1 || point.y > 1) {
-    return point;
-  }
-
+/**
+ * Convert a viewport click to canvas-normalized coordinates (0–1 fraction of
+ * BATTLEFIELD_CANVAS_SIZE). Accounts for the container's position on screen
+ * and the pan/zoom transform applied to the canvas inside it.
+ */
+function toCanvasNormalized(
+  clientX: number,
+  clientY: number,
+  containerEl: HTMLDivElement | null | undefined,
+  pan: ArrowPoint,
+  zoom: number,
+): ArrowPoint | null {
+  if (!containerEl) return null;
+  const rect = containerEl.getBoundingClientRect();
   return {
-    x: point.x * width,
-    y: point.y * height,
+    x: Math.max(
+      0,
+      Math.min(
+        1,
+        (clientX - rect.left - pan.x) / zoom / BATTLEFIELD_CANVAS_SIZE,
+      ),
+    ),
+    y: Math.max(
+      0,
+      Math.min(
+        1,
+        (clientY - rect.top - pan.y) / zoom / BATTLEFIELD_CANVAS_SIZE,
+      ),
+    ),
   };
 }
 
-function toNormalizedPoint(clientX: number, clientY: number) {
-  const width = Math.max(window.innerWidth, 1);
-  const height = Math.max(window.innerHeight, 1);
-
+/**
+ * Convert a canvas-normalized point back to viewport pixels for SVG rendering.
+ * Falls back to viewport-fraction behavior when no container is available
+ * (keeps existing arrows readable during first render or in tests).
+ */
+function toViewportPx(
+  point: ArrowPoint,
+  containerEl: HTMLDivElement | null | undefined,
+  pan: ArrowPoint,
+  zoom: number,
+): ArrowPoint {
+  if (!containerEl) {
+    return {
+      x: point.x * window.innerWidth,
+      y: point.y * window.innerHeight,
+    };
+  }
+  const rect = containerEl.getBoundingClientRect();
   return {
-    x: clientX / width,
-    y: clientY / height,
+    x: point.x * BATTLEFIELD_CANVAS_SIZE * zoom + pan.x + rect.left,
+    y: point.y * BATTLEFIELD_CANVAS_SIZE * zoom + pan.y + rect.top,
   };
 }
 
@@ -48,48 +90,26 @@ export function BattlefieldArrowOverlay({
   onPointerMove,
   onCanvasClick,
   onDeleteArrow,
+  containerEl,
+  pan = { x: 0, y: 0 },
+  zoom = 1,
 }: BattlefieldArrowOverlayProps) {
   const [hoveredArrowId, setHoveredArrowId] = useState<string | null>(null);
-  const [viewport, setViewport] = useState({
-    width: 1,
-    height: 1,
-  });
-
-  useEffect(() => {
-    const updateViewport = () => {
-      setViewport({
-        width: Math.max(window.innerWidth, 1),
-        height: Math.max(window.innerHeight, 1),
-      });
-    };
-
-    updateViewport();
-    window.addEventListener("resize", updateViewport);
-    return () => window.removeEventListener("resize", updateViewport);
-  }, []);
 
   const renderedArrows = useMemo(
     () =>
       arrows.map((arrow) => ({
         ...arrow,
-        startPx: toViewportPoint(arrow.start, viewport.width, viewport.height),
-        endPx: toViewportPoint(arrow.end, viewport.width, viewport.height),
+        startPx: toViewportPx(arrow.start, containerEl, pan, zoom),
+        endPx: toViewportPx(arrow.end, containerEl, pan, zoom),
       })),
-    [arrows, viewport.height, viewport.width],
+    [arrows, containerEl, pan, zoom],
   );
 
   const provisionalArrowPx = provisionalArrow
     ? {
-        start: toViewportPoint(
-          provisionalArrow.start,
-          viewport.width,
-          viewport.height,
-        ),
-        end: toViewportPoint(
-          provisionalArrow.end,
-          viewport.width,
-          viewport.height,
-        ),
+        start: toViewportPx(provisionalArrow.start, containerEl, pan, zoom),
+        end: toViewportPx(provisionalArrow.end, containerEl, pan, zoom),
       }
     : null;
 
@@ -109,10 +129,24 @@ export function BattlefieldArrowOverlay({
           aria-label="Desenhar seta"
           className="cursor-arrow-mode pointer-events-auto absolute inset-0 appearance-none border-0 bg-transparent p-0"
           onMouseMove={(event) => {
-            onPointerMove?.(toNormalizedPoint(event.clientX, event.clientY));
+            const pt = toCanvasNormalized(
+              event.clientX,
+              event.clientY,
+              containerEl,
+              pan,
+              zoom,
+            );
+            if (pt) onPointerMove?.(pt);
           }}
           onClick={(event) => {
-            onCanvasClick?.(toNormalizedPoint(event.clientX, event.clientY));
+            const pt = toCanvasNormalized(
+              event.clientX,
+              event.clientY,
+              containerEl,
+              pan,
+              zoom,
+            );
+            if (pt) onCanvasClick?.(pt);
           }}
         />
       ) : null}

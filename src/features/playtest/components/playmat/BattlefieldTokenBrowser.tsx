@@ -117,7 +117,6 @@ export function BattlefieldTokenBrowser({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Buscar token..."
-            autoFocus
             className="flex-1 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-sm text-white placeholder:text-white/25 focus:border-white/25 focus:outline-none"
           />
 

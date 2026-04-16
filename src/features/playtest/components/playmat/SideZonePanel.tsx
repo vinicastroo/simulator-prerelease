@@ -97,7 +97,7 @@ type SideZoneCardFrameProps = {
   children: ReactNode;
 };
 
-function SideZoneCardFrame({ children }: SideZoneCardFrameProps) {
+function _SideZoneCardFrame({ children }: SideZoneCardFrameProps) {
   return (
     <div className="relative flex min-h-[190px] min-w-[140px] flex-1 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.02]">
       {children}
@@ -321,6 +321,7 @@ const LibraryZone = memo(function LibraryZone({
     useState<CardHoverInfo | null>(null);
   const [surveilPreviewAnchor, setSurveilPreviewAnchor] =
     useState<PreviewAnchor | null>(null);
+  const [isShuffling, setIsShuffling] = useState(false);
   const [libraryViewOpen, setLibraryViewOpen] = useState(false);
   const [libraryFilter, setLibraryFilter] = useState("");
   const [libraryPreviewCard, setLibraryPreviewCard] =
@@ -458,7 +459,7 @@ const LibraryZone = memo(function LibraryZone({
     setSurveilPreviewAnchor(null);
   };
 
-  const clearLibraryPreview = () => {
+  const _clearLibraryPreview = () => {
     setLibraryPreviewCard(null);
     setLibraryPreviewAnchor(null);
   };
@@ -492,6 +493,8 @@ const LibraryZone = memo(function LibraryZone({
       zone: "library",
       orderedIds: library,
     });
+    setIsShuffling(true);
+    setTimeout(() => setIsShuffling(false), 1100);
   };
 
   return (
@@ -511,12 +514,35 @@ const LibraryZone = memo(function LibraryZone({
                 className="relative flex h-full w-full items-start justify-start rounded-[8px] p-0 hover:bg-white/[0.04]"
                 onClick={onDraw}
               >
+                {/* Card 1 — fans left on shuffle */}
+                <Image
+                  src="/magic_card_back.png"
+                  alt=""
+                  aria-hidden
+                  width={100}
+                  height={140}
+                  className={`absolute inset-0 h-[140px] w-[100px] rounded-[8px] ${count === 0 ? "opacity-30" : ""} ${isShuffling ? "deck-shuffle-left" : ""}`}
+                  draggable={false}
+                  priority={false}
+                />
+                {/* Card 2 — fans right on shuffle */}
+                <Image
+                  src="/magic_card_back.png"
+                  alt=""
+                  aria-hidden
+                  width={100}
+                  height={140}
+                  className={`absolute inset-0 h-[140px] w-[100px] rounded-[8px] ${count === 0 ? "opacity-30" : ""} ${isShuffling ? "deck-shuffle-right" : ""}`}
+                  draggable={false}
+                  priority={false}
+                />
+                {/* Card 3 — top card, stays still */}
                 <Image
                   src="/magic_card_back.png"
                   alt="Pilha do deck"
                   width={100}
                   height={140}
-                  className={`h-[140px] w-[100px] rounded-[8px] ${count === 0 ? "opacity-30" : ""}`}
+                  className={`relative h-[140px] w-[100px] rounded-[8px] ${count === 0 ? "opacity-30" : ""}`}
                   draggable={false}
                   priority={false}
                 />

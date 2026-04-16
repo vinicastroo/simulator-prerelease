@@ -1,29 +1,38 @@
 "use client";
 
 import { Trash2 } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { DECKS_QUERY_KEY } from "./DecksClient";
+import type { DeckListItem } from "./DecksClient";
 
 export function DeleteDeckButton({ deckId }: { deckId: string }) {
-  const router = useRouter();
+  const queryClient = useQueryClient();
   const [confirming, setConfirming] = useState(false);
-  const [loading, setLoading] = useState(false);
 
-  async function handleDelete() {
-    setLoading(true);
-    try {
+  const mutation = useMutation({
+    mutationFn: async () => {
       const res = await fetch(`/api/deck/${deckId}`, { method: "DELETE" });
-      if (!res.ok) {
-        setLoading(false);
-        setConfirming(false);
-        return;
+      if (!res.ok) throw new Error("Falha ao excluir deck");
+    },
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: DECKS_QUERY_KEY });
+      const previous = queryClient.getQueryData<DeckListItem[]>(DECKS_QUERY_KEY);
+      queryClient.setQueryData<DeckListItem[]>(DECKS_QUERY_KEY, (old = []) =>
+        old.filter((kit) => kit.id !== deckId),
+      );
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(DECKS_QUERY_KEY, context.previous);
       }
-      router.refresh();
-    } catch {
-      setLoading(false);
       setConfirming(false);
-    }
-  }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: DECKS_QUERY_KEY });
+    },
+  });
 
   if (confirming) {
     return (
@@ -31,17 +40,18 @@ export function DeleteDeckButton({ deckId }: { deckId: string }) {
         <button
           type="button"
           onClick={() => setConfirming(false)}
-          className="rounded-full border border-white/15 px-3 py-1.5 text-xs text-white/50 transition hover:bg-white/5 hover:text-white/70"
+          disabled={mutation.isPending}
+          className="rounded-full border border-white/15 px-3 py-1.5 text-xs text-white/50 transition hover:bg-white/5 hover:text-white/70 disabled:opacity-40"
         >
           Cancelar
         </button>
         <button
           type="button"
-          onClick={handleDelete}
-          disabled={loading}
+          onClick={() => mutation.mutate()}
+          disabled={mutation.isPending}
           className="rounded-full bg-red-600/90 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-red-500 disabled:opacity-50"
         >
-          {loading ? "Excluindo…" : "Confirmar"}
+          {mutation.isPending ? "Excluindo…" : "Confirmar"}
         </button>
       </div>
     );

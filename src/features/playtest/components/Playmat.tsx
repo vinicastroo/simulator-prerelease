@@ -70,7 +70,6 @@ import {
   type ZonePreviewCard,
   ZonePreviewModal,
 } from "./playmat/ZonePreviewModal";
-import { TokenModal } from "./TokenModal";
 
 type CenterToast = {
   id: string;
@@ -114,7 +113,6 @@ export function Playmat({
   const {
     activePlayerId,
     battlefieldArrows: allBattlefieldArrows,
-    cardDefinitions,
     cardInstances,
     log,
     phase,
@@ -786,7 +784,7 @@ export function Playmat({
             const startX =
               position.x - ((draggedCards.length - 1) * spacing) / 2;
 
-            draggedCards.forEach(({ cardId, battlefield }, index) => {
+            draggedCards.forEach(({ cardId }, index) => {
               dispatch({
                 type: "card/setBattlefieldPosition",
                 cardId,
@@ -1081,10 +1079,13 @@ export function Playmat({
     [dispatch],
   );
 
+  const [battlefieldContainerEl, setBattlefieldContainerEl] = useState<HTMLDivElement | null>(null);
+
   const setBattlefieldRefs = useCallback(
     (node: HTMLDivElement | null) => {
       battlefieldRef.current = node;
       battlefieldDrop.setNodeRef(node);
+      setBattlefieldContainerEl(node);
     },
     [battlefieldDrop],
   );
@@ -1489,6 +1490,9 @@ export function Playmat({
               onPointerMove={handleArrowPointerMove}
               onCanvasClick={handleArrowCanvasClick}
               onDeleteArrow={handleDeleteArrow}
+              containerEl={battlefieldContainerEl}
+              pan={battlefieldPan}
+              zoom={battlefieldZoom}
             />
 
             <div

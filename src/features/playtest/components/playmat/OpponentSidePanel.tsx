@@ -1,4 +1,7 @@
+"use client";
+
 import Image from "next/image";
+import { useEffect, useState } from "react";
 import type { CardHoverInfo } from "./types";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -13,6 +16,7 @@ type OpponentSidePanelProps = {
   graveyard: StackZoneInfo;
   exile: StackZoneInfo;
   libraryCount: number;
+  shuffleCount?: number;
   onViewGraveyard?: () => void;
   onViewExile?: () => void;
   onHoverGraveyardTop?: (
@@ -130,16 +134,59 @@ function StackZone({
 
 // ─── Library zone (face-down, read-only) ─────────────────────────────────────
 
-function LibraryZone({ count }: { count: number }) {
+function LibraryZone({
+  count,
+  shuffleCount = 0,
+}: {
+  count: number;
+  shuffleCount?: number;
+}) {
+  const [isShuffling, setIsShuffling] = useState(false);
+
+  useEffect(() => {
+    if (shuffleCount === 0) return;
+    setIsShuffling(true);
+    const id = setTimeout(() => setIsShuffling(false), 1100);
+    return () => clearTimeout(id);
+  }, [shuffleCount]);
+
+  const faded = count === 0 ? "opacity-30" : "";
+  const imgBase = `h-full w-full rounded-[8px] object-cover ${faded}`;
+
   return (
     <ZoneShell label="Grimório" count={count}>
       <CardSlot>
+        {/* Card 1 — fans left */}
+        <Image
+          src="/magic_card_back.png"
+          alt=""
+          aria-hidden
+          width={100}
+          height={140}
+          className={`absolute inset-0 ${imgBase} ${isShuffling ? "deck-shuffle-left" : ""}`}
+          style={{ transform: "scaleY(-1)" }}
+          draggable={false}
+          priority={false}
+        />
+        {/* Card 2 — fans right */}
+        <Image
+          src="/magic_card_back.png"
+          alt=""
+          aria-hidden
+          width={100}
+          height={140}
+          className={`absolute inset-0 ${imgBase} ${isShuffling ? "deck-shuffle-right" : ""}`}
+          style={{ transform: "scaleY(-1)" }}
+          draggable={false}
+          priority={false}
+        />
+        {/* Card 3 — stays still */}
         <Image
           src="/magic_card_back.png"
           alt="Grimório do oponente"
           width={100}
           height={140}
-          className={`h-full w-full rounded-[8px] object-cover ${count === 0 ? "opacity-30" : ""}`}
+          className={`relative ${imgBase}`}
           style={{ transform: "scaleY(-1)" }}
           draggable={false}
           priority={false}
@@ -160,6 +207,7 @@ export function OpponentSidePanel({
   graveyard,
   exile,
   libraryCount,
+  shuffleCount,
   onViewGraveyard,
   onViewExile,
   onHoverGraveyardTop,
@@ -168,7 +216,7 @@ export function OpponentSidePanel({
   return (
     // Altere a tag <aside> para:
     <aside className="flex flex-row gap-3 items-start ml-auto -mt-24 pr-4">
-      <LibraryZone count={libraryCount} />
+      <LibraryZone count={libraryCount} shuffleCount={shuffleCount} />
       <StackZone
         label="Exílio"
         {...exile}

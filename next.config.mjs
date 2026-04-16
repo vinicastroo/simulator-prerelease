@@ -22,6 +22,9 @@ if (s3BucketHostname) {
 const nextConfig = {
   images: {
     remotePatterns,
+    // Card art never changes — cache optimized images for 1 year in the browser.
+    // Default is 60s, which means the browser re-validates images on every revisit.
+    minimumCacheTTL: 31_536_000,
   },
 };
 

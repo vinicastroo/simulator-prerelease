@@ -678,6 +678,7 @@ export function DndCanvas() {
         </div>
       ) : (
         // Gallery / List — drop here = remove from deck, card returns to canvas
+        /* biome-ignore lint/a11y/noStaticElementInteractions: HTML5 drag-and-drop zone has no equivalent ARIA interactive role */
         <div
           className="h-full w-full"
           onDragOver={(e) => {

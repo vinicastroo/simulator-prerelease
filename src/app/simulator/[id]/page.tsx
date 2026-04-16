@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import ReactDOM from "react-dom";
 import { AppShell } from "@/components/AppShell";
 import { Sidebar } from "@/components/Sidebar";
 import {
@@ -27,6 +28,13 @@ export default async function SimulatorPage({ params }: Props) {
   // fetchKitWithCards is React.cache-wrapped — reuses the result from generateMetadata.
   const kit = await fetchKitWithCards(params.id);
   if (!kit) notFound();
+
+  // Preload all card images so the browser starts fetching before React hydrates.
+  for (const p of kit.placedCards) {
+    if (p.card.imagePath) {
+      ReactDOM.preload(p.card.imagePath, { as: "image" });
+    }
+  }
 
   const initialCards: PlacedCardState[] = kit.placedCards.map((p) => ({
     id: p.id,

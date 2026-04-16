@@ -42,6 +42,7 @@ type MultiplayerGameContextValue = {
   firstPlayerRollWinnerId: string | null;
   isActionPending: boolean;
   mulliganToastMessage: string | null;
+  opponentShuffleCount: number;
 };
 
 const MultiplayerGameContext =
@@ -106,6 +107,7 @@ export function MultiplayerGameProvider({
   const [mulliganToastMessage, setMulliganToastMessage] = useState<
     string | null
   >(null);
+  const [opponentShuffleCount, setOpponentShuffleCount] = useState(0);
 
   const addPing = useCallback((cardId: string) => {
     setActivePings((prev) => new Set([...prev, cardId]));
@@ -302,6 +304,9 @@ export function MultiplayerGameProvider({
           addPing(data.action.cardId);
           return;
         }
+        if (data.action.type === "zone/shuffle") {
+          setOpponentShuffleCount((n) => n + 1);
+        }
         const nextState = gameReducer(stateRef.current, data.action);
         stateRef.current = nextState;
         setState(nextState);
@@ -410,6 +415,7 @@ export function MultiplayerGameProvider({
       firstPlayerRollWinnerId,
       isActionPending: pendingActionCount > 0,
       mulliganToastMessage,
+      opponentShuffleCount,
     }),
     [
       state,
@@ -433,6 +439,7 @@ export function MultiplayerGameProvider({
       firstPlayerRollWinnerId,
       pendingActionCount,
       mulliganToastMessage,
+      opponentShuffleCount,
     ],
   );
 

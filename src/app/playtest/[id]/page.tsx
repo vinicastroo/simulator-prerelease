@@ -27,12 +27,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function PlaytestKitPage({ params }: Props) {
   await requireSessionUser();
 
-  // fetchKitWithCards is React.cache-wrapped — the result from generateMetadata
-  // above is reused here, so no second DB round-trip happens.
   const kit = await fetchKitWithCards(params.id);
   if (!kit) notFound();
 
-  // Preload all card images up front so they're in browser cache before play.
   for (const placed of kit.placedCards) {
     if (placed.card.imagePath) {
       ReactDOM.preload(placed.card.imagePath, { as: "image" });

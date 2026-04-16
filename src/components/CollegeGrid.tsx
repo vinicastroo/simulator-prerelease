@@ -148,9 +148,9 @@ export function CollegeGrid() {
                   6 boosters incluídos
                 </p>
                 <div className="flex justify-center gap-2">
-                  {Array.from({ length: 6 }, (_, i) => (
+                  {(["b0","b1","b2","b3","b4","b5"] as const).map((slotKey, i) => (
                     <div
-                      key={i}
+                      key={slotKey}
                       className={cn(
                         "w-[62px] shrink-0 booster-enter",
                         isPending && "booster-opening",

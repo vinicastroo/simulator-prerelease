@@ -31,8 +31,6 @@ export function useKeyboardShortcuts(handlers: ShortcutHandlers) {
     function onKeyDown(e: KeyboardEvent) {
       if (handlers.disabled || isInputTarget(e.target)) return;
 
-      const key = e.key.toLowerCase();
-
       if (e.ctrlKey || e.metaKey) return;
 
       switch (e.key) {

@@ -10,7 +10,7 @@ export default function PlaytestError({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error("[/playtest error]", error);
+    console.error("[/playtest-v2 error]", error);
   }, [error]);
 
   return (

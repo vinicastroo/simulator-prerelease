@@ -48,7 +48,7 @@ export function ActionLogSidebar({
 
         <div
           ref={scrollRef}
-          className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar"
+          className="flex-1 overflow-y-auto p-4 space-y-3 sidebar-scroll"
         >
           {entries.length === 0 ? (
             <div className="flex h-full items-center justify-center py-20 text-center">
