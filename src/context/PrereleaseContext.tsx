@@ -294,7 +294,8 @@ export function PrereleaseProvider({
       const existingTemplate = addedCardsRef.current.find(
         (c) => c.card.name === landName,
       );
-      const cardTemplate = existingTemplate?.card ?? BASIC_LAND_TEMPLATES[landName];
+      const cardTemplate =
+        existingTemplate?.card ?? BASIC_LAND_TEMPLATES[landName];
 
       // Immediately add placeholders — user sees the count change right away
       const placeholders: PlacedCardState[] = placeholderIds.map((id) => ({
@@ -359,7 +360,10 @@ export function PrereleaseProvider({
 
             setAddedCards((prev) => {
               const placeholderIdSet = new Set(placeholderIds);
-              return [...prev.filter((c) => !placeholderIdSet.has(c.id)), ...realCards];
+              return [
+                ...prev.filter((c) => !placeholderIdSet.has(c.id)),
+                ...realCards,
+              ];
             });
           } catch (err) {
             // Roll back placeholders on error

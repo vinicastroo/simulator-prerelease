@@ -20,7 +20,9 @@ export default function PlaytestError({
       </p>
       <p className="text-lg font-bold text-white">{error.message}</p>
       {error.digest && (
-        <p className="font-mono text-xs text-white/30">digest: {error.digest}</p>
+        <p className="font-mono text-xs text-white/30">
+          digest: {error.digest}
+        </p>
       )}
       <pre className="mt-2 w-full max-w-xl overflow-auto whitespace-pre-wrap rounded-xl bg-white/5 p-4 text-xs text-red-300">
         {error.stack}

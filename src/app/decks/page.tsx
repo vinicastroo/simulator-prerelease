@@ -174,9 +174,8 @@ export default async function DecksPage() {
                           </div>
                           {sideCount > 0 && (
                             <p className="mt-1 text-[11px] text-white/25">
-                              {sideCount}{" "}
-                              {sideCount === 1 ? "carta" : "cartas"} no
-                              sideboard
+                              {sideCount} {sideCount === 1 ? "carta" : "cartas"}{" "}
+                              no sideboard
                             </p>
                           )}
                         </div>

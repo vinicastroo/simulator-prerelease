@@ -45,8 +45,14 @@ export function BattlefieldContextMenu({
   const MENU_W = 180;
   const MENU_H = 60;
   const MARGIN = 8;
-  const left = Math.max(MARGIN, Math.min(x, window.innerWidth - MENU_W - MARGIN));
-  const top = Math.max(MARGIN, Math.min(y, window.innerHeight - MENU_H - MARGIN));
+  const left = Math.max(
+    MARGIN,
+    Math.min(x, window.innerWidth - MENU_W - MARGIN),
+  );
+  const top = Math.max(
+    MARGIN,
+    Math.min(y, window.innerHeight - MENU_H - MARGIN),
+  );
 
   return createPortal(
     <div

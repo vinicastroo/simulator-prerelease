@@ -21,7 +21,10 @@ async function restore() {
     process.exit(1);
   }
 
-  const cards = JSON.parse(fs.readFileSync(src, "utf-8")) as Record<string, unknown>[];
+  const cards = JSON.parse(fs.readFileSync(src, "utf-8")) as Record<
+    string,
+    unknown
+  >[];
   console.log(`📥 Restaurando ${cards.length} cartas...`);
 
   let inserted = 0;

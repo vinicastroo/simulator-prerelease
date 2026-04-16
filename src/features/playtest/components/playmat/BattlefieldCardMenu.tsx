@@ -184,9 +184,7 @@ export function BattlefieldCardMenu({
                     : "border-white/10 bg-white/[0.03] hover:border-white/25 hover:bg-white/[0.08]"
                 }`}
                 onClick={() =>
-                  active
-                    ? onRemoveCounter(marker.id)
-                    : onAddCounter(marker.id)
+                  active ? onRemoveCounter(marker.id) : onAddCounter(marker.id)
                 }
               >
                 <Image

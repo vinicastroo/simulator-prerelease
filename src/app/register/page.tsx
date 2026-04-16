@@ -34,9 +34,18 @@ export default async function RegisterPage() {
 
             <div className="space-y-3 pt-2">
               {[
-                { label: "Gratuito", desc: "Sem custos, sem limitações de uso" },
-                { label: "Seus decks salvos", desc: "Acesse de qualquer lugar, a qualquer hora" },
-                { label: "Histórico completo", desc: "Acompanhe sua evolução draft a draft" },
+                {
+                  label: "Gratuito",
+                  desc: "Sem custos, sem limitações de uso",
+                },
+                {
+                  label: "Seus decks salvos",
+                  desc: "Acesse de qualquer lugar, a qualquer hora",
+                },
+                {
+                  label: "Histórico completo",
+                  desc: "Acompanhe sua evolução draft a draft",
+                },
               ].map((item) => (
                 <div key={item.label} className="flex items-start gap-3">
                   <div className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-white/25" />
@@ -44,7 +53,10 @@ export default async function RegisterPage() {
                     <span className="text-sm font-semibold text-white/80">
                       {item.label}
                     </span>
-                    <span className="text-sm text-white/35"> — {item.desc}</span>
+                    <span className="text-sm text-white/35">
+                      {" "}
+                      — {item.desc}
+                    </span>
                   </div>
                 </div>
               ))}

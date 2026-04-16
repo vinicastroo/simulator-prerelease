@@ -337,7 +337,6 @@ function PlaytestSurface({
           simulatorKitId ? `/simulator/${simulatorKitId}` : undefined
         }
         log={state.log}
-
       />
       <OpeningHandModal
         cards={openingHandCards}

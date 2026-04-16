@@ -87,7 +87,7 @@ export function BattlefieldTokenBrowser({
       }}
     >
       <div
-        className="flex flex-col overflow-hidden rounded-2xl border border-white/12 bg-[#0e1420]/97 shadow-[0_16px_60px_rgba(0,0,0,0.7)]"
+        className="flex flex-col overflow-hidden rounded-2xl border border-white/12 bg-[#0e1420] shadow-[0_16px_60px_rgba(0,0,0,0.7)]"
         style={{ width: 480, height: 560 }}
         onPointerDown={(e) => e.stopPropagation()}
       >

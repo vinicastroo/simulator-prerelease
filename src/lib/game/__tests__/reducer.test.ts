@@ -550,7 +550,9 @@ describe("gameReducer", () => {
         counter: "+1/+1",
         amount: 5,
       });
-      expect(state.cardInstances[cardId].counters["+1/+1"] ?? 0).toBeGreaterThanOrEqual(0);
+      expect(
+        state.cardInstances[cardId].counters["+1/+1"] ?? 0,
+      ).toBeGreaterThanOrEqual(0);
     });
 
     it("setCounter overwrites the value", () => {

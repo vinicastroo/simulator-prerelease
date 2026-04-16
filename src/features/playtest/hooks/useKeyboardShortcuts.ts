@@ -33,7 +33,6 @@ export function useKeyboardShortcuts(handlers: ShortcutHandlers) {
 
       const key = e.key.toLowerCase();
 
-
       if (e.ctrlKey || e.metaKey) return;
 
       switch (e.key) {

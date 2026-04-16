@@ -15,10 +15,14 @@ export default function GameError({
 
   return (
     <div className="min-h-screen bg-[#08090d] text-white flex flex-col items-center justify-center gap-4 p-8">
-      <p className="text-white/40 text-xs font-mono uppercase tracking-widest">Erro</p>
+      <p className="text-white/40 text-xs font-mono uppercase tracking-widest">
+        Erro
+      </p>
       <p className="text-white font-bold text-lg">{error.message}</p>
       {error.digest && (
-        <p className="text-white/30 text-xs font-mono">digest: {error.digest}</p>
+        <p className="text-white/30 text-xs font-mono">
+          digest: {error.digest}
+        </p>
       )}
       <pre className="mt-2 max-w-xl w-full overflow-auto rounded-xl bg-white/5 p-4 text-xs text-red-300 whitespace-pre-wrap">
         {error.stack}

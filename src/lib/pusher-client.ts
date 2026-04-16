@@ -24,7 +24,8 @@ export function getPusherClient(): PusherInstance {
 
   // Dynamic require avoids the ESM/CJS constructor issue at module evaluation time
   // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-explicit-any
-  const PusherJs = (require("pusher-js") as any).default ?? require("pusher-js");
+  const PusherJs =
+    (require("pusher-js") as any).default ?? require("pusher-js");
   globalForPusher.pusherClient = new PusherJs(key, { cluster });
   return globalForPusher.pusherClient;
 }

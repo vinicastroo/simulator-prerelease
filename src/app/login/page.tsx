@@ -34,9 +34,18 @@ export default async function LoginPage() {
 
             <div className="space-y-3 pt-2">
               {[
-                { label: "Draft simulado", desc: "Escolha suas cartas booster a booster" },
-                { label: "Deckbuilder integrado", desc: "Monte main deck e sideboard em tempo real" },
-                { label: "Playtest", desc: "Teste suas linhas contra a mão simulada" },
+                {
+                  label: "Draft simulado",
+                  desc: "Escolha suas cartas booster a booster",
+                },
+                {
+                  label: "Deckbuilder integrado",
+                  desc: "Monte main deck e sideboard em tempo real",
+                },
+                {
+                  label: "Playtest",
+                  desc: "Teste suas linhas contra a mão simulada",
+                },
               ].map((item) => (
                 <div key={item.label} className="flex items-start gap-3">
                   <div className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-white/25" />
@@ -44,7 +53,10 @@ export default async function LoginPage() {
                     <span className="text-sm font-semibold text-white/80">
                       {item.label}
                     </span>
-                    <span className="text-sm text-white/35"> — {item.desc}</span>
+                    <span className="text-sm text-white/35">
+                      {" "}
+                      — {item.desc}
+                    </span>
                   </div>
                 </div>
               ))}

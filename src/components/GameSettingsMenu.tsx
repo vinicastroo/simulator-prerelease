@@ -232,7 +232,11 @@ export function GameSettingsMenu({
               <ScrollArea className="min-h-0 flex-1 [scrollbar-color:#31456f_transparent] [scrollbar-width:thin]">
                 <div className="flex flex-col gap-1 pr-3">
                   {[...log].reverse().map((entry, index) => (
-                    <LogEntryRow key={entry.id} entry={entry} index={log.length - 1 - index} />
+                    <LogEntryRow
+                      key={entry.id}
+                      entry={entry}
+                      index={log.length - 1 - index}
+                    />
                   ))}
                 </div>
               </ScrollArea>

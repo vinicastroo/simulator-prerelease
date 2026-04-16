@@ -61,7 +61,11 @@ export async function POST(
       const nextState = gameReducer(currentState, action);
       const nextVersion = room.stateVersion + 1;
       const updated = await prisma.gameRoom.updateMany({
-        where: { id: roomId, stateVersion: room.stateVersion, status: "ACTIVE" },
+        where: {
+          id: roomId,
+          stateVersion: room.stateVersion,
+          status: "ACTIVE",
+        },
         data: { gameState: nextState as object, stateVersion: nextVersion },
       });
 
