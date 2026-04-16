@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { TopNav } from "@/components/TopNav";
 import { Button } from "@/components/ui/button";
+import { DeleteDeckButton } from "./DeleteDeckButton";
 import { requireSessionUser } from "@/lib/auth-session";
 import { COLLEGES } from "@/lib/mtg/colleges";
 import { prisma } from "@/lib/prisma";
@@ -180,7 +181,7 @@ export default async function DecksPage() {
                           )}
                         </div>
 
-                        {/* Bottom row: colors + open button */}
+                        {/* Bottom row: colors + actions */}
                         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-white/8 pt-3">
                           <div className="flex items-center gap-1.5">
                             {(college?.colors ?? []).map((color) => (
@@ -200,12 +201,15 @@ export default async function DecksPage() {
                             ))}
                           </div>
 
-                          <Button
-                            asChild
-                            className="rounded-full bg-[#4d6393] px-5 text-white hover:bg-[#5f77ab]"
-                          >
-                            <Link href={`/simulator/${kit.id}`}>Abrir</Link>
-                          </Button>
+                          <div className="flex items-center gap-2">
+                            <DeleteDeckButton deckId={kit.id} />
+                            <Button
+                              asChild
+                              className="rounded-full bg-[#4d6393] px-5 text-white hover:bg-[#5f77ab]"
+                            >
+                              <Link href={`/simulator/${kit.id}`}>Abrir</Link>
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     </article>
