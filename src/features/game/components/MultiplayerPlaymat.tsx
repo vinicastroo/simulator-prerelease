@@ -282,9 +282,9 @@ export function MultiplayerPlaymat({
       const selected = selectCardWithDefinition(state, card.id);
       const definitionType = selected?.definition.type ?? "";
       const cardType = card.tokenData?.type ?? definitionType;
-      const power = card.tokenData?.power ?? selected?.definition.power ?? null;
+      const power = selected?.definition.power ?? card.tokenData?.power ?? null;
       const toughness =
-        card.tokenData?.toughness ?? selected?.definition.toughness ?? null;
+        selected?.definition.toughness ?? card.tokenData?.toughness ?? null;
 
       return {
         card,
