@@ -4,14 +4,12 @@ import {
   createContext,
   type Dispatch,
   type ReactNode,
-  useCallback,
   useContext,
   useEffect,
-  useMemo,
-  useReducer,
   useRef,
-  useState,
 } from "react";
+import { createStore, useStore } from "zustand";
+import { subscribeWithSelector } from "zustand/middleware";
 import type { GameAction } from "@/lib/game/actions";
 import { gameReducer } from "@/lib/game/reducer";
 import { getGameSetup } from "@/lib/game/setup";
@@ -45,10 +43,307 @@ type MultiplayerGameContextValue = {
   opponentShuffleCount: number;
 };
 
-const MultiplayerGameContext =
-  createContext<MultiplayerGameContextValue | null>(null);
+// ─── Store shape ──────────────────────────────────────────────────────────────
 
-// ─── Provider ─────────────────────────────────────────────────────────────────
+type MultiplayerGameStoreSlice = {
+  gameState: GameState;
+  stateVersion: number;
+  isConnected: boolean;
+  activePings: Set<string>;
+  hostResetAccepted: boolean;
+  guestResetAccepted: boolean;
+  isResetPending: boolean;
+  resetSyncVersion: number;
+  isFirstPlayerRollActive: boolean;
+  firstPlayerRollWinnerId: string | null;
+  pendingActionCount: number;
+  mulliganToastMessage: string | null;
+  opponentShuffleCount: number;
+  localPlayerId: string;
+  opponentPlayerId: string;
+  roomId: string;
+  myRole: "host" | "guest";
+  myUserId: string;
+
+  dispatch: (action: GameAction) => void;
+  resyncState: () => Promise<void>;
+  requestReset: () => Promise<void>;
+  cancelReset: () => Promise<void>;
+  keepOpeningHand: () => Promise<void>;
+  addPing: (cardId: string) => void;
+  setIsConnected: (connected: boolean) => void;
+  applyOpponentAction: (action: GameAction, seq?: number) => void;
+  triggerStateUpdated: () => Promise<void>;
+  triggerFirstPlayerRoll: (winnerId: string, durationMs: number) => void;
+  triggerMulliganToast: (playerName: string, count: number) => void;
+  updateResetVote: (hostReady: boolean, guestReady: boolean) => void;
+};
+
+export type MultiplayerGameStoreApi = ReturnType<
+  typeof createMultiplayerGameStore
+>;
+
+// ─── Store factory ────────────────────────────────────────────────────────────
+
+type MultiplayerGameStoreInit = {
+  initialGameState: GameState;
+  initialStateVersion: number;
+  localPlayerId: string;
+  opponentPlayerId: string;
+  roomId: string;
+  myRole: "host" | "guest";
+  myUserId: string;
+  initialHostResetAccepted: boolean;
+  initialGuestResetAccepted: boolean;
+};
+
+function createMultiplayerGameStore({
+  initialGameState,
+  initialStateVersion,
+  localPlayerId,
+  opponentPlayerId,
+  roomId,
+  myRole,
+  myUserId,
+  initialHostResetAccepted,
+  initialGuestResetAccepted,
+}: MultiplayerGameStoreInit) {
+  // Closure-based non-reactive bookkeeping — these drive the action queue
+  // logic but never need to trigger re-renders.
+  const actionQueue: GameAction[] = [];
+  let processing = false;
+  let actionRetryCount = 0;
+
+  return createStore<MultiplayerGameStoreSlice>()(
+    subscribeWithSelector((set, get) => {
+      const processQueue = async () => {
+        if (processing) return;
+        processing = true;
+
+        while (actionQueue.length > 0) {
+          const action = actionQueue[0];
+          if (!action) break;
+          const sentVersion = get().stateVersion;
+          let shouldShift = true;
+
+          try {
+            const res = await fetch(`/api/game/${roomId}/action`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ action, stateVersion: sentVersion }),
+            });
+
+            if (res.ok) {
+              const data = (await res.json()) as { seq: number };
+              set({ stateVersion: data.seq });
+              actionRetryCount = 0;
+            } else if (res.status === 409 && actionRetryCount < 5) {
+              // VERSION_CONFLICT: resync, rebase all pending actions, retry.
+              const sync = await fetch(`/api/game/${roomId}/state`);
+              if (sync.ok) {
+                const data = (await sync.json()) as {
+                  gameState: GameState;
+                  stateVersion: number;
+                  hostReady: boolean;
+                  guestReady: boolean;
+                };
+                let rebased = data.gameState;
+                for (const pending of actionQueue) {
+                  rebased = gameReducer(rebased, pending);
+                }
+                set({
+                  gameState: rebased,
+                  stateVersion: data.stateVersion,
+                  hostResetAccepted: Boolean(data.hostReady),
+                  guestResetAccepted: Boolean(data.guestReady),
+                });
+              }
+              actionRetryCount += 1;
+              shouldShift = false;
+            } else {
+              // Non-retryable — drop the action and resync.
+              const sync = await fetch(`/api/game/${roomId}/state`);
+              if (sync.ok) {
+                const data = (await sync.json()) as {
+                  gameState: GameState;
+                  stateVersion: number;
+                  hostReady: boolean;
+                  guestReady: boolean;
+                };
+                set({
+                  gameState: data.gameState,
+                  stateVersion: data.stateVersion,
+                  hostResetAccepted: Boolean(data.hostReady),
+                  guestResetAccepted: Boolean(data.guestReady),
+                  pendingActionCount: 0,
+                });
+              }
+              actionRetryCount = 0;
+            }
+          } catch {
+            actionRetryCount = 0;
+          }
+
+          if (shouldShift) {
+            actionQueue.shift();
+            set((s) => ({
+              pendingActionCount: Math.max(0, s.pendingActionCount - 1),
+            }));
+          }
+        }
+
+        processing = false;
+      };
+
+      return {
+        gameState: initialGameState,
+        stateVersion: initialStateVersion,
+        isConnected: false,
+        activePings: new Set<string>(),
+        hostResetAccepted: initialHostResetAccepted,
+        guestResetAccepted: initialGuestResetAccepted,
+        isResetPending: false,
+        resetSyncVersion: 0,
+        isFirstPlayerRollActive: false,
+        firstPlayerRollWinnerId: null,
+        pendingActionCount: 0,
+        mulliganToastMessage: null,
+        opponentShuffleCount: 0,
+        localPlayerId,
+        opponentPlayerId,
+        roomId,
+        myRole,
+        myUserId,
+
+        dispatch: (action: GameAction) => {
+          if (action.type === "card/ping") {
+            void fetch(`/api/game/${roomId}/action`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                action,
+                stateVersion: get().stateVersion,
+              }),
+            }).catch(() => {});
+            return;
+          }
+
+          const nextState = gameReducer(get().gameState, action);
+          set((s) => ({
+            gameState: nextState,
+            pendingActionCount: s.pendingActionCount + 1,
+          }));
+          actionQueue.push(action);
+          void processQueue();
+        },
+
+        resyncState: async () => {
+          const res = await fetch(`/api/game/${roomId}/state`);
+          if (!res.ok) return;
+          const data = (await res.json()) as {
+            gameState: GameState;
+            stateVersion: number;
+            hostReady: boolean;
+            guestReady: boolean;
+          };
+          actionQueue.length = 0;
+          processing = false;
+          set({
+            gameState: data.gameState,
+            stateVersion: data.stateVersion,
+            hostResetAccepted: Boolean(data.hostReady),
+            guestResetAccepted: Boolean(data.guestReady),
+            pendingActionCount: 0,
+          });
+        },
+
+        requestReset: async () => {
+          set({ isResetPending: true });
+          try {
+            await fetch(`/api/game/${roomId}/reset`, { method: "POST" });
+          } finally {
+            set({ isResetPending: false });
+          }
+        },
+
+        cancelReset: async () => {
+          await fetch(`/api/game/${roomId}/reset`, { method: "DELETE" });
+        },
+
+        keepOpeningHand: async () => {
+          await fetch(`/api/game/${roomId}/keep-hand`, { method: "POST" });
+        },
+
+        addPing: (cardId: string) => {
+          set((s) => ({ activePings: new Set([...s.activePings, cardId]) }));
+          setTimeout(() => {
+            set((s) => {
+              const next = new Set(s.activePings);
+              next.delete(cardId);
+              return { activePings: next };
+            });
+          }, 700);
+        },
+
+        setIsConnected: (connected: boolean) => set({ isConnected: connected }),
+
+        applyOpponentAction: (action: GameAction, seq?: number) => {
+          if (action.type === "zone/shuffle") {
+            set((s) => ({ opponentShuffleCount: s.opponentShuffleCount + 1 }));
+          }
+          const nextState = gameReducer(get().gameState, action);
+          set({
+            gameState: nextState,
+            ...(seq !== undefined ? { stateVersion: seq } : {}),
+          });
+        },
+
+        triggerStateUpdated: async () => {
+          await get().resyncState();
+          if (getGameSetup(get().gameState).mulligan.stage === "mulligan") {
+            set({
+              isFirstPlayerRollActive: false,
+              firstPlayerRollWinnerId: null,
+            });
+          }
+          set((s) => ({ resetSyncVersion: s.resetSyncVersion + 1 }));
+        },
+
+        triggerFirstPlayerRoll: (winnerId: string, durationMs: number) => {
+          set({
+            firstPlayerRollWinnerId: winnerId,
+            isFirstPlayerRollActive: true,
+          });
+          window.setTimeout(() => {
+            set({ isFirstPlayerRollActive: false });
+          }, durationMs);
+        },
+
+        triggerMulliganToast: (playerName: string, count: number) => {
+          const message = `${playerName} mulligou ${count} vez${count === 1 ? "" : "es"}`;
+          set({ mulliganToastMessage: message });
+          window.setTimeout(() => {
+            set((s) => ({
+              mulliganToastMessage:
+                s.mulliganToastMessage === message
+                  ? null
+                  : s.mulliganToastMessage,
+            }));
+          }, 2200);
+        },
+
+        updateResetVote: (hostReady: boolean, guestReady: boolean) => {
+          set({ hostResetAccepted: hostReady, guestResetAccepted: guestReady });
+        },
+      };
+    }),
+  );
+}
+
+// ─── Context & Provider ───────────────────────────────────────────────────────
+
+const MultiplayerGameStoreContext =
+  createContext<MultiplayerGameStoreApi | null>(null);
 
 type MultiplayerGameProviderProps = {
   children: ReactNode;
@@ -75,305 +370,92 @@ export function MultiplayerGameProvider({
   initialHostResetAccepted,
   initialGuestResetAccepted,
 }: MultiplayerGameProviderProps) {
-  const [state, setState] = useReducer(
-    (_prev: GameState, next: GameState) => next,
-    initialGameState,
-  );
-  const stateRef = useRef(state);
-  stateRef.current = state;
-
-  const versionRef = useRef(initialStateVersion);
-  const [stateVersion, setStateVersion] = useState(initialStateVersion);
-
-  const [isConnected, setIsConnected] = useReducer(
-    (_: boolean, next: boolean) => next,
-    false,
-  );
-
-  const [activePings, setActivePings] = useState<Set<string>>(new Set());
-  const [hostResetAccepted, setHostResetAccepted] = useState(
-    initialHostResetAccepted,
-  );
-  const [guestResetAccepted, setGuestResetAccepted] = useState(
-    initialGuestResetAccepted,
-  );
-  const [isResetPending, setIsResetPending] = useState(false);
-  const [resetSyncVersion, setResetSyncVersion] = useState(0);
-  const [isFirstPlayerRollActive, setIsFirstPlayerRollActive] = useState(false);
-  const [firstPlayerRollWinnerId, setFirstPlayerRollWinnerId] = useState<
-    string | null
-  >(null);
-  const [pendingActionCount, setPendingActionCount] = useState(0);
-  const [mulliganToastMessage, setMulliganToastMessage] = useState<
-    string | null
-  >(null);
-  const [opponentShuffleCount, setOpponentShuffleCount] = useState(0);
-
-  const addPing = useCallback((cardId: string) => {
-    setActivePings((prev) => new Set([...prev, cardId]));
-    setTimeout(() => {
-      setActivePings((prev) => {
-        const next = new Set(prev);
-        next.delete(cardId);
-        return next;
-      });
-    }, 700);
-  }, []);
-
-  // Serialized action queue — server stays authoritative for multiplayer actions.
-  const actionQueueRef = useRef<GameAction[]>([]);
-  const processingRef = useRef(false);
-  // Retry counter for the action currently at the front of the queue.
-  const actionRetryCountRef = useRef(0);
-
-  const processQueue = useCallback(async () => {
-    if (processingRef.current) return;
-    processingRef.current = true;
-
-    while (actionQueueRef.current.length > 0) {
-      const action = actionQueueRef.current[0];
-      if (!action) break;
-      const sentVersion = versionRef.current;
-
-      let shouldShift = true;
-
-      try {
-        const res = await fetch(`/api/game/${roomId}/action`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action, stateVersion: sentVersion }),
-        });
-
-        if (res.ok) {
-          // State already applied optimistically in dispatch — just update version.
-          const data = (await res.json()) as { seq: number };
-          versionRef.current = data.seq;
-          setStateVersion(data.seq);
-          actionRetryCountRef.current = 0;
-        } else if (res.status === 409 && actionRetryCountRef.current < 5) {
-          // VERSION_CONFLICT: resync the server state, rebase all pending actions
-          // on top of it, then retry this action with the fresh version.
-          const sync = await fetch(`/api/game/${roomId}/state`);
-          if (sync.ok) {
-            const data = (await sync.json()) as {
-              gameState: GameState;
-              stateVersion: number;
-              hostReady: boolean;
-              guestReady: boolean;
-            };
-            versionRef.current = data.stateVersion;
-            setStateVersion(data.stateVersion);
-            setHostResetAccepted(Boolean(data.hostReady));
-            setGuestResetAccepted(Boolean(data.guestReady));
-
-            // Rebase: re-apply every pending action on top of the authoritative state.
-            let rebased = data.gameState;
-            for (const pending of actionQueueRef.current) {
-              rebased = gameReducer(rebased, pending);
-            }
-            stateRef.current = rebased;
-            setState(rebased);
-          }
-          actionRetryCountRef.current += 1;
-          shouldShift = false; // retry the same action with the updated version
-        } else {
-          // Non-retryable error or retry limit reached — drop the action and resync.
-          const sync = await fetch(`/api/game/${roomId}/state`);
-          if (sync.ok) {
-            const data = (await sync.json()) as {
-              gameState: GameState;
-              stateVersion: number;
-              hostReady: boolean;
-              guestReady: boolean;
-            };
-            stateRef.current = data.gameState;
-            setState(data.gameState);
-            versionRef.current = data.stateVersion;
-            setStateVersion(data.stateVersion);
-            setHostResetAccepted(Boolean(data.hostReady));
-            setGuestResetAccepted(Boolean(data.guestReady));
-          }
-          actionRetryCountRef.current = 0;
-        }
-      } catch {
-        // Network error — drop the action and move on.
-        actionRetryCountRef.current = 0;
-      }
-
-      if (shouldShift) {
-        actionQueueRef.current.shift();
-        setPendingActionCount((current) => Math.max(0, current - 1));
-      }
-    }
-
-    processingRef.current = false;
-  }, [roomId]);
-
-  const resyncState = useCallback(async () => {
-    const res = await fetch(`/api/game/${roomId}/state`);
-    if (!res.ok) return;
-
-    const data = (await res.json()) as {
-      gameState: GameState;
-      stateVersion: number;
-      hostReady: boolean;
-      guestReady: boolean;
-    };
-
-    actionQueueRef.current = [];
-    processingRef.current = false;
-    stateRef.current = data.gameState;
-    setState(data.gameState);
-    versionRef.current = data.stateVersion;
-    setStateVersion(data.stateVersion);
-    setHostResetAccepted(Boolean(data.hostReady));
-    setGuestResetAccepted(Boolean(data.guestReady));
-  }, [roomId]);
-
-  const dispatch = useCallback(
-    (action: GameAction) => {
-      if (action.type === "card/ping") {
-        void fetch(`/api/game/${roomId}/action`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action, stateVersion: versionRef.current }),
-        }).catch(() => {
-          // Ping is purely visual; ignore transient transport errors.
-        });
-        return;
-      }
-
-      // Apply immediately (optimistic) — same reducer the server uses.
-      const nextState = gameReducer(stateRef.current, action);
-      stateRef.current = nextState;
-      setState(nextState);
-
-      actionQueueRef.current.push(action);
-      setPendingActionCount((current) => current + 1);
-      void processQueue();
-    },
-    [processQueue, roomId],
-  );
-
-  const requestReset = useCallback(async () => {
-    setIsResetPending(true);
-
-    try {
-      const res = await fetch(`/api/game/${roomId}/reset`, {
-        method: "POST",
-      });
-
-      if (!res.ok) {
-        return;
-      }
-    } finally {
-      setIsResetPending(false);
-    }
-  }, [roomId]);
-
-  const cancelReset = useCallback(async () => {
-    await fetch(`/api/game/${roomId}/reset`, { method: "DELETE" });
-  }, [roomId]);
-
-  const keepOpeningHand = useCallback(async () => {
-    await fetch(`/api/game/${roomId}/keep-hand`, {
-      method: "POST",
+  const storeRef = useRef<MultiplayerGameStoreApi | null>(null);
+  if (!storeRef.current) {
+    storeRef.current = createMultiplayerGameStore({
+      initialGameState,
+      initialStateVersion,
+      localPlayerId,
+      opponentPlayerId,
+      roomId,
+      myRole,
+      myUserId,
+      initialHostResetAccepted,
+      initialGuestResetAccepted,
     });
-  }, [roomId]);
+  }
+  const store = storeRef.current;
 
-  // Pusher subscription
   useEffect(() => {
+    const {
+      addPing,
+      applyOpponentAction,
+      triggerStateUpdated,
+      triggerFirstPlayerRoll,
+      triggerMulliganToast,
+      updateResetVote,
+      resyncState,
+      setIsConnected,
+    } = store.getState();
+
     const client = getPusherClient();
     const channel = client.subscribe(`game-${roomId}`);
-    const handleConnected = () => {
+
+    channel.bind("pusher:subscription_succeeded", () => {
       setIsConnected(true);
       void resyncState();
-    };
-    const handleDisconnected = () => setIsConnected(false);
-
-    channel.bind("pusher:subscription_succeeded", () => setIsConnected(true));
+    });
     channel.bind("pusher:subscription_error", () => setIsConnected(false));
 
     channel.bind(
       "game-action",
       (data: { action: GameAction; actorUserId: string; seq?: number }) => {
-        // Ignore echo of own actions (already applied optimistically)
         if (data.actorUserId === myUserId) return;
-        // card/ping is a UI signal — show animation, don't mutate state
         if (data.action.type === "card/ping") {
           addPing(data.action.cardId);
           return;
         }
-        if (data.action.type === "zone/shuffle") {
-          setOpponentShuffleCount((n) => n + 1);
-        }
-        const nextState = gameReducer(stateRef.current, data.action);
-        stateRef.current = nextState;
-        setState(nextState);
-        if (data.seq !== undefined) {
-          versionRef.current = data.seq;
-          setStateVersion(data.seq);
-        }
+        applyOpponentAction(data.action, data.seq);
       },
     );
 
     channel.bind("state-updated", () => {
-      void resyncState().then(() => {
-        if (getGameSetup(stateRef.current).mulligan.stage === "mulligan") {
-          setIsFirstPlayerRollActive(false);
-          setFirstPlayerRollWinnerId(null);
-        }
-        setResetSyncVersion((current) => current + 1);
-      });
+      void triggerStateUpdated();
     });
 
     channel.bind(
       "first-player-roll-started",
       (data: { winnerId: string; durationMs: number }) => {
-        setFirstPlayerRollWinnerId(data.winnerId);
-        setIsFirstPlayerRollActive(true);
-        window.setTimeout(() => {
-          setIsFirstPlayerRollActive(false);
-        }, data.durationMs);
+        triggerFirstPlayerRoll(data.winnerId, data.durationMs);
       },
     );
 
     channel.bind(
       "player-mulliganed",
       (data: { playerName: string; count: number }) => {
-        setMulliganToastMessage(
-          `${data.playerName} mulligou ${data.count} vez${data.count === 1 ? "" : "es"}`,
-        );
-        window.setTimeout(() => {
-          setMulliganToastMessage((current) =>
-            current ===
-            `${data.playerName} mulligou ${data.count} vez${data.count === 1 ? "" : "es"}`
-              ? null
-              : current,
-          );
-        }, 2200);
+        triggerMulliganToast(data.playerName, data.count);
       },
     );
 
     channel.bind(
       "reset-vote-updated",
       (data: { hostReady: boolean; guestReady: boolean }) => {
-        setHostResetAccepted(data.hostReady);
-        setGuestResetAccepted(data.guestReady);
+        updateResetVote(data.hostReady, data.guestReady);
       },
     );
 
     setIsConnected(true);
 
-    // On mount: resync immediately if the SSR snapshot has either reset flag set.
-    // This clears stale hostReady/guestReady values that may have been left over
-    // from the lobby "ready" flow (e.g. a player who missed the game-started
-    // Pusher event and clicked ready again while the game was already ACTIVE).
     if (initialHostResetAccepted || initialGuestResetAccepted) {
       void resyncState();
     }
 
-    // Reconnect → resync
+    const handleConnected = () => {
+      setIsConnected(true);
+      void resyncState();
+    };
+    const handleDisconnected = () => setIsConnected(false);
+
     client.connection.bind("connected", handleConnected);
     client.connection.bind("disconnected", handleDisconnected);
 
@@ -384,79 +466,86 @@ export function MultiplayerGameProvider({
       client.connection.unbind("disconnected", handleDisconnected);
     };
   }, [
+    store,
     roomId,
     myUserId,
-    addPing,
-    resyncState,
     initialHostResetAccepted,
     initialGuestResetAccepted,
   ]);
 
-  const value = useMemo(
-    () => ({
-      state,
-      dispatch,
-      requestReset,
-      cancelReset,
-      keepOpeningHand,
-      localPlayerId,
-      opponentPlayerId,
-      roomId,
-      isConnected,
-      myRole,
-      myUserId,
-      activePings,
-      hostResetAccepted,
-      guestResetAccepted,
-      isResetPending,
-      stateVersion,
-      resetSyncVersion,
-      isFirstPlayerRollActive,
-      firstPlayerRollWinnerId,
-      isActionPending: pendingActionCount > 0,
-      mulliganToastMessage,
-      opponentShuffleCount,
-    }),
-    [
-      state,
-      dispatch,
-      requestReset,
-      cancelReset,
-      keepOpeningHand,
-      localPlayerId,
-      opponentPlayerId,
-      roomId,
-      isConnected,
-      myRole,
-      myUserId,
-      activePings,
-      hostResetAccepted,
-      guestResetAccepted,
-      isResetPending,
-      stateVersion,
-      resetSyncVersion,
-      isFirstPlayerRollActive,
-      firstPlayerRollWinnerId,
-      pendingActionCount,
-      mulliganToastMessage,
-      opponentShuffleCount,
-    ],
-  );
-
   return (
-    <MultiplayerGameContext.Provider value={value}>
+    <MultiplayerGameStoreContext.Provider value={store}>
       {children}
-    </MultiplayerGameContext.Provider>
+    </MultiplayerGameStoreContext.Provider>
   );
 }
 
-// ─── Hook ─────────────────────────────────────────────────────────────────────
+// ─── Hooks ────────────────────────────────────────────────────────────────────
+
+export function useMultiplayerGameStoreApi(): MultiplayerGameStoreApi {
+  const store = useContext(MultiplayerGameStoreContext);
+  if (!store) {
+    throw new Error(
+      "useMultiplayerGameStoreApi must be used inside <MultiplayerGameProvider>",
+    );
+  }
+  return store;
+}
 
 export function useMultiplayerGameContext(): MultiplayerGameContextValue {
-  const ctx = useContext(MultiplayerGameContext);
-  if (!ctx)
+  const store = useContext(MultiplayerGameStoreContext);
+  if (!store) {
     throw new Error(
       "useMultiplayerGameContext must be used inside <MultiplayerGameProvider>",
     );
-  return ctx;
+  }
+
+  const gameState = useStore(store, (s) => s.gameState);
+  const stateVersion = useStore(store, (s) => s.stateVersion);
+  const isConnected = useStore(store, (s) => s.isConnected);
+  const activePings = useStore(store, (s) => s.activePings);
+  const hostResetAccepted = useStore(store, (s) => s.hostResetAccepted);
+  const guestResetAccepted = useStore(store, (s) => s.guestResetAccepted);
+  const isResetPending = useStore(store, (s) => s.isResetPending);
+  const resetSyncVersion = useStore(store, (s) => s.resetSyncVersion);
+  const isFirstPlayerRollActive = useStore(
+    store,
+    (s) => s.isFirstPlayerRollActive,
+  );
+  const firstPlayerRollWinnerId = useStore(
+    store,
+    (s) => s.firstPlayerRollWinnerId,
+  );
+  const pendingActionCount = useStore(store, (s) => s.pendingActionCount);
+  const mulliganToastMessage = useStore(store, (s) => s.mulliganToastMessage);
+  const opponentShuffleCount = useStore(store, (s) => s.opponentShuffleCount);
+  const dispatch = useStore(store, (s) => s.dispatch);
+  const requestReset = useStore(store, (s) => s.requestReset);
+  const cancelReset = useStore(store, (s) => s.cancelReset);
+  const keepOpeningHand = useStore(store, (s) => s.keepOpeningHand);
+
+  return {
+    state: gameState,
+    dispatch,
+    requestReset,
+    cancelReset,
+    keepOpeningHand,
+    localPlayerId: store.getState().localPlayerId,
+    opponentPlayerId: store.getState().opponentPlayerId,
+    roomId: store.getState().roomId,
+    myRole: store.getState().myRole,
+    myUserId: store.getState().myUserId,
+    isConnected,
+    activePings,
+    hostResetAccepted,
+    guestResetAccepted,
+    isResetPending,
+    stateVersion,
+    resetSyncVersion,
+    isFirstPlayerRollActive,
+    firstPlayerRollWinnerId,
+    isActionPending: pendingActionCount > 0,
+    mulliganToastMessage,
+    opponentShuffleCount,
+  };
 }

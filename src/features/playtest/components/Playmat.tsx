@@ -31,7 +31,10 @@ import { useGameStore } from "../hooks/useGameStore";
 import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
 import { CardBack } from "./CardBack";
 import { BattlefieldArea } from "./playmat/BattlefieldArea";
-import { BattlefieldArrowOverlay } from "./playmat/BattlefieldArrowOverlay";
+import {
+  BattlefieldArrowOverlay,
+  toCanvasNormalized,
+} from "./playmat/BattlefieldArrowOverlay";
 import { BattlefieldCardMenu } from "./playmat/BattlefieldCardMenu";
 import { BattlefieldContextMenu } from "./playmat/BattlefieldContextMenu";
 import {
@@ -138,6 +141,11 @@ export function Playmat({
     clientX: number;
     clientY: number;
   } | null>(null);
+  // Always-current refs for arrow-mode calculation (avoids stale closure in
+  // handleToggleArrowMode which has [] deps and is invoked via keyboard shortcut).
+  const battlefieldContainerElRef = useRef<HTMLDivElement | null>(null);
+  const battlefieldPanRef = useRef({ x: 0, y: 0 });
+  const battlefieldZoomRef = useRef(BATTLEFIELD_ZOOM_MIN);
 
   const [zonePreview, setZonePreview] = useState<"graveyard" | "exile" | null>(
     null,
@@ -159,6 +167,10 @@ export function Playmat({
   } | null>(null);
   const [battlefieldZoom, setBattlefieldZoom] = useState(BATTLEFIELD_ZOOM_MIN);
   const [battlefieldPan, setBattlefieldPan] = useState({ x: 0, y: 0 });
+  // Keep refs current every render so handleToggleArrowMode ([] deps) always
+  // reads the latest pan/zoom when computing the arrow start point.
+  battlefieldPanRef.current = battlefieldPan;
+  battlefieldZoomRef.current = battlefieldZoom;
 
   const [activeDrag, setActiveDrag] = useState<ActiveDragState | null>(null);
   const [centerToast, setCenterToast] = useState<CenterToast | null>(null);
@@ -448,12 +460,23 @@ export function Playmat({
         return next;
       }
 
-      const width = Math.max(window.innerWidth, 1);
-      const height = Math.max(window.innerHeight, 1);
-      const start = {
-        x: Math.min(Math.max(pointer.clientX / width, 0), 1),
-        y: Math.min(Math.max(pointer.clientY / height, 0), 1),
-      };
+      // Convert cursor position to canvas-normalized coordinates using the
+      // same transform as the overlay's onPointerMove handler, so the start
+      // point is always in the correct coordinate space regardless of pan/zoom.
+      const start = toCanvasNormalized(
+        pointer.clientX,
+        pointer.clientY,
+        battlefieldContainerElRef.current,
+        battlefieldPanRef.current,
+        battlefieldZoomRef.current,
+      );
+
+      if (!start) {
+        // Container not mounted yet — first onPointerMove will set the start.
+        setPendingArrowStart(null);
+        setPendingArrowEnd(null);
+        return next;
+      }
 
       setPendingArrowStart(start);
       setPendingArrowEnd(start);
@@ -1084,6 +1107,7 @@ export function Playmat({
   const setBattlefieldRefs = useCallback(
     (node: HTMLDivElement | null) => {
       battlefieldRef.current = node;
+      battlefieldContainerElRef.current = node;
       battlefieldDrop.setNodeRef(node);
       setBattlefieldContainerEl(node);
     },

@@ -42,7 +42,7 @@ import {
 } from "@/lib/game/selectors";
 import { getGameSetup, hasPlayerKeptOpeningHand } from "@/lib/game/setup";
 import type { CardInstance } from "@/lib/game/types";
-import { useMultiplayerGameContext } from "../store/MultiplayerGameProvider";
+import { useMultiplayerGameStore } from "../hooks/useMultiplayerGameStore";
 
 type MultiplayerPlaymatProps = {
   myRole: "host" | "guest";
@@ -74,7 +74,7 @@ export function MultiplayerPlaymat({
   hostName,
   guestName,
 }: MultiplayerPlaymatProps) {
-  const multiCtx = useMultiplayerGameContext();
+  const multiCtx = useMultiplayerGameStore();
   const localPlayer = multiCtx.state.players[multiCtx.localPlayerId];
   const setup = getGameSetup(multiCtx.state);
   const mulliganState = setup.mulligan;

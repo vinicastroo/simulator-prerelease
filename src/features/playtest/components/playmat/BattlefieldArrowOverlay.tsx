@@ -31,7 +31,7 @@ type BattlefieldArrowOverlayProps = {
  * BATTLEFIELD_CANVAS_SIZE). Accounts for the container's position on screen
  * and the pan/zoom transform applied to the canvas inside it.
  */
-function toCanvasNormalized(
+export function toCanvasNormalized(
   clientX: number,
   clientY: number,
   containerEl: HTMLDivElement | null | undefined,
