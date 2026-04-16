@@ -19,6 +19,9 @@ export type ActiveDragState = DragCardData & {
 export type CardHoverInfo = {
   name: string;
   imageUrl: string | null;
+  power?: string | null;
+  toughness?: string | null;
+  cardType?: string;
 };
 
 export type PreviewAnchor = {

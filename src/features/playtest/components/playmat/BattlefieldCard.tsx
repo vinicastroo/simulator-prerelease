@@ -134,8 +134,12 @@ export const BattlefieldCard = memo(function BattlefieldCard({
         transition: isDragging ? "none" : undefined,
         pointerEvents: isGhosted ? "none" : "auto",
       }}
-      onMouseEnter={(event) => onHover({ name, imageUrl }, event.currentTarget)}
-      onMouseMove={(event) => onHover({ name, imageUrl }, event.currentTarget)}
+      onMouseEnter={(event) =>
+        onHover({ name, imageUrl, power, toughness, cardType }, event.currentTarget)
+      }
+      onMouseMove={(event) =>
+        onHover({ name, imageUrl, power, toughness, cardType }, event.currentTarget)
+      }
       onMouseLeave={() => onHover(null, null)}
       onPointerDownCapture={handlePointerDownCapture}
       onClick={(event) => {

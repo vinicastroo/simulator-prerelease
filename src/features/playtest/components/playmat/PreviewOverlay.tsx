@@ -113,6 +113,9 @@ export function PreviewOverlay({
         <CardPreview
           imageUrl={previewCard.imageUrl}
           name={previewCard.name}
+          power={previewCard.power}
+          toughness={previewCard.toughness}
+          cardType={previewCard.cardType}
           className="border border-white/20"
         />
       </div>
