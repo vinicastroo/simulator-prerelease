@@ -223,8 +223,9 @@ export function MultiplayerPlaymat({
     x: 0,
     y: 0,
   });
-  const [opponentBattlefieldEl, setOpponentBattlefieldEl] =
-    useState<HTMLDivElement | null>(null);
+  const [arrowViewportEl, setArrowViewportEl] = useState<HTMLDivElement | null>(
+    null,
+  );
   const [opponentZonePreview, setOpponentZonePreview] =
     useState<OpponentZonePreview>(null);
   const [opponentPreviewCard, setOpponentPreviewCard] =
@@ -418,7 +419,10 @@ export function MultiplayerPlaymat({
 
   return (
     <GameContext.Provider value={gameCtxValue}>
-      <div className="flex h-screen w-screen flex-col overflow-hidden bg-[#0b0e14]">
+      <div
+        ref={setArrowViewportEl}
+        className="flex h-screen w-screen flex-col overflow-hidden bg-[#0b0e14]"
+      >
         <GameSettingsMenu
           onReset={multiCtx.requestReset}
           collectionHref="/decks"
@@ -507,7 +511,6 @@ export function MultiplayerPlaymat({
           style={{ height: "35vh" }}
         >
           <BattlefieldArea
-            setRefs={setOpponentBattlefieldEl}
             isActiveDropTarget={false}
             isAnyDragActive={false}
             interactive={false}
@@ -546,15 +549,16 @@ export function MultiplayerPlaymat({
               playerName="Você"
               isRollingForFirstTurn={isRollingFirstPlayer}
               allowInfiniteBattlefieldZoom
+              arrowCoordinateSpace="viewport"
+              arrowContainerEl={arrowViewportEl}
             />
           </div>
         </div>
 
         <BattlefieldArrowOverlay
           arrows={opponentBattlefieldArrows}
-          containerEl={opponentBattlefieldEl}
-          pan={opponentBattlefieldPan}
-          zoom={opponentBattlefieldZoom}
+          containerEl={arrowViewportEl}
+          coordinateSpace="viewport"
         />
       </div>
 

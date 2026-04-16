@@ -72,7 +72,6 @@ type MultiplayerGameStoreSlice = {
   keepOpeningHand: () => Promise<void>;
   addPing: (cardId: string) => void;
   setIsConnected: (connected: boolean) => void;
-  applyOpponentAction: (action: GameAction, seq?: number) => void;
   triggerStateUpdated: () => Promise<void>;
   triggerFirstPlayerRoll: (winnerId: string, durationMs: number) => void;
   triggerMulliganToast: (playerName: string, count: number) => void;
@@ -108,91 +107,48 @@ function createMultiplayerGameStore({
   initialHostResetAccepted,
   initialGuestResetAccepted,
 }: MultiplayerGameStoreInit) {
-  // Closure-based non-reactive bookkeeping — these drive the action queue
-  // logic but never need to trigger re-renders.
-  const actionQueue: GameAction[] = [];
-  let processing = false;
-  let actionRetryCount = 0;
+  // Closure-based non-reactive bookkeeping — never trigger re-renders.
+  let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+  const scheduleFlusher = (
+    get: () => MultiplayerGameStoreSlice,
+    setStoreState: (partial: Partial<MultiplayerGameStoreSlice>) => void,
+  ) => {
+    if (debounceTimer !== null) clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+      debounceTimer = null;
+      void flushState(get, setStoreState);
+    }, 80);
+  };
+
+  const flushState = async (
+    get: () => MultiplayerGameStoreSlice,
+    setStoreState: (partial: Partial<MultiplayerGameStoreSlice>) => void,
+  ) => {
+    const { gameState, stateVersion } = get();
+    try {
+      const res = await fetch(`/api/game/${roomId}/state`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ gameState, stateVersion }),
+      });
+      if (res.ok) {
+        const data = (await res.json()) as { seq: number };
+        setStoreState({ stateVersion: data.seq, pendingActionCount: 0 });
+      } else if (res.status === 409) {
+        await get().resyncState();
+      } else {
+        setStoreState({ pendingActionCount: 0 });
+      }
+    } catch {
+      setStoreState({ pendingActionCount: 0 });
+    }
+  };
 
   return createStore<MultiplayerGameStoreSlice>()(
     subscribeWithSelector((set, get) => {
-      const processQueue = async () => {
-        if (processing) return;
-        processing = true;
-
-        while (actionQueue.length > 0) {
-          const action = actionQueue[0];
-          if (!action) break;
-          const sentVersion = get().stateVersion;
-          let shouldShift = true;
-
-          try {
-            const res = await fetch(`/api/game/${roomId}/action`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ action, stateVersion: sentVersion }),
-            });
-
-            if (res.ok) {
-              const data = (await res.json()) as { seq: number };
-              set({ stateVersion: data.seq });
-              actionRetryCount = 0;
-            } else if (res.status === 409 && actionRetryCount < 5) {
-              // VERSION_CONFLICT: resync, rebase all pending actions, retry.
-              const sync = await fetch(`/api/game/${roomId}/state`);
-              if (sync.ok) {
-                const data = (await sync.json()) as {
-                  gameState: GameState;
-                  stateVersion: number;
-                  hostReady: boolean;
-                  guestReady: boolean;
-                };
-                let rebased = data.gameState;
-                for (const pending of actionQueue) {
-                  rebased = gameReducer(rebased, pending);
-                }
-                set({
-                  gameState: rebased,
-                  stateVersion: data.stateVersion,
-                  hostResetAccepted: Boolean(data.hostReady),
-                  guestResetAccepted: Boolean(data.guestReady),
-                });
-              }
-              actionRetryCount += 1;
-              shouldShift = false;
-            } else {
-              // Non-retryable — drop the action and resync.
-              const sync = await fetch(`/api/game/${roomId}/state`);
-              if (sync.ok) {
-                const data = (await sync.json()) as {
-                  gameState: GameState;
-                  stateVersion: number;
-                  hostReady: boolean;
-                  guestReady: boolean;
-                };
-                set({
-                  gameState: data.gameState,
-                  stateVersion: data.stateVersion,
-                  hostResetAccepted: Boolean(data.hostReady),
-                  guestResetAccepted: Boolean(data.guestReady),
-                  pendingActionCount: 0,
-                });
-              }
-              actionRetryCount = 0;
-            }
-          } catch {
-            actionRetryCount = 0;
-          }
-
-          if (shouldShift) {
-            actionQueue.shift();
-            set((s) => ({
-              pendingActionCount: Math.max(0, s.pendingActionCount - 1),
-            }));
-          }
-        }
-
-        processing = false;
+      const setStoreState = (partial: Partial<MultiplayerGameStoreSlice>) => {
+        set(partial);
       };
 
       return {
@@ -229,15 +185,15 @@ function createMultiplayerGameStore({
           }
 
           const nextState = gameReducer(get().gameState, action);
-          set((s) => ({
-            gameState: nextState,
-            pendingActionCount: s.pendingActionCount + 1,
-          }));
-          actionQueue.push(action);
-          void processQueue();
+          set({ gameState: nextState, pendingActionCount: 1 });
+          scheduleFlusher(get, setStoreState);
         },
 
         resyncState: async () => {
+          if (debounceTimer !== null) {
+            clearTimeout(debounceTimer);
+            debounceTimer = null;
+          }
           const res = await fetch(`/api/game/${roomId}/state`);
           if (!res.ok) return;
           const data = (await res.json()) as {
@@ -246,8 +202,6 @@ function createMultiplayerGameStore({
             hostReady: boolean;
             guestReady: boolean;
           };
-          actionQueue.length = 0;
-          processing = false;
           set({
             gameState: data.gameState,
             stateVersion: data.stateVersion,
@@ -286,17 +240,6 @@ function createMultiplayerGameStore({
         },
 
         setIsConnected: (connected: boolean) => set({ isConnected: connected }),
-
-        applyOpponentAction: (action: GameAction, seq?: number) => {
-          if (action.type === "zone/shuffle") {
-            set((s) => ({ opponentShuffleCount: s.opponentShuffleCount + 1 }));
-          }
-          const nextState = gameReducer(get().gameState, action);
-          set({
-            gameState: nextState,
-            ...(seq !== undefined ? { stateVersion: seq } : {}),
-          });
-        },
 
         triggerStateUpdated: async () => {
           await get().resyncState();
@@ -389,7 +332,6 @@ export function MultiplayerGameProvider({
   useEffect(() => {
     const {
       addPing,
-      applyOpponentAction,
       triggerStateUpdated,
       triggerFirstPlayerRoll,
       triggerMulliganToast,
@@ -409,13 +351,19 @@ export function MultiplayerGameProvider({
 
     channel.bind(
       "game-action",
-      (data: { action: GameAction; actorUserId: string; seq?: number }) => {
+      (data: { action: GameAction; actorUserId: string }) => {
         if (data.actorUserId === myUserId) return;
         if (data.action.type === "card/ping") {
           addPing(data.action.cardId);
-          return;
         }
-        applyOpponentAction(data.action, data.seq);
+      },
+    );
+
+    channel.bind(
+      "state-push",
+      (data: { stateVersion: number; actorUserId: string }) => {
+        if (data.actorUserId === myUserId) return;
+        void resyncState();
       },
     );
 

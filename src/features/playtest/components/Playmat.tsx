@@ -32,8 +32,10 @@ import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
 import { CardBack } from "./CardBack";
 import { BattlefieldArea } from "./playmat/BattlefieldArea";
 import {
+  type ArrowCoordinateSpace,
   BattlefieldArrowOverlay,
   toCanvasNormalized,
+  toViewportNormalized,
 } from "./playmat/BattlefieldArrowOverlay";
 import { BattlefieldCardMenu } from "./playmat/BattlefieldCardMenu";
 import { BattlefieldContextMenu } from "./playmat/BattlefieldContextMenu";
@@ -98,10 +100,14 @@ export function Playmat({
   playerName = "Você",
   isRollingForFirstTurn = false,
   allowInfiniteBattlefieldZoom = false,
+  arrowCoordinateSpace = "canvas",
+  arrowContainerEl = null,
 }: {
   playerName?: string;
   isRollingForFirstTurn?: boolean;
   allowInfiniteBattlefieldZoom?: boolean;
+  arrowCoordinateSpace?: ArrowCoordinateSpace;
+  arrowContainerEl?: HTMLDivElement | null;
 }) {
   const {
     state,
@@ -463,13 +469,20 @@ export function Playmat({
       // Convert cursor position to canvas-normalized coordinates using the
       // same transform as the overlay's onPointerMove handler, so the start
       // point is always in the correct coordinate space regardless of pan/zoom.
-      const start = toCanvasNormalized(
-        pointer.clientX,
-        pointer.clientY,
-        battlefieldContainerElRef.current,
-        battlefieldPanRef.current,
-        battlefieldZoomRef.current,
-      );
+      const start =
+        arrowCoordinateSpace === "viewport"
+          ? toViewportNormalized(
+              pointer.clientX,
+              pointer.clientY,
+              arrowContainerEl,
+            )
+          : toCanvasNormalized(
+              pointer.clientX,
+              pointer.clientY,
+              battlefieldContainerElRef.current,
+              battlefieldPanRef.current,
+              battlefieldZoomRef.current,
+            );
 
       if (!start) {
         // Container not mounted yet — first onPointerMove will set the start.
@@ -482,7 +495,7 @@ export function Playmat({
       setPendingArrowEnd(start);
       return next;
     });
-  }, []);
+  }, [arrowContainerEl, arrowCoordinateSpace]);
 
   const handleCancelArrowMode = useCallback(() => {
     setIsArrowMode(false);
@@ -1102,7 +1115,8 @@ export function Playmat({
     [dispatch],
   );
 
-  const [battlefieldContainerEl, setBattlefieldContainerEl] = useState<HTMLDivElement | null>(null);
+  const [battlefieldContainerEl, setBattlefieldContainerEl] =
+    useState<HTMLDivElement | null>(null);
 
   const setBattlefieldRefs = useCallback(
     (node: HTMLDivElement | null) => {
@@ -1514,9 +1528,10 @@ export function Playmat({
               onPointerMove={handleArrowPointerMove}
               onCanvasClick={handleArrowCanvasClick}
               onDeleteArrow={handleDeleteArrow}
-              containerEl={battlefieldContainerEl}
+              containerEl={arrowContainerEl ?? battlefieldContainerEl}
               pan={battlefieldPan}
               zoom={battlefieldZoom}
+              coordinateSpace={arrowCoordinateSpace}
             />
 
             <div

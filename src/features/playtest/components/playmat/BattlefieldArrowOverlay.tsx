@@ -10,6 +10,8 @@ type ArrowPoint = {
   y: number;
 };
 
+export type ArrowCoordinateSpace = "canvas" | "viewport";
+
 type BattlefieldArrowOverlayProps = {
   arrows: BattlefieldArrow[];
   provisionalArrow?: { start: ArrowPoint; end: ArrowPoint } | null;
@@ -24,7 +26,12 @@ type BattlefieldArrowOverlayProps = {
   pan?: ArrowPoint;
   /** Current zoom scale applied to the battlefield canvas. */
   zoom?: number;
+  coordinateSpace?: ArrowCoordinateSpace;
 };
+
+function clamp01(value: number) {
+  return Math.max(0, Math.min(1, value));
+}
 
 /**
  * Convert a viewport click to canvas-normalized coordinates (0–1 fraction of
@@ -41,20 +48,27 @@ export function toCanvasNormalized(
   if (!containerEl) return null;
   const rect = containerEl.getBoundingClientRect();
   return {
-    x: Math.max(
-      0,
-      Math.min(
-        1,
-        (clientX - rect.left - pan.x) / zoom / BATTLEFIELD_CANVAS_SIZE,
-      ),
-    ),
-    y: Math.max(
-      0,
-      Math.min(
-        1,
-        (clientY - rect.top - pan.y) / zoom / BATTLEFIELD_CANVAS_SIZE,
-      ),
-    ),
+    x: clamp01((clientX - rect.left - pan.x) / zoom / BATTLEFIELD_CANVAS_SIZE),
+    y: clamp01((clientY - rect.top - pan.y) / zoom / BATTLEFIELD_CANVAS_SIZE),
+  };
+}
+
+export function toViewportNormalized(
+  clientX: number,
+  clientY: number,
+  containerEl?: HTMLDivElement | null,
+): ArrowPoint {
+  if (!containerEl) {
+    return {
+      x: clamp01(clientX / Math.max(window.innerWidth, 1)),
+      y: clamp01(clientY / Math.max(window.innerHeight, 1)),
+    };
+  }
+
+  const rect = containerEl.getBoundingClientRect();
+  return {
+    x: clamp01((clientX - rect.left) / Math.max(rect.width, 1)),
+    y: clamp01((clientY - rect.top) / Math.max(rect.height, 1)),
   };
 }
 
@@ -82,6 +96,24 @@ function toViewportPx(
   };
 }
 
+function toContainerViewportPx(
+  point: ArrowPoint,
+  containerEl?: HTMLDivElement | null,
+): ArrowPoint {
+  if (!containerEl) {
+    return {
+      x: point.x * window.innerWidth,
+      y: point.y * window.innerHeight,
+    };
+  }
+
+  const rect = containerEl.getBoundingClientRect();
+  return {
+    x: rect.left + point.x * rect.width,
+    y: rect.top + point.y * rect.height,
+  };
+}
+
 export function BattlefieldArrowOverlay({
   arrows,
   provisionalArrow = null,
@@ -93,6 +125,7 @@ export function BattlefieldArrowOverlay({
   containerEl,
   pan = { x: 0, y: 0 },
   zoom = 1,
+  coordinateSpace = "canvas",
 }: BattlefieldArrowOverlayProps) {
   const [hoveredArrowId, setHoveredArrowId] = useState<string | null>(null);
 
@@ -100,16 +133,28 @@ export function BattlefieldArrowOverlay({
     () =>
       arrows.map((arrow) => ({
         ...arrow,
-        startPx: toViewportPx(arrow.start, containerEl, pan, zoom),
-        endPx: toViewportPx(arrow.end, containerEl, pan, zoom),
+        startPx:
+          coordinateSpace === "viewport"
+            ? toContainerViewportPx(arrow.start, containerEl)
+            : toViewportPx(arrow.start, containerEl, pan, zoom),
+        endPx:
+          coordinateSpace === "viewport"
+            ? toContainerViewportPx(arrow.end, containerEl)
+            : toViewportPx(arrow.end, containerEl, pan, zoom),
       })),
-    [arrows, containerEl, pan, zoom],
+    [arrows, containerEl, coordinateSpace, pan, zoom],
   );
 
   const provisionalArrowPx = provisionalArrow
     ? {
-        start: toViewportPx(provisionalArrow.start, containerEl, pan, zoom),
-        end: toViewportPx(provisionalArrow.end, containerEl, pan, zoom),
+        start:
+          coordinateSpace === "viewport"
+            ? toContainerViewportPx(provisionalArrow.start, containerEl)
+            : toViewportPx(provisionalArrow.start, containerEl, pan, zoom),
+        end:
+          coordinateSpace === "viewport"
+            ? toContainerViewportPx(provisionalArrow.end, containerEl)
+            : toViewportPx(provisionalArrow.end, containerEl, pan, zoom),
       }
     : null;
 
@@ -129,23 +174,37 @@ export function BattlefieldArrowOverlay({
           aria-label="Desenhar seta"
           className="cursor-arrow-mode pointer-events-auto absolute inset-0 appearance-none border-0 bg-transparent p-0"
           onMouseMove={(event) => {
-            const pt = toCanvasNormalized(
-              event.clientX,
-              event.clientY,
-              containerEl,
-              pan,
-              zoom,
-            );
+            const pt =
+              coordinateSpace === "viewport"
+                ? toViewportNormalized(
+                    event.clientX,
+                    event.clientY,
+                    containerEl,
+                  )
+                : toCanvasNormalized(
+                    event.clientX,
+                    event.clientY,
+                    containerEl,
+                    pan,
+                    zoom,
+                  );
             if (pt) onPointerMove?.(pt);
           }}
           onClick={(event) => {
-            const pt = toCanvasNormalized(
-              event.clientX,
-              event.clientY,
-              containerEl,
-              pan,
-              zoom,
-            );
+            const pt =
+              coordinateSpace === "viewport"
+                ? toViewportNormalized(
+                    event.clientX,
+                    event.clientY,
+                    containerEl,
+                  )
+                : toCanvasNormalized(
+                    event.clientX,
+                    event.clientY,
+                    containerEl,
+                    pan,
+                    zoom,
+                  );
             if (pt) onCanvasClick?.(pt);
           }}
         />
