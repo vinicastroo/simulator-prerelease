@@ -250,9 +250,11 @@ export function BattlefieldArea({
       className={`relative h-full w-full overflow-hidden rounded-2xl border bg-black/10 transition-colors ${
         isRollingForFirstTurn
           ? "animate-pulse border-violet-300 shadow-[0_0_0_2px_rgba(196,181,253,0.5),0_0_34px_rgba(168,85,247,0.35)]"
-          : isActiveTurn
-            ? "border-cyan-400/60 shadow-[0_0_0_1px_rgba(34,211,238,0.25)]"
-            : "border-dashed border-white/15"
+          : isActiveTurn && orientation === "bottom"
+            ? "battlefield-active-turn"
+            : isActiveTurn && orientation === "top"
+              ? "border-amber-400/50 shadow-[0_0_0_1px_rgba(251,191,36,0.2),0_0_24px_rgba(251,191,36,0.14)]"
+              : "border-dashed border-white/15"
       } ${
         interactive && isAnyDragActive
           ? isActiveDropTarget

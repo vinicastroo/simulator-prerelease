@@ -62,7 +62,7 @@ function SideZoneShell({
   return (
     <div
       ref={setRef}
-      className={`flex flex-col items-start gap-2 p-3 font-mono rounded-[10px] ${
+      className={`flex flex-col items-start gap-1.5 font-mono rounded-[10px] ${
         isAnyDragActive
           ? isOver
             ? "ring-2 ring-white/80 bg-white/10"
@@ -82,7 +82,7 @@ function SideZoneShell({
         ) : (
           <span className="text-center text-xs">{label}</span>
         )}
-        <p className="text-[10px] text-white/40">{count} cartas</p>
+        <p className="text-[10px] text-white/40">{count}</p>
       </div>
       {children}
     </div>
@@ -145,24 +145,24 @@ function StackZone({
       setRef={setRef}
       onView={onView}
     >
-      <SideZoneCardFrame>
-        <div
-          className="relative flex h-[209px] w-[150px] cursor-pointer items-center justify-center rounded-[10px] border border-white/20 bg-white/[0.02] transition hover:border-white/40"
-          onClick={onView}
-        >
-          {top ? (
-            <StackTopCard
-              cardId={top.id}
-              zone={zone}
-              name={topName}
-              imageUrl={topImageUrl}
-              onHover={onHoverTop}
-            />
-          ) : (
-            <span className="text-[10px] text-white/40">vazio</span>
-          )}
-        </div>
-      </SideZoneCardFrame>
+      <div
+        className="relative h-[140px] w-[100px] cursor-pointer overflow-hidden rounded-[8px] border border-white/20 bg-white/[0.02] transition hover:border-white/40"
+        onClick={onView}
+      >
+        {top ? (
+          <StackTopCard
+            cardId={top.id}
+            zone={zone}
+            name={topName}
+            imageUrl={topImageUrl}
+            onHover={onHoverTop}
+          />
+        ) : (
+          <span className="absolute inset-0 flex items-center justify-center text-[10px] text-white/40">
+            vazio
+          </span>
+        )}
+      </div>
     </SideZoneShell>
   );
 }
@@ -499,109 +499,107 @@ function LibraryZone({
         isOver={isOverTop || isOverBottom}
         isAnyDragActive={isAnyDragActive}
       >
-        <SideZoneCardFrame>
-          <div className="relative h-full w-full">
-            <ContextMenu>
-              <ContextMenuTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="relative flex h-full w-full items-start justify-start rounded-2xl p-0 hover:bg-white/[0.04]"
-                  onClick={onDraw}
-                >
-                  <Image
-                    src="/magic_card_back.png"
-                    alt="Pilha do deck"
-                    width={150}
-                    height={209}
-                    className={`h-[209px] w-[150px] rounded-[8px]  ${count === 0 ? "opacity-30" : ""}`}
-                    draggable={false}
-                    priority={false}
-                  />
-                  {topId && <DeckTopCard cardId={topId} />}
-                </Button>
-              </ContextMenuTrigger>
+        <div className="relative h-[140px] w-[100px]">
+          <ContextMenu>
+            <ContextMenuTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                className="relative flex h-full w-full items-start justify-start rounded-[8px] p-0 hover:bg-white/[0.04]"
+                onClick={onDraw}
+              >
+                <Image
+                  src="/magic_card_back.png"
+                  alt="Pilha do deck"
+                  width={100}
+                  height={140}
+                  className={`h-[140px] w-[100px] rounded-[8px] ${count === 0 ? "opacity-30" : ""}`}
+                  draggable={false}
+                  priority={false}
+                />
+                {topId && <DeckTopCard cardId={topId} />}
+              </Button>
+            </ContextMenuTrigger>
 
-              <ContextMenuContent className="bg-black/85">
-                <ContextMenuLabel className="">Grimório</ContextMenuLabel>
-                <ContextMenuSeparator />
-                <ContextMenuItem
-                  onSelect={handleRevealTop}
-                  disabled={count === 0}
-                  className="border-b"
-                >
-                  Reveal
-                </ContextMenuItem>
-                <ContextMenuItem
-                  onSelect={() => setDrawOpen(true)}
-                  disabled={count === 0}
-                  className="border-b"
-                >
-                  Draw
-                </ContextMenuItem>
-                <ContextMenuItem
-                  onSelect={() => setMillOpen(true)}
-                  disabled={count === 0}
-                  className="border-b"
-                >
-                  Mill
-                </ContextMenuItem>
-                <ContextMenuItem
-                  onSelect={() => setScryCountOpen(true)}
-                  disabled={count === 0}
-                  className="border-b"
-                >
-                  Scry
-                </ContextMenuItem>
-                <ContextMenuItem
-                  onSelect={() => setSurveilCountOpen(true)}
-                  disabled={count === 0}
-                  className="border-b"
-                >
-                  Surveil
-                </ContextMenuItem>
-                <ContextMenuItem
-                  onSelect={() => setLibraryViewOpen(true)}
-                  disabled={count === 0}
-                  className="border-b"
-                >
-                  View in library
-                </ContextMenuItem>
-                <ContextMenuItem
-                  onSelect={handleShuffle}
-                  disabled={count === 0}
-                >
-                  Shuffle
-                </ContextMenuItem>
-              </ContextMenuContent>
-            </ContextMenu>
+            <ContextMenuContent className="bg-black/85">
+              <ContextMenuLabel className="">Grimório</ContextMenuLabel>
+              <ContextMenuSeparator />
+              <ContextMenuItem
+                onSelect={handleRevealTop}
+                disabled={count === 0}
+                className="border-b"
+              >
+                Reveal
+              </ContextMenuItem>
+              <ContextMenuItem
+                onSelect={() => setDrawOpen(true)}
+                disabled={count === 0}
+                className="border-b"
+              >
+                Draw
+              </ContextMenuItem>
+              <ContextMenuItem
+                onSelect={() => setMillOpen(true)}
+                disabled={count === 0}
+                className="border-b"
+              >
+                Mill
+              </ContextMenuItem>
+              <ContextMenuItem
+                onSelect={() => setScryCountOpen(true)}
+                disabled={count === 0}
+                className="border-b"
+              >
+                Scry
+              </ContextMenuItem>
+              <ContextMenuItem
+                onSelect={() => setSurveilCountOpen(true)}
+                disabled={count === 0}
+                className="border-b"
+              >
+                Surveil
+              </ContextMenuItem>
+              <ContextMenuItem
+                onSelect={() => setLibraryViewOpen(true)}
+                disabled={count === 0}
+                className="border-b"
+              >
+                View in library
+              </ContextMenuItem>
+              <ContextMenuItem
+                onSelect={handleShuffle}
+                disabled={count === 0}
+              >
+                Shuffle
+              </ContextMenuItem>
+            </ContextMenuContent>
+          </ContextMenu>
 
-            {isAnyDragActive && (
-              <>
-                <div
-                  ref={setTopRef}
-                  className={`absolute inset-x-3 top-3 z-10 flex h-[calc(50%-1rem)] items-start justify-center rounded-xl border px-2 py-2 text-[10px] font-bold uppercase tracking-[0.22em] transition ${
-                    isOverTop
-                      ? "border-[#9ab1e6] bg-[#4d6393]/30 text-white"
-                      : "border-white/15 bg-black/30 text-white/55"
-                  }`}
-                >
-                  Topo
-                </div>
-                <div
-                  ref={setBottomRef}
-                  className={`absolute inset-x-3 bottom-3 z-10 flex h-[calc(50%-1rem)] items-start justify-center rounded-xl border px-2 py-2 text-[10px] font-bold uppercase tracking-[0.22em] transition ${
-                    isOverBottom
-                      ? "border-[#9ab1e6] bg-[#4d6393]/30 text-white"
-                      : "border-white/15 bg-black/30 text-white/55"
-                  }`}
-                >
-                  Fundo
-                </div>
-              </>
-            )}
-          </div>
-        </SideZoneCardFrame>
+          {isAnyDragActive && (
+            <>
+              <div
+                ref={setTopRef}
+                className={`absolute inset-x-1 top-1 z-10 flex h-[calc(50%-6px)] items-start justify-center rounded-lg border px-1 py-1 text-[9px] font-bold uppercase tracking-[0.18em] transition ${
+                  isOverTop
+                    ? "border-[#9ab1e6] bg-[#4d6393]/30 text-white"
+                    : "border-white/15 bg-black/30 text-white/55"
+                }`}
+              >
+                Topo
+              </div>
+              <div
+                ref={setBottomRef}
+                className={`absolute inset-x-1 bottom-1 z-10 flex h-[calc(50%-6px)] items-start justify-center rounded-lg border px-1 py-1 text-[9px] font-bold uppercase tracking-[0.18em] transition ${
+                  isOverBottom
+                    ? "border-[#9ab1e6] bg-[#4d6393]/30 text-white"
+                    : "border-white/15 bg-black/30 text-white/55"
+                }`}
+              >
+                Fundo
+              </div>
+            </>
+          )}
+        </div>
       </SideZoneShell>
 
       {/* Reveal top */}

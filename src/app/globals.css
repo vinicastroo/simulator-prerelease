@@ -30,6 +30,21 @@
   background-color: #2a3a54;
 }
 
+/* ── Battlefield active-turn glow pulse ────────────────────────────────────── */
+@keyframes battlefield-glow-green {
+  0%, 100% {
+    box-shadow: 0 0 0 1px rgba(52, 211, 153, 0.5), 0 0 18px rgba(52, 211, 153, 0.18);
+  }
+  50% {
+    box-shadow: 0 0 0 2px rgba(52, 211, 153, 0.85), 0 0 36px rgba(52, 211, 153, 0.38);
+  }
+}
+
+.battlefield-active-turn {
+  border-color: rgba(52, 211, 153, 0.6) !important;
+  animation: battlefield-glow-green 2s ease-in-out infinite;
+}
+
 /* ── Foil shimmer ──────────────────────────────────────────────────────────── */
 @keyframes foil-shimmer {
   0% {

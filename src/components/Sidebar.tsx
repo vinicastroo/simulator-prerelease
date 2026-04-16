@@ -22,13 +22,7 @@ import {
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+import { Input } from "@/components/ui/input";
 import {
   type PlacedCardState,
   usePrerelease,
@@ -57,13 +51,75 @@ function truncateSidebarCardName(name: string) {
   return `${name.slice(0, SIDEBAR_CARD_NAME_LIMIT - 3)}...`;
 }
 
-function sortCards(cards: PlacedCardState[]) {
-  return [...cards].sort(
-    (a, b) =>
-      (RARITY_ORDER[a.card.rarity] ?? 4) - (RARITY_ORDER[b.card.rarity] ?? 4) ||
-      a.card.cmc - b.card.cmc ||
-      a.card.name.localeCompare(b.card.name),
-  );
+// ─── Sort ─────────────────────────────────────────────────────────────────────
+
+type SortMode = "cmc" | "rarity" | "name" | "type";
+
+const SORT_MODES: { mode: SortMode; label: string }[] = [
+  { mode: "cmc", label: "Mana" },
+  { mode: "rarity", label: "Raridade" },
+  { mode: "type", label: "Tipo" },
+  { mode: "name", label: "Nome" },
+];
+
+function getTypeOrder(typeLine: string): number {
+  if (typeLine.includes("Creature")) return 0;
+  if (typeLine.includes("Planeswalker")) return 1;
+  if (typeLine.includes("Artifact")) return 2;
+  if (typeLine.includes("Enchantment")) return 3;
+  if (typeLine.includes("Instant")) return 4;
+  if (typeLine.includes("Sorcery")) return 5;
+  if (typeLine.includes("Land")) return 9;
+  return 6;
+}
+
+function sortCards(cards: PlacedCardState[], mode: SortMode = "cmc") {
+  return [...cards].sort((a, b) => {
+    switch (mode) {
+      case "cmc":
+        return (
+          a.card.cmc - b.card.cmc ||
+          a.card.name.localeCompare(b.card.name)
+        );
+      case "rarity":
+        return (
+          (RARITY_ORDER[a.card.rarity] ?? 4) -
+            (RARITY_ORDER[b.card.rarity] ?? 4) ||
+          a.card.cmc - b.card.cmc ||
+          a.card.name.localeCompare(b.card.name)
+        );
+      case "type":
+        return (
+          getTypeOrder(a.card.typeLine) - getTypeOrder(b.card.typeLine) ||
+          a.card.cmc - b.card.cmc ||
+          a.card.name.localeCompare(b.card.name)
+        );
+      case "name":
+        return a.card.name.localeCompare(b.card.name);
+    }
+  });
+}
+
+const COLOR_ORDER = ["W", "U", "B", "R", "G"] as const;
+type ManaColor = (typeof COLOR_ORDER)[number];
+
+const COLOR_TEXT: Record<ManaColor, string> = {
+  W: "text-[#f5e9c4]",
+  U: "text-[#7ab0e0]",
+  B: "text-[#b09fc0]",
+  R: "text-[#e87060]",
+  G: "text-[#60b878]",
+};
+
+function getColorCounts(cards: PlacedCardState[]): Record<ManaColor, number> {
+  const counts: Record<ManaColor, number> = { W: 0, U: 0, B: 0, R: 0, G: 0 };
+  for (const c of cards) {
+    for (const color of c.card.colors as string[]) {
+      const key = color.toUpperCase() as ManaColor;
+      if (key in counts) counts[key]++;
+    }
+  }
+  return counts;
 }
 
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
@@ -84,14 +140,18 @@ export function Sidebar() {
   const [sidebarToast, setSidebarToast] = useState<string | null>(null);
   const [isOversizeDeckDialogOpen, setIsOversizeDeckDialogOpen] =
     useState(false);
+  const [mainDeckSort, setMainDeckSort] = useState<SortMode>("cmc");
 
-  const mainDeck = sortCards(cards.filter((c) => c.isMainDeck === true));
+  const mainDeck = sortCards(cards.filter((c) => c.isMainDeck === true), mainDeckSort);
   const sideboard = sortCards(cards.filter((c) => c.isMainDeck === false));
   const groupedMainDeck = groupDeckCards(mainDeck);
   const groupedSideboard = groupDeckCards(sideboard);
   const creatureCount = mainDeck.filter((c) =>
     c.card.typeLine.includes("Creature"),
   ).length;
+  const colorCounts = getColorCounts(mainDeck);
+  const recommendedLands = recommendBasicLands(cards.filter((c) => c.isMainDeck === true));
+  const currentLands = currentBasicLandCounts(mainDeck);
   const curveEntries = getManaCurve(mainDeck);
 
   const mainZoneRef = useRef<HTMLElement>(null);
@@ -360,24 +420,48 @@ export function Sidebar() {
         <ScrollArea className="relative mt-8 h-0 flex-1 [scrollbar-color:#31456f_transparent] [scrollbar-width:thin]">
           <div className="min-h-full px-3 pb-3">
             <Card className="overflow-hidden rounded-[22px] border border-[#30476f]/30 bg-[#15191d]/88 shadow-none ring-0">
-              <CardHeader className="border-b border-[#30476f]/30 pb-2">
-                <CardTitle className="font-mono text-[9px] font-bold uppercase tracking-[0.2em] text-[#7f95c9]">
-                  Resumo do Deck
-                </CardTitle>
-                <CardDescription className="text-[11px] text-white/28">
-                  Estado atual da build principal
-                </CardDescription>
+              <CardHeader className="border-b border-[#30476f]/30 pb-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <CardTitle className="font-mono text-[9px] font-bold uppercase tracking-[0.2em] text-[#7f95c9]">
+                      Resumo do Deck
+                    </CardTitle>
+                    <CardDescription className="mt-0.5 text-[11px] text-white/28">
+                      Main deck
+                    </CardDescription>
+                  </div>
+                  {/* Total counter */}
+                  <div className="flex flex-col items-end">
+                    <span className="font-mono text-[22px] font-black leading-none tabular-nums text-[#d8e4ff]">
+                      {mainDeck.length}
+                    </span>
+                    <span className="font-mono text-[9px] text-white/30">/40</span>
+                  </div>
+                </div>
+
+                {/* Color breakdown */}
+                <div className="mt-3 flex items-center justify-between">
+                  {COLOR_ORDER.map((color) => (
+                    <div key={color} className="flex flex-col items-center gap-1.5">
+                      <span className="relative h-4 w-4 flex-shrink-0">
+                        <Image
+                          src={MANA_ICON_SRC[color]}
+                          alt={color}
+                          fill
+                          className="object-contain opacity-85"
+                        />
+                      </span>
+                      <span className={`font-mono text-[18px] font-black tabular-nums leading-none ${COLOR_TEXT[color]}`}>
+                        {colorCounts[color]}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </CardHeader>
 
-              <CardContent className="space-y-1.5 pt-3">
-                <SummaryMetricRow
-                  label="Total"
-                  value={`${mainDeck.length}/40`}
-                  accent
-                />
-                <Separator className="bg-[#30476f]/30" />
-                <SummaryMetricRow label="Main" value={mainDeck.length} />
+              <CardContent className="space-y-1 pt-3">
                 <SummaryMetricRow label="Sideboard" value={sideboard.length} />
+                <Separator className="bg-[#30476f]/25" />
                 <SummaryMetricRow label="Criaturas" value={creatureCount} />
                 <SummaryMetricRow label="Feitiços" value={spellCount} />
                 <SummaryMetricRow label="Terrenos" value={landCount} />
@@ -452,6 +536,24 @@ export function Sidebar() {
               dataZone="main"
               isActive={activeSidebarDropZone === "main"}
               isDragging={!!draggingSidebarCardId}
+              headerExtra={
+                <div className="flex items-center gap-1">
+                  {SORT_MODES.map(({ mode, label }) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => setMainDeckSort(mode)}
+                      className={`rounded-full px-2 py-0.5 font-mono text-[8px] uppercase tracking-[0.1em] transition-colors ${
+                        mainDeckSort === mode
+                          ? "bg-[#31456f]/70 text-[#b8c6e6]"
+                          : "text-white/30 hover:text-white/55"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              }
               onActivate={() => setActiveSidebarDropZone("main")}
               onDeactivate={() =>
                 setActiveSidebarDropZone((prev) =>
@@ -550,12 +652,13 @@ export function Sidebar() {
         }}
       />
 
-      <BasicLandsSheet
+      <BasicLandsDialog
         open={isBasicLandsOpen}
-        isPending={isPending}
         onOpenChange={setIsBasicLandsOpen}
-        onAdd={(landName, quantity) => {
-          addBasicLandsToKit(landName, quantity);
+        recommendedLands={recommendedLands}
+        currentLands={currentLands}
+        onAdd={async (landName, quantity) => {
+          await addBasicLandsToKit(landName, quantity);
           setSidebarToast(
             `${quantity} ${landName}${quantity > 1 ? "s" : ""} adicionado${quantity > 1 ? "s" : ""} ao deck`,
           );
@@ -670,30 +773,34 @@ interface SectionHeaderProps {
   count: number;
   dataZone?: string;
   isActive?: boolean;
+  extra?: React.ReactNode;
 }
 
 const SectionHeader = forwardRef<HTMLDivElement, SectionHeaderProps>(
-  function SectionHeader({ label, count, dataZone, isActive = false }, ref) {
+  function SectionHeader({ label, count, dataZone, isActive = false, extra }, ref) {
     return (
       <div
         ref={ref}
         data-zone={dataZone}
         data-active="false"
-        className={`sticky top-0 z-10 flex items-center justify-between rounded-t-[22px] border-b px-3.5 py-2 backdrop-blur-md transition-colors ${
+        className={`sticky top-0 z-10 rounded-t-[22px] border-b px-3.5 backdrop-blur-md transition-colors ${
           isActive
             ? "border-[#4d6393]/35 bg-[#1a2433]/95"
             : "border-[#30476f]/30 bg-[#10151b]/95"
         }`}
       >
-        <span className="font-mono text-[8px] font-bold uppercase tracking-[0.16em] text-[#7f95c9]">
-          {label}
-        </span>
-        <Badge
-          variant="outline"
-          className="border-white/10 bg-white/[0.03] font-mono text-[10px] text-white/60 tabular-nums"
-        >
-          {count}
-        </Badge>
+        <div className="flex items-center justify-between py-2">
+          <span className="font-mono text-[8px] font-bold uppercase tracking-[0.16em] text-[#7f95c9]">
+            {label}
+          </span>
+          <Badge
+            variant="outline"
+            className="border-white/10 bg-white/[0.03] font-mono text-[10px] text-white/60 tabular-nums"
+          >
+            {count}
+          </Badge>
+        </div>
+        {extra && <div className="pb-2">{extra}</div>}
       </div>
     );
   },
@@ -1020,101 +1127,189 @@ function BasicLandRow({
   label,
   symbol,
   disabled,
+  recommended,
+  current,
   onAdd,
 }: {
   name: "Plains" | "Island" | "Swamp" | "Mountain" | "Forest";
   label: string;
   symbol: "W" | "U" | "B" | "R" | "G";
   disabled: boolean;
+  recommended: number;
+  current: number;
   onAdd: (quantity: number) => void;
 }) {
+  const defaultQty = Math.max(1, recommended - current);
+  const [qty, setQty] = useState(defaultQty);
+
+  // Update qty if recommendation changes
+  const prevRecommended = useRef(recommended);
+  const prevCurrent = useRef(current);
+  useEffect(() => {
+    if (prevRecommended.current !== recommended || prevCurrent.current !== current) {
+      prevRecommended.current = recommended;
+      prevCurrent.current = current;
+      setQty(Math.max(1, recommended - current));
+    }
+  }, [recommended, current]);
+
+  const diff = recommended - current;
+  const diffLabel =
+    diff > 0 ? `+${diff}` : diff < 0 ? `${diff}` : "✓";
+  const diffColor =
+    diff > 0 ? "text-[#7ab0e0]" : diff < 0 ? "text-[#e87060]" : "text-[#60b878]";
+
   return (
     <div className="flex items-center justify-between gap-2 rounded-2xl bg-[#14191f] px-2.5 py-2 shadow-[0_0_0_1px_rgba(49,69,111,0.22)]">
-      <div className="flex min-w-0 items-center gap-2">
-        <span className="relative h-3.5 w-3.5 flex-shrink-0 opacity-90">
-          <Image
-            src={MANA_ICON_SRC[symbol]}
-            alt={label}
-            fill
-            className="object-contain"
-          />
-        </span>
-        <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-white/72">
-          {label}
-        </span>
+      <div className="flex min-w-0 flex-col gap-0.5">
+        <div className="flex items-center gap-2">
+          <span className="relative h-3.5 w-3.5 flex-shrink-0 opacity-90">
+            <Image
+              src={MANA_ICON_SRC[symbol]}
+              alt={label}
+              fill
+              className="object-contain"
+            />
+          </span>
+          <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-white/72">
+            {label}
+          </span>
+        </div>
+        <div className="flex items-center gap-1.5 pl-5">
+          <span className="font-mono text-[9px] text-white/30">
+            atual <span className="text-white/55">{current}</span>
+          </span>
+          <span className="text-white/20">·</span>
+          <span className="font-mono text-[9px] text-white/30">
+            ideal <span className="text-white/55">{recommended}</span>
+          </span>
+          <span className={`font-mono text-[9px] font-bold ${diffColor}`}>
+            {diffLabel}
+          </span>
+        </div>
       </div>
 
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-1.5">
+        <div className="flex items-center rounded-lg border border-[#30476f]/45 bg-[#0e1318]">
+          <button
+            type="button"
+            disabled={disabled || qty <= 1}
+            onClick={() => setQty((v) => Math.max(1, v - 1))}
+            className="flex h-6 w-5 items-center justify-center font-mono text-[11px] text-[#8ea4d6] transition-colors hover:text-[#b8c6e6] disabled:opacity-30"
+            aria-label="Diminuir"
+          >
+            −
+          </button>
+          <Input
+            type="number"
+            min={1}
+            max={20}
+            value={qty}
+            disabled={disabled}
+            onChange={(e) =>
+              setQty(Math.max(1, Math.min(20, Number(e.target.value) || 1)))
+            }
+            onKeyDown={(e) => {
+              if (e.key === "Enter") onAdd(qty);
+            }}
+            className="h-6 w-8 border-0 bg-transparent px-0 text-center font-mono text-[10px] text-[#b7c5e8] shadow-none focus-visible:ring-0 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+            aria-label={`Quantidade de ${label}`}
+          />
+          <button
+            type="button"
+            disabled={disabled || qty >= 20}
+            onClick={() => setQty((v) => Math.min(20, v + 1))}
+            className="flex h-6 w-5 items-center justify-center font-mono text-[11px] text-[#8ea4d6] transition-colors hover:text-[#b8c6e6] disabled:opacity-30"
+            aria-label="Aumentar"
+          >
+            +
+          </button>
+        </div>
         <Button
           type="button"
           variant="outline"
           size="xs"
           disabled={disabled}
-          onClick={() => onAdd(1)}
-          className="rounded-full border-[#30476f]/45 bg-[#162032] font-mono text-[9px] font-semibold text-[#b7c5e8] hover:bg-[#1c2941]"
-          aria-label={`Adicionar 1 ${name}`}
+          onClick={() => onAdd(qty)}
+          className="rounded-lg border-[#30476f]/45 bg-[#162032] font-mono text-[9px] font-semibold text-[#b7c5e8] hover:bg-[#1c2941]"
+          aria-label={`Adicionar ${qty} ${label} no deck`}
         >
-          +1
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="xs"
-          disabled={disabled}
-          onClick={() => onAdd(5)}
-          className="rounded-full border-[#30476f]/45 bg-[#162032] font-mono text-[9px] font-semibold text-[#b7c5e8] hover:bg-[#1c2941]"
-          aria-label={`Adicionar 5 ${name}`}
-        >
-          +5
+          Adicionar no deck
         </Button>
       </div>
     </div>
   );
 }
 
-function BasicLandsSheet({
+function BasicLandsDialog({
   open,
-  isPending,
   onOpenChange,
+  recommendedLands,
+  currentLands,
   onAdd,
 }: {
   open: boolean;
-  isPending: boolean;
   onOpenChange: (open: boolean) => void;
+  recommendedLands: Record<string, number>;
+  currentLands: Record<string, number>;
   onAdd: (
     landName: "Plains" | "Island" | "Swamp" | "Mountain" | "Forest",
     quantity: number,
-  ) => void;
+  ) => Promise<void>;
 }) {
-  return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent
-        side="right"
-        className="z-[210000000] w-full max-w-[340px] border-l border-[#30476f]/40 bg-[#101317] p-0 text-white sm:max-w-[340px]"
-      >
-        <SheetHeader className="border-b border-[#30476f]/30 px-4 py-4">
-          <SheetTitle className="font-mono text-[8px] font-bold uppercase tracking-[0.22em] text-[#7f95c9]">
-            Terrenos Básicos
-          </SheetTitle>
-          <SheetDescription className="font-mono text-[10px] text-white/34">
-            Adiciona direto no main deck
-          </SheetDescription>
-        </SheetHeader>
+  const [loadingLand, setLoadingLand] = useState<string | null>(null);
 
-        <div className="space-y-1.5 p-3">
-          {BASIC_LANDS.map((land) => (
-            <BasicLandRow
-              key={land.name}
-              name={land.name}
-              label={land.label}
-              symbol={land.symbol}
-              disabled={isPending}
-              onAdd={(quantity) => onAdd(land.name, quantity)}
-            />
-          ))}
+  const handleAdd = async (
+    landName: "Plains" | "Island" | "Swamp" | "Mountain" | "Forest",
+    quantity: number,
+  ) => {
+    setLoadingLand(landName);
+    try {
+      await onAdd(landName, quantity);
+    } finally {
+      setLoadingLand(null);
+    }
+  };
+
+  const COLOR_FOR_LAND: Record<string, string> = {
+    Plains: "W",
+    Island: "U",
+    Swamp: "B",
+    Mountain: "R",
+    Forest: "G",
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="z-[210000000] max-w-[420px] border-[#30476f]/40 bg-[#101317] text-white">
+        <DialogHeader>
+          <DialogTitle className="font-mono text-[8px] font-bold uppercase tracking-[0.22em] text-[#7f95c9]">
+            Terrenos Básicos
+          </DialogTitle>
+          <DialogDescription className="font-mono text-[10px] text-white/34">
+            Recomendação baseada nos pips de mana do deck (17 terrenos limited)
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-1.5">
+          {BASIC_LANDS.map((land) => {
+            const col = COLOR_FOR_LAND[land.name] ?? "W";
+            return (
+              <BasicLandRow
+                key={land.name}
+                name={land.name}
+                label={land.label}
+                symbol={land.symbol}
+                disabled={loadingLand === land.name}
+                recommended={recommendedLands[col] ?? 0}
+                current={currentLands[col] ?? 0}
+                onAdd={(quantity) => void handleAdd(land.name, quantity)}
+              />
+            );
+          })}
         </div>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -1140,6 +1335,7 @@ const DeckSection = forwardRef<
     dataZone: "main" | "side";
     isActive: boolean;
     isDragging?: boolean;
+    headerExtra?: React.ReactNode;
     onActivate: () => void;
     onDeactivate: () => void;
     onDropCard: (ids: string[]) => void;
@@ -1152,6 +1348,7 @@ const DeckSection = forwardRef<
     dataZone,
     isActive,
     isDragging = false,
+    headerExtra,
     onActivate,
     onDeactivate,
     onDropCard,
@@ -1207,6 +1404,7 @@ const DeckSection = forwardRef<
         count={count}
         dataZone={dataZone}
         isActive={isActive}
+        extra={headerExtra}
       />
       {children}
     </section>
@@ -1281,32 +1479,37 @@ function DeckIcon({ className = "h-5 w-5" }: { className?: string }) {
 // ─── Color bar helper ─────────────────────────────────────────────────────────
 
 const MANA_ICON_SRC: Record<string, string> = {
-  "0": "/0.svg",
-  "1": "/1.svg",
-  "2": "/2.svg",
-  "3": "/3.svg",
-  "4": "/4.svg",
-  "5": "/5.svg",
-  "6": "/6.svg",
-  "7": "/7.svg",
-  "8": "/8.svg",
-  "9": "/9.svg",
-  "10": "/10.svg",
-  "11": "/11.svg",
-  "12": "/12.svg",
-  "13": "/13.svg",
-  "14": "/14.svg",
-  "15": "/15.svg",
-  "16": "/16.svg",
-  "17": "/17.svg",
-  "18": "/18.svg",
-  "19": "/19.svg",
-  "20": "/20.svg",
-  W: "/W.svg",
-  U: "/U.svg",
-  B: "/B.svg",
-  R: "/R.svg",
-  G: "/G.svg",
+  // Generic
+  "0": "/0.svg", "1": "/1.svg", "2": "/2.svg", "3": "/3.svg", "4": "/4.svg",
+  "5": "/5.svg", "6": "/6.svg", "7": "/7.svg", "8": "/8.svg", "9": "/9.svg",
+  "10": "/10.svg", "11": "/11.svg", "12": "/12.svg", "13": "/13.svg",
+  "14": "/14.svg", "15": "/15.svg", "16": "/16.svg", "17": "/17.svg",
+  "18": "/18.svg", "19": "/19.svg", "20": "/20.svg",
+  X: "/X.svg",
+  // Basic colors
+  W: "/W.svg", U: "/U.svg", B: "/B.svg", R: "/R.svg", G: "/G.svg",
+  C: "/C.svg",
+  // Hybrid — token format inside {}: e.g. {W/U} → token "W/U"
+  "W/U": "/WU.svg", "W/B": "/WB.svg",
+  "U/B": "/UB.svg", "U/R": "/UR.svg",
+  "B/R": "/BR.svg", "B/G": "/BG.svg",
+  "R/G": "/RG.svg", "R/W": "/RW.svg",
+  "G/W": "/GW.svg", "G/U": "/GU.svg",
+  // 2/color hybrid — e.g. {2/W}
+  "2/W": "/2W.svg", "2/U": "/2U.svg", "2/B": "/2B.svg",
+  "2/R": "/2R.svg", "2/G": "/2G.svg",
+  // Phyrexian — e.g. {W/P}
+  "W/P": "/WP.svg", "U/P": "/UP.svg", "B/P": "/BP.svg",
+  "R/P": "/RP.svg", "G/P": "/GP.svg",
+  // Hybrid phyrexian — e.g. {W/U/P}
+  "W/U/P": "/WUP.svg", "W/B/P": "/WBP.svg",
+  "U/B/P": "/UBP.svg", "U/R/P": "/URP.svg",
+  "B/R/P": "/BRP.svg", "B/G/P": "/BGP.svg",
+  "R/G/P": "/RGP.svg", "R/W/P": "/RWP.svg",
+  "G/W/P": "/GWP.svg", "G/U/P": "/GUP.svg",
+  // Colorless hybrid — e.g. {C/W}
+  "C/W": "/CW.svg", "C/U": "/CU.svg", "C/B": "/CB.svg",
+  "C/R": "/CR.svg", "C/G": "/CG.svg",
 };
 
 const BASIC_LANDS = [
@@ -1322,6 +1525,94 @@ function parseManaCost(cost?: string | null): string[] {
   return Array.from(cost.matchAll(/\{([^}]+)\}/g), ([, token]) =>
     token.toUpperCase(),
   );
+}
+
+// ─── Basic land recommendation ─────────────────────────────────────────────────
+
+const BASIC_COLORS = ["W", "U", "B", "R", "G"] as const;
+const BASIC_LAND_NAME: Record<string, string> = {
+  W: "Plains",
+  U: "Island",
+  B: "Swamp",
+  R: "Mountain",
+  G: "Forest",
+};
+
+/**
+ * Count colored mana pips per color in non-land cards.
+ * Hybrid pips like {W/U} count as 0.5 for each color.
+ */
+function countManaPips(cards: PlacedCardState[]): Record<string, number> {
+  const counts: Record<string, number> = { W: 0, U: 0, B: 0, R: 0, G: 0 };
+  for (const c of cards) {
+    if (c.card.typeLine.includes("Land")) continue;
+    for (const token of parseManaCost(c.card.manaCost)) {
+      if (token.includes("/")) {
+        // Hybrid pip: split 0.5 to each color
+        for (const part of token.split("/")) {
+          if (part in counts) counts[part] += 0.5;
+        }
+      } else if (token in counts) {
+        counts[token]++;
+      }
+    }
+  }
+  return counts;
+}
+
+/**
+ * Recommend how many basic lands of each color for a limited deck.
+ * Uses pip-proportional distribution with largest-remainder rounding.
+ * landBudget = total lands the deck should have (default 17 for limited).
+ */
+function recommendBasicLands(
+  cards: PlacedCardState[],
+  landBudget = 17,
+): Record<string, number> {
+  const pips = countManaPips(cards);
+  const totalPips = Object.values(pips).reduce((a, b) => a + b, 0);
+  const result: Record<string, number> = { W: 0, U: 0, B: 0, R: 0, G: 0 };
+  if (totalPips === 0) return result;
+
+  // Count non-basic lands already in deck (they don't need to be basic)
+  const nonBasicLandCount = cards.filter(
+    (c) =>
+      c.card.typeLine.includes("Land") &&
+      !BASIC_COLORS.some((col) => c.card.name === BASIC_LAND_NAME[col]),
+  ).length;
+  const budget = Math.max(0, landBudget - nonBasicLandCount);
+
+  // Proportional share per color (only colors with pips)
+  const usedColors = BASIC_COLORS.filter((col) => pips[col] > 0);
+  const raw: Record<string, number> = {};
+  for (const col of usedColors) {
+    raw[col] = (pips[col] / totalPips) * budget;
+  }
+
+  // Floor all, then add 1 to colors with largest fractional remainder
+  for (const col of usedColors) result[col] = Math.floor(raw[col]);
+  let remaining = budget - usedColors.reduce((s, col) => s + result[col], 0);
+  const byFrac = [...usedColors].sort(
+    (a, b) => (raw[b] % 1) - (raw[a] % 1),
+  );
+  for (let i = 0; i < remaining && i < byFrac.length; i++) {
+    result[byFrac[i]]++;
+  }
+
+  return result;
+}
+
+/**
+ * Count current basic lands in main deck by name.
+ */
+function currentBasicLandCounts(cards: PlacedCardState[]): Record<string, number> {
+  const counts: Record<string, number> = { W: 0, U: 0, B: 0, R: 0, G: 0 };
+  for (const c of cards) {
+    for (const col of BASIC_COLORS) {
+      if (c.card.name === BASIC_LAND_NAME[col]) counts[col]++;
+    }
+  }
+  return counts;
 }
 
 function buildFallbackManaTokens(colors: string[], cmc: number): string[] {

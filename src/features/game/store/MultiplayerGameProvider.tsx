@@ -120,6 +120,8 @@ export function MultiplayerGameProvider({
   // Serialized action queue — server stays authoritative for multiplayer actions.
   const actionQueueRef = useRef<GameAction[]>([]);
   const processingRef = useRef(false);
+  // Retry counter for the action currently at the front of the queue.
+  const actionRetryCountRef = useRef(0);
 
   const processQueue = useCallback(async () => {
     if (processingRef.current) return;
@@ -129,6 +131,8 @@ export function MultiplayerGameProvider({
       const action = actionQueueRef.current[0];
       if (!action) break;
       const sentVersion = versionRef.current;
+
+      let shouldShift = true;
 
       try {
         const res = await fetch(`/api/game/${roomId}/action`, {
@@ -142,8 +146,35 @@ export function MultiplayerGameProvider({
           const data = (await res.json()) as { seq: number };
           versionRef.current = data.seq;
           setStateVersion(data.seq);
+          actionRetryCountRef.current = 0;
+        } else if (res.status === 409 && actionRetryCountRef.current < 5) {
+          // VERSION_CONFLICT: resync the server state, rebase all pending actions
+          // on top of it, then retry this action with the fresh version.
+          const sync = await fetch(`/api/game/${roomId}/state`);
+          if (sync.ok) {
+            const data = (await sync.json()) as {
+              gameState: GameState;
+              stateVersion: number;
+              hostReady: boolean;
+              guestReady: boolean;
+            };
+            versionRef.current = data.stateVersion;
+            setStateVersion(data.stateVersion);
+            setHostResetAccepted(Boolean(data.hostReady));
+            setGuestResetAccepted(Boolean(data.guestReady));
+
+            // Rebase: re-apply every pending action on top of the authoritative state.
+            let rebased = data.gameState;
+            for (const pending of actionQueueRef.current) {
+              rebased = gameReducer(rebased, pending);
+            }
+            stateRef.current = rebased;
+            setState(rebased);
+          }
+          actionRetryCountRef.current += 1;
+          shouldShift = false; // retry the same action with the updated version
         } else {
-          // Resync on any error (version conflict, etc.)
+          // Non-retryable error or retry limit reached — drop the action and resync.
           const sync = await fetch(`/api/game/${roomId}/state`);
           if (sync.ok) {
             const data = (await sync.json()) as {
@@ -159,13 +190,17 @@ export function MultiplayerGameProvider({
             setHostResetAccepted(Boolean(data.hostReady));
             setGuestResetAccepted(Boolean(data.guestReady));
           }
+          actionRetryCountRef.current = 0;
         }
       } catch {
-        // Network error — keep going, state already applied optimistically
+        // Network error — drop the action and move on.
+        actionRetryCountRef.current = 0;
       }
 
-      actionQueueRef.current.shift();
-      setPendingActionCount((current) => Math.max(0, current - 1));
+      if (shouldShift) {
+        actionQueueRef.current.shift();
+        setPendingActionCount((current) => Math.max(0, current - 1));
+      }
     }
 
     processingRef.current = false;

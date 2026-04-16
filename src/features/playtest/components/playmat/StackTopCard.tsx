@@ -41,14 +41,14 @@ export const StackTopCard = memo(function StackTopCard({
         <Image
           src={imageUrl}
           alt={name}
-          width={150}
-          height={209}
-          className="h-[209px] w-[150px] rounded-[8px] border border-white/10 object-cover"
+          width={100}
+          height={140}
+          className="h-full w-full rounded-[8px] border border-white/10 object-cover"
           draggable={false}
           unoptimized
         />
       ) : (
-        <CardBack className="h-[209px] w-[150px]" />
+        <CardBack className="h-full w-full" />
       )}
     </button>
   );

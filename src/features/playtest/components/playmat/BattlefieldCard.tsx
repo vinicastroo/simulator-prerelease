@@ -220,7 +220,7 @@ export const BattlefieldCard = memo(function BattlefieldCard({
               .map(([marker]) => (
                 <div
                   key={marker}
-                  className="flex h-5 w-5 items-center justify-center rounded-full border border-cyan-400/50 bg-black/80 shadow-[0_0_4px_rgba(34,211,238,0.4)]"
+                  className="flex h-7 w-7 items-center justify-center rounded-full border border-cyan-400/50 bg-black/80 shadow-[0_0_4px_rgba(34,211,238,0.4)]"
                   title={marker}
                 >
                   <Image

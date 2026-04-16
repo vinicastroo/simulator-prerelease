@@ -232,7 +232,7 @@ function PlaytestSurface({
   showOpeningHand: boolean;
   simulatorKitId?: string;
 }) {
-  const { state, dispatch, localPlayerId, reset } = useGameStore();
+  const { state, dispatch, localPlayerId, reset, undo, canUndo } = useGameStore();
   const didPrepareOpeningHandRef = useRef(false);
   const [isOpeningHandOpen, setIsOpeningHandOpen] = useState(showOpeningHand);
   const [openingHandIds, setOpeningHandIds] = useState<string[]>([]);
@@ -336,6 +336,9 @@ function PlaytestSurface({
         simulatorHref={
           simulatorKitId ? `/simulator/${simulatorKitId}` : undefined
         }
+        log={state.log}
+        onUndo={undo}
+        canUndo={canUndo}
       />
       <OpeningHandModal
         cards={openingHandCards}

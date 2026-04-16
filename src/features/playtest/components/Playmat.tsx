@@ -43,6 +43,7 @@ import {
   BATTLEFIELD_ZOOM_MIN,
   BATTLEFIELD_ZOOM_STEP,
   GRID_SIZE,
+  HAND_CARD_SPACING,
 } from "./playmat/constants";
 import { HandZone } from "./playmat/HandZone";
 import { PreviewOverlay } from "./playmat/PreviewOverlay";
@@ -131,7 +132,6 @@ export function Playmat({
   const [previewAnchor, setPreviewAnchor] = useState<PreviewAnchor | null>(
     null,
   );
-  const [isTokenModalOpen, setIsTokenModalOpen] = useState(false);
   const [zonePreview, setZonePreview] = useState<"graveyard" | "exile" | null>(
     null,
   );
@@ -193,7 +193,7 @@ export function Playmat({
     const rect = target.getBoundingClientRect();
     setPreviewAnchor({
       x: rect.left + rect.width / 2,
-      y: Math.max(12, rect.top - 10),
+      y: rect.top + rect.height * 0.5,
     });
   }, []);
 
@@ -815,6 +815,40 @@ export function Playmat({
         return;
       }
 
+      // Hand reorder: dropped back onto the hand zone — reorder by pointer X position
+      if (fromZone === "hand" && toZone === "hand") {
+        const pointerPos = lastPointerClientPositionRef.current;
+        const handRect = handRef.current?.getBoundingClientRect();
+        const currentHand = state.players[localPlayerId].zones.hand;
+
+        if (pointerPos && handRect && currentHand.length > 1) {
+          const handCenterX = handRect.left + handRect.width / 2;
+          const rawIndex =
+            (pointerPos.clientX - handCenterX) / HAND_CARD_SPACING +
+            (currentHand.length - 1) / 2;
+          const targetIndex = Math.max(
+            0,
+            Math.min(currentHand.length - 1, Math.round(rawIndex)),
+          );
+          const oldIndex = currentHand.indexOf(dragData.cardId);
+
+          if (oldIndex !== -1 && oldIndex !== targetIndex) {
+            const newHand = [...currentHand];
+            newHand.splice(oldIndex, 1);
+            newHand.splice(targetIndex, 0, dragData.cardId);
+            dispatch({
+              type: "zone/reorder",
+              playerId: localPlayerId,
+              zone: "hand",
+              orderedIds: newHand,
+            });
+          }
+        }
+
+        resetDragState();
+        return;
+      }
+
       if (fromZone !== toZone || isLibraryPlacement) {
         const libraryIndex =
           toTarget === "library-top"
@@ -1328,16 +1362,8 @@ export function Playmat({
 
         <div
           id="player-side-zone"
-          className="flex flex-row items-end justify-end gap-4 -mb-16 relative z-10"
+          className="flex flex-row items-stretch justify-end gap-4 -mb-4 relative z-10 pr-3"
         >
-          <button
-            type="button"
-            onClick={() => setIsTokenModalOpen(true)}
-            className="mb-1 self-end rounded-xl border border-white/10 bg-white/[0.06] px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/60 backdrop-blur-sm transition hover:border-white/20 hover:bg-white/[0.1] hover:text-white/90"
-          >
-            + Token
-          </button>
-
           <HandZone
             setRefs={(node) => {
               handRef.current = node;
@@ -1442,20 +1468,6 @@ export function Playmat({
         }
         onClose={() => setZonePreview(null)}
         onHoverCard={handleHoverWithAnchor}
-      />
-
-      <TokenModal
-        isOpen={isTokenModalOpen}
-        onClose={() => setIsTokenModalOpen(false)}
-        onConfirm={(definition, instance) => {
-          dispatch({
-            type: "token/create",
-            playerId: localPlayerId,
-            definition,
-            instance,
-          });
-        }}
-        playerId={localPlayerId}
       />
 
       {centerToast ? (

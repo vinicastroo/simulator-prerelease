@@ -37,27 +37,19 @@ function ZoneShell({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col font-mono ">
+    <div className="flex flex-col gap-1.5 font-mono">
       {children}
-      <div className="flex w-full flex-row items-center justify-between">
+      <div className="flex w-full flex-row items-center justify-between px-0.5">
         <span className="text-xs text-white/60">{label}</span>
-        <p className="text-[10px] text-white/40">{count} cartas</p>
+        <p className="text-[10px] text-white/40">{count}</p>
       </div>
-    </div>
-  );
-}
-
-function CardFrame({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="relative flex min-h-[190px] min-w-[140px] flex-1 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.02]">
-      {children}
     </div>
   );
 }
 
 function CardSlot({ children }: { children: React.ReactNode }) {
   return (
-    <div className="relative flex h-[209px] w-[150px] items-center justify-center rounded-[10px] border border-white/20 bg-white/[0.02]">
+    <div className="relative h-[140px] w-[100px] overflow-hidden rounded-[8px] border border-white/20 bg-white/[0.02]">
       {children}
     </div>
   );
@@ -95,26 +87,29 @@ function StackZone({
         <Image
           src={topImageUrl}
           alt={topName}
-          width={150}
-          height={209}
-          className="h-[209px] w-[150px] rounded-[8px] border border-white/10 object-cover"
+          width={100}
+          height={140}
+          className="h-full w-full rounded-[8px] border border-white/10 object-cover"
           unoptimized
           {...hoverProps}
         />
       ) : (
-        <span className="text-[10px] text-white/40" {...hoverProps}>
+        <span
+          className="absolute inset-0 flex items-center justify-center text-[10px] text-white/40"
+          {...hoverProps}
+        >
           {topName}
         </span>
       )
     ) : (
-      <span className="text-[10px] text-white/40">vazio</span>
+      <span className="absolute inset-0 flex items-center justify-center text-[10px] text-white/40">
+        vazio
+      </span>
     );
 
   const inner = (
     <ZoneShell label={label} count={count}>
-      <CardFrame>
-        <CardSlot>{cardContent}</CardSlot>
-      </CardFrame>
+      <CardSlot>{cardContent}</CardSlot>
     </ZoneShell>
   );
 
@@ -138,20 +133,18 @@ function StackZone({
 function LibraryZone({ count }: { count: number }) {
   return (
     <ZoneShell label="Grimório" count={count}>
-      <CardFrame>
-        <CardSlot>
-          <Image
-            src="/magic_card_back.png"
-            alt="Grimório do oponente"
-            width={150}
-            height={209}
-            className={`h-[209px] w-[150px] rounded-[8px] object-cover ${count === 0 ? "opacity-30" : ""}`}
-            style={{ transform: "scaleY(-1)" }}
-            draggable={false}
-            priority={false}
-          />
-        </CardSlot>
-      </CardFrame>
+      <CardSlot>
+        <Image
+          src="/magic_card_back.png"
+          alt="Grimório do oponente"
+          width={100}
+          height={140}
+          className={`h-full w-full rounded-[8px] object-cover ${count === 0 ? "opacity-30" : ""}`}
+          style={{ transform: "scaleY(-1)" }}
+          draggable={false}
+          priority={false}
+        />
+      </CardSlot>
     </ZoneShell>
   );
 }

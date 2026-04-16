@@ -4,6 +4,7 @@ import {
   FolderOpen,
   Keyboard,
   RotateCcw,
+  ScrollText,
   Settings2,
   Undo2,
 } from "lucide-react";
@@ -18,6 +19,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import type { ActionLogEntry } from "@/lib/game/types";
 
 type MultiplayerResetStatus = {
   open: boolean;
@@ -34,6 +37,9 @@ type GameSettingsMenuProps = {
   multiplayerReset?: MultiplayerResetStatus;
   collectionHref?: string;
   simulatorHref?: string;
+  log?: ActionLogEntry[];
+  onUndo?: () => void;
+  canUndo?: boolean;
 };
 
 const SHORTCUTS = [
@@ -54,9 +60,13 @@ export function GameSettingsMenu({
   multiplayerReset,
   collectionHref,
   simulatorHref,
+  log,
+  onUndo,
+  canUndo = false,
 }: GameSettingsMenuProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
+  const [isLogOpen, setIsLogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasSeenResetVote, setHasSeenResetVote] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -107,6 +117,26 @@ export function GameSettingsMenu({
     <>
       <div className="fixed bottom-4 left-4 z-[260]" ref={menuRef}>
         <div className="flex items-center gap-2">
+          {log !== undefined && (
+            <div className="relative">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="rounded-full border border-white/10 bg-black/45 text-white/75 shadow-lg backdrop-blur-md hover:bg-white/10 hover:text-white"
+                onClick={() => setIsLogOpen(true)}
+                aria-label="Abrir log da partida"
+              >
+                <ScrollText className="size-4" />
+              </Button>
+              {log.length > 0 && (
+                <span className="pointer-events-none absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#4d6393] font-mono text-[9px] font-bold text-white">
+                  {log.length > 99 ? "99" : log.length}
+                </span>
+              )}
+            </div>
+          )}
+
           <Button
             type="button"
             variant="ghost"
@@ -155,6 +185,18 @@ export function GameSettingsMenu({
                   </Button>
                 ) : null}
 
+                {onUndo && (
+                  <button
+                    type="button"
+                    className="mb-1 flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm text-white/78 transition hover:bg-white/8 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                    onClick={() => { onUndo(); setIsMenuOpen(false); }}
+                    disabled={!canUndo}
+                  >
+                    <Undo2 className="size-4" />
+                    <span>Desfazer</span>
+                  </button>
+                )}
+
                 <button
                   type="button"
                   className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm text-white/78 transition hover:bg-white/8 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
@@ -184,6 +226,38 @@ export function GameSettingsMenu({
           </div>
         </div>
       </div>
+
+      {log !== undefined && (
+        <Dialog open={isLogOpen} onOpenChange={setIsLogOpen}>
+          <DialogContent className="flex max-h-[80vh] flex-col border-white/10 bg-[#101317] text-white sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-xl font-black tracking-[-0.03em] text-white">
+                <ScrollText className="size-5 text-white/75" />
+                Log da partida
+              </DialogTitle>
+              <DialogDescription className="text-sm leading-6 text-white/55">
+                Historico de todas as acoes realizadas nesta partida.
+              </DialogDescription>
+            </DialogHeader>
+
+            {log.length === 0 ? (
+              <div className="flex items-center justify-center py-12">
+                <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-white/25">
+                  Nenhuma acao registrada
+                </p>
+              </div>
+            ) : (
+              <ScrollArea className="min-h-0 flex-1 [scrollbar-color:#31456f_transparent] [scrollbar-width:thin]">
+                <div className="flex flex-col gap-1 pr-3">
+                  {[...log].reverse().map((entry, index) => (
+                    <LogEntryRow key={entry.id} entry={entry} index={log.length - 1 - index} />
+                  ))}
+                </div>
+              </ScrollArea>
+            )}
+          </DialogContent>
+        </Dialog>
+      )}
 
       <Dialog open={isShortcutsOpen} onOpenChange={setIsShortcutsOpen}>
         <DialogContent className="border-white/10 bg-[#101317] text-white sm:max-w-lg">
@@ -283,6 +357,33 @@ export function GameSettingsMenu({
         </Dialog>
       ) : null}
     </>
+  );
+}
+
+function LogEntryRow({
+  entry,
+  index,
+}: {
+  entry: ActionLogEntry;
+  index: number;
+}) {
+  const time = new Date(entry.at);
+  const hh = time.getHours().toString().padStart(2, "0");
+  const mm = time.getMinutes().toString().padStart(2, "0");
+  const ss = time.getSeconds().toString().padStart(2, "0");
+
+  return (
+    <div className="flex items-start gap-3 rounded-xl border border-white/[0.06] bg-white/[0.025] px-3 py-2.5">
+      <span className="mt-px shrink-0 font-mono text-[9px] tabular-nums text-white/25">
+        #{index + 1}
+      </span>
+      <p className="min-w-0 flex-1 text-[12px] leading-snug text-white/75">
+        {entry.description}
+      </p>
+      <span className="mt-px shrink-0 font-mono text-[9px] tabular-nums text-white/25">
+        {hh}:{mm}:{ss}
+      </span>
+    </div>
   );
 }
 

@@ -20,7 +20,6 @@ export async function POST(
 
   const body = await req.json();
   const action: GameAction = body.action;
-  const clientVersion: number = body.stateVersion;
 
   if (!action?.type) {
     return NextResponse.json({ error: "action required" }, { status: 400 });
@@ -32,48 +31,47 @@ export async function POST(
       action,
       actorUserId: userId,
     });
-    return NextResponse.json({ ok: true, seq: clientVersion ?? null });
+    return NextResponse.json({ ok: true, seq: null });
   }
 
   const result = await (async () => {
-    const room = await prisma.gameRoom.findUnique({ where: { id: roomId } });
-    if (!room) return { error: "NOT_FOUND" };
-    if (room.status !== "ACTIVE") return { error: "GAME_NOT_ACTIVE" };
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const room = await prisma.gameRoom.findUnique({ where: { id: roomId } });
+      if (!room) return { error: "NOT_FOUND" };
+      if (room.status !== "ACTIVE") return { error: "GAME_NOT_ACTIVE" };
 
-    const isHost = room.hostUserId === userId;
-    const isGuest = room.guestUserId === userId;
-    if (!isHost && !isGuest) return { error: "FORBIDDEN" };
+      const isHost = room.hostUserId === userId;
+      const isGuest = room.guestUserId === userId;
+      if (!isHost && !isGuest) return { error: "FORBIDDEN" };
 
-    if (clientVersion !== undefined && clientVersion !== room.stateVersion) {
-      return { error: "VERSION_CONFLICT" };
+      const currentState = room.gameState as unknown as GameState;
+      const actorPlayerId = isHost ? room.hostPlayerId : room.guestPlayerId;
+
+      if (!actorPlayerId || !currentState.players[actorPlayerId]) {
+        return { error: "PLAYER_NOT_FOUND" };
+      }
+
+      if (
+        action.type === "turn/passTurn" &&
+        currentState.activePlayerId !== actorPlayerId
+      ) {
+        return { error: "NOT_ACTIVE_PLAYER" };
+      }
+
+      const nextState = gameReducer(currentState, action);
+      const nextVersion = room.stateVersion + 1;
+      const updated = await prisma.gameRoom.updateMany({
+        where: { id: roomId, stateVersion: room.stateVersion, status: "ACTIVE" },
+        data: { gameState: nextState as object, stateVersion: nextVersion },
+      });
+
+      if (updated.count > 0) {
+        return { nextVersion, actorPlayerId };
+      }
+      // VERSION_CONFLICT: another action committed between our read and write — retry
     }
 
-    const currentState = room.gameState as unknown as GameState;
-    const actorPlayerId = isHost ? room.hostPlayerId : room.guestPlayerId;
-
-    if (!actorPlayerId || !currentState.players[actorPlayerId]) {
-      return { error: "PLAYER_NOT_FOUND" };
-    }
-
-    if (
-      action.type === "turn/passTurn" &&
-      currentState.activePlayerId !== actorPlayerId
-    ) {
-      return { error: "NOT_ACTIVE_PLAYER" };
-    }
-
-    const nextState = gameReducer(currentState, action);
-    const nextVersion = room.stateVersion + 1;
-    const updated = await prisma.gameRoom.updateMany({
-      where: { id: roomId, stateVersion: room.stateVersion, status: "ACTIVE" },
-      data: { gameState: nextState as object, stateVersion: nextVersion },
-    });
-
-    if (updated.count === 0) {
-      return { error: "VERSION_CONFLICT" };
-    }
-
-    return { nextVersion, actorPlayerId };
+    return { error: "VERSION_CONFLICT" };
   })();
 
   if ("error" in result) {

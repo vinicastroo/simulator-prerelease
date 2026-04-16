@@ -130,7 +130,7 @@ type PrereleaseContextValue = {
   addBasicLandsToKit: (
     landName: "Plains" | "Island" | "Swamp" | "Mountain" | "Forest",
     quantity: number,
-  ) => void;
+  ) => Promise<void>;
   draggingCardId: string | null;
   setDraggingCard: (id: string | null) => void;
 };
@@ -201,55 +201,59 @@ export function PrereleaseProvider({
     (
       landName: "Plains" | "Island" | "Swamp" | "Mountain" | "Forest",
       quantity: number,
-    ) => {
-      startTransition(async () => {
-        try {
-          const createdCards = await serverAddBasicLandsToKit(
-            kitId,
-            landName,
-            quantity,
-            true,
-          );
-          const optimisticCards: PlacedCardState[] = createdCards.map(
-            (created) => ({
-              id: created.id,
-              cardId: created.cardId,
-              posX: created.posX,
-              posY: created.posY,
-              zIndex: created.zIndex,
-              isMainDeck: created.isMainDeck,
-              isFoil: created.isFoil,
-              isPromo: false,
-              card: {
-                id: created.card.id,
-                name: created.card.name,
-                rarity: created.card.rarity,
-                set: created.card.set,
-                setName: created.card.setName,
-                colors: Array.isArray(created.card.colors)
-                  ? (created.card.colors as string[])
-                  : [],
-                manaCost: created.card.manaCost,
-                cmc: created.card.cmc,
-                typeLine: created.card.typeLine,
-                oracleText: created.card.oracleText,
-                flavorText: created.card.flavorText,
-                power: created.card.power,
-                toughness: created.card.toughness,
-                loyalty: created.card.loyalty,
-                artist: created.card.artist,
-                releasedAt: created.card.releasedAt,
-                imagePath: created.card.imagePath,
-                collectorNumber: created.card.collectorNumber,
-                rawData: created.card.rawData,
-              },
-            }),
-          );
+    ): Promise<void> => {
+      return new Promise<void>((resolve) => {
+        startTransition(async () => {
+          try {
+            const createdCards = await serverAddBasicLandsToKit(
+              kitId,
+              landName,
+              quantity,
+              true,
+            );
+            const optimisticCards: PlacedCardState[] = createdCards.map(
+              (created) => ({
+                id: created.id,
+                cardId: created.cardId,
+                posX: created.posX,
+                posY: created.posY,
+                zIndex: created.zIndex,
+                isMainDeck: created.isMainDeck,
+                isFoil: created.isFoil,
+                isPromo: false,
+                card: {
+                  id: created.card.id,
+                  name: created.card.name,
+                  rarity: created.card.rarity,
+                  set: created.card.set,
+                  setName: created.card.setName,
+                  colors: Array.isArray(created.card.colors)
+                    ? (created.card.colors as string[])
+                    : [],
+                  manaCost: created.card.manaCost,
+                  cmc: created.card.cmc,
+                  typeLine: created.card.typeLine,
+                  oracleText: created.card.oracleText,
+                  flavorText: created.card.flavorText,
+                  power: created.card.power,
+                  toughness: created.card.toughness,
+                  loyalty: created.card.loyalty,
+                  artist: created.card.artist,
+                  releasedAt: created.card.releasedAt,
+                  imagePath: created.card.imagePath,
+                  collectorNumber: created.card.collectorNumber,
+                  rawData: created.card.rawData,
+                },
+              }),
+            );
 
-          dispatch({ type: "ADD_CARDS", cards: optimisticCards });
-        } catch (err) {
-          console.error("Falha ao adicionar terrenos básicos:", err);
-        }
+            dispatch({ type: "ADD_CARDS", cards: optimisticCards });
+          } catch (err) {
+            console.error("Falha ao adicionar terrenos básicos:", err);
+          } finally {
+            resolve();
+          }
+        });
       });
     },
     [dispatch, kitId],

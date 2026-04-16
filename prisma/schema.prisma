@@ -1,14 +1,93 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
+}
+
+model User {
+  id           String          @id @default(cuid())
+  name         String
+  email        String          @unique
+  passwordHash String
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  guestRooms   GameRoom[]      @relation("GuestRooms")
+  hostedRooms  GameRoom[]      @relation("HostRooms")
+  kits         PrereleaseKit[]
+}
+
+model Card {
+  id              String          @id @default(cuid())
+  name            String
+  scryfallId      String          @unique
+  rarity          Rarity
+  set             String
+  colors          Json
+  cmc             Int
+  typeLine        String
+  imagePath       String
+  collectorNumber String
+  manaCost        String?
+  setName         String?
+  oracleText      String?
+  flavorText      String?
+  power           String?
+  toughness       String?
+  loyalty         String?
+  artist          String?
+  releasedAt      String?
+  rawData         Json?
+  placedCards     PlacedCard[]
+  promoInKits     PrereleaseKit[] @relation("PromoCard")
+}
+
+model PrereleaseKit {
+  id          String       @id @default(cuid())
+  college     College
+  createdAt   DateTime     @default(now())
+  promoCardId String?
+  userId      String?
+  guestRooms  GameRoom[]   @relation("GuestKit")
+  hostedRooms GameRoom[]   @relation("HostKit")
+  placedCards PlacedCard[]
+  promoCard   Card?        @relation("PromoCard", fields: [promoCardId], references: [id])
+  user        User?        @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model GameRoom {
+  id            String         @id @default(cuid())
+  status        GameRoomStatus @default(WAITING)
+  stateVersion  Int            @default(0)
+  hostUserId    String
+  hostKitId     String?
+  hostPlayerId  String?
+  hostReady     Boolean        @default(false)
+  guestUserId   String?
+  guestKitId    String?
+  guestPlayerId String?
+  guestReady    Boolean        @default(false)
+  gameState     Json?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  guestKit      PrereleaseKit? @relation("GuestKit", fields: [guestKitId], references: [id])
+  guestUser     User?          @relation("GuestRooms", fields: [guestUserId], references: [id])
+  hostKit       PrereleaseKit? @relation("HostKit", fields: [hostKitId], references: [id])
+  hostUser      User           @relation("HostRooms", fields: [hostUserId], references: [id])
+}
+
+model PlacedCard {
+  id         String        @id @default(cuid())
+  cardId     String
+  kitId      String
+  posX       Float         @default(0)
+  posY       Float         @default(0)
+  zIndex     Int           @default(0)
+  isMainDeck Boolean?
+  isFoil     Boolean       @default(false)
+  card       Card          @relation(fields: [cardId], references: [id])
+  kit        PrereleaseKit @relation(fields: [kitId], references: [id])
 }
 
 enum Rarity {
@@ -32,95 +111,10 @@ enum College {
   WITHERBLOOM
 }
 
-model User {
-  id           String          @id @default(cuid())
-  name         String
-  email        String          @unique
-  passwordHash String
-  createdAt    DateTime        @default(now())
-  updatedAt    DateTime        @updatedAt
-  kits         PrereleaseKit[]
-  hostedRooms  GameRoom[]      @relation("HostRooms")
-  guestRooms   GameRoom[]      @relation("GuestRooms")
-}
-
-model Card {
-  id              String          @id @default(cuid())
-  name            String
-  scryfallId      String          @unique
-  rarity          Rarity
-  set             String
-  setName         String?
-  colors          Json
-  manaCost        String?
-  cmc             Int
-  typeLine        String
-  oracleText      String?
-  flavorText      String?
-  power           String?
-  toughness       String?
-  loyalty         String?
-  artist          String?
-  releasedAt      String?
-  imagePath       String
-  collectorNumber String
-  rawData         Json?
-  placedCards     PlacedCard[]
-  promoInKits     PrereleaseKit[] @relation("PromoCard")
-}
-
-model PrereleaseKit {
-  id          String       @id @default(cuid())
-  userId      String?
-  user        User?        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  college     College
-  createdAt   DateTime     @default(now())
-  promoCardId String?
-  promoCard   Card?        @relation("PromoCard", fields: [promoCardId], references: [id])
-  placedCards PlacedCard[]
-  hostedRooms GameRoom[]   @relation("HostKit")
-  guestRooms  GameRoom[]   @relation("GuestKit")
-}
-
 enum GameRoomStatus {
   WAITING
   LOBBY
   READY
   ACTIVE
   FINISHED
-}
-
-model GameRoom {
-  id            String         @id @default(cuid())
-  status        GameRoomStatus @default(WAITING)
-  stateVersion  Int            @default(0)
-  hostUserId    String
-  hostKitId     String?
-  hostPlayerId  String?
-  hostReady     Boolean        @default(false)
-  guestUserId   String?
-  guestKitId    String?
-  guestPlayerId String?
-  guestReady    Boolean        @default(false)
-  gameState     Json?
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-
-  hostUser  User           @relation("HostRooms", fields: [hostUserId],  references: [id])
-  guestUser User?          @relation("GuestRooms", fields: [guestUserId], references: [id])
-  hostKit   PrereleaseKit? @relation("HostKit",   fields: [hostKitId],   references: [id])
-  guestKit  PrereleaseKit? @relation("GuestKit",  fields: [guestKitId],  references: [id])
-}
-
-model PlacedCard {
-  id         String        @id @default(cuid())
-  card       Card          @relation(fields: [cardId], references: [id])
-  cardId     String
-  kit        PrereleaseKit @relation(fields: [kitId], references: [id])
-  kitId      String
-  posX       Float         @default(0)
-  posY       Float         @default(0)
-  zIndex     Int           @default(0)
-  isMainDeck Boolean?      // null = on canvas only, true = main deck, false = sideboard
-  isFoil     Boolean       @default(false)
 }

@@ -29,7 +29,7 @@ export function HandZone({
   return (
     <div
       ref={setRefs}
-      className={`relative flex w-full h-full items-center justify-center rounded-2xl p-4 ${
+      className={`relative flex flex-1 h-full items-center justify-center rounded-2xl p-4 -mb-12 ${
         isAnyDragActive
           ? isActiveDropTarget
             ? "ring-2 ring-green-400/70 bg-green-500/10"

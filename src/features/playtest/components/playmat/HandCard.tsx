@@ -4,7 +4,7 @@ import Image from "next/image";
 import { memo, useMemo } from "react";
 import type { CardInstance } from "@/lib/game/types";
 import { CardBack } from "../CardBack";
-import { HAND_CARD_HEIGHT, HAND_CARD_WIDTH } from "./constants";
+import { HAND_CARD_HEIGHT, HAND_CARD_SPACING, HAND_CARD_WIDTH } from "./constants";
 import { ManaCostBadges } from "./ManaCostBadges";
 import type { CardHoverInfo, DragCardData } from "./types";
 import { parseManaCost } from "./utils";
@@ -42,8 +42,7 @@ export const HandCard = memo(function HandCard({
     });
 
   const symbols = useMemo(() => parseManaCost(manaCost), [manaCost]);
-  const spacing = 45;
-  const xOffset = (index - (total - 1) / 2) * spacing;
+  const xOffset = (index - (total - 1) / 2) * HAND_CARD_SPACING;
   const rotate = (index - (total - 1) / 2) * 3;
   const yOffset = Math.abs(index - (total - 1) / 2) * 4;
 
@@ -58,7 +57,7 @@ export const HandCard = memo(function HandCard({
       ref={setNodeRef}
       type="button"
       draggable={false}
-      className={`absolute bottom-4 cursor-pointer select-none touch-none transition-all duration-200 ease-out ${
+      className={`absolute -bottom-6 cursor-pointer select-none touch-none transition-all duration-200 ease-out ${
         isAnyDragActive
           ? ""
           : "hover:-translate-y-12 hover:z-[100] hover:scale-125"

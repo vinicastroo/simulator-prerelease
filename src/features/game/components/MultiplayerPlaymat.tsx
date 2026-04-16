@@ -1,5 +1,6 @@
 "use client";
 
+import { ArrowDown, ArrowUp } from "lucide-react";
 import Image from "next/image";
 import {
   useCallback,
@@ -296,9 +297,16 @@ export function MultiplayerPlaymat({
         toughness,
       };
     });
-  const opponentBattlefieldArrows = (state.battlefieldArrows ?? []).filter(
-    (arrow) => arrow.playerId === opponentPlayerId,
-  );
+  // Mirror the opponent's arrow Y coordinates: the opponent drew them relative to
+  // their own screen (battlefield at the bottom), but we display their battlefield
+  // at the top of our screen, so Y must be flipped (y' = 1 - y).
+  const opponentBattlefieldArrows = (state.battlefieldArrows ?? [])
+    .filter((arrow) => arrow.playerId === opponentPlayerId)
+    .map((arrow) => ({
+      ...arrow,
+      start: { x: arrow.start.x, y: 1 - arrow.start.y },
+      end: { x: arrow.end.x, y: 1 - arrow.end.y },
+    }));
 
   const opponentGraveyardTop = opponentZones.graveyard.at(-1);
   const opponentExileTop = opponentZones.exile.at(-1);
@@ -360,6 +368,7 @@ export function MultiplayerPlaymat({
         <GameSettingsMenu
           onReset={multiCtx.requestReset}
           collectionHref="/decks"
+          log={multiCtx.state.log}
           multiplayerReset={{
             open: multiCtx.hostResetAccepted || multiCtx.guestResetAccepted,
             currentPlayerAccepted:
@@ -381,24 +390,33 @@ export function MultiplayerPlaymat({
         {/* Connection indicator */}
         {!multiCtx.isConnected && (
           <div className="pointer-events-none fixed inset-x-0 top-0 z-[600] flex justify-center">
-            <div className="rounded-b-lg bg-yellow-900/80 px-4 py-1 text-xs font-semibold text-yellow-200">
-              Reconectando...
+            <div className="flex items-center gap-2 rounded-b-xl border-x border-b border-amber-400/30 bg-amber-950/90 px-5 py-2 shadow-[0_4px_24px_rgba(251,191,36,0.18)] backdrop-blur-md">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-400" />
+              <span className="font-mono text-[11px] font-bold uppercase tracking-[0.2em] text-amber-200">
+                Reconectando...
+              </span>
             </div>
           </div>
         )}
 
         {multiCtx.isConnected && multiCtx.isActionPending && (
           <div className="pointer-events-none fixed inset-x-0 top-0 z-[590] flex justify-center">
-            <div className="rounded-b-lg bg-cyan-950/85 px-4 py-1 text-xs font-semibold text-cyan-100">
-              Sincronizando jogada...
+            <div className="flex items-center gap-2 rounded-b-xl border-x border-b border-sky-500/25 bg-sky-950/85 px-5 py-2 shadow-[0_4px_16px_rgba(14,165,233,0.12)] backdrop-blur-md">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-sky-400" />
+              <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.2em] text-sky-200">
+                Sincronizando jogada...
+              </span>
             </div>
           </div>
         )}
 
         {multiCtx.mulliganToastMessage && (
-          <div className="pointer-events-none fixed inset-x-0 top-6 z-[640] flex justify-center px-4">
-            <div className="rounded-xl border border-white/10 bg-[#0e131a]/92 px-4 py-2 text-sm font-medium text-white shadow-2xl backdrop-blur-md">
-              {multiCtx.mulliganToastMessage}
+          <div className="pointer-events-none fixed inset-x-0 top-5 z-[640] flex justify-center px-4">
+            <div className="flex items-center gap-3 rounded-2xl border border-indigo-400/25 bg-indigo-950/88 px-5 py-2.5 shadow-[0_8px_32px_rgba(99,102,241,0.22)] backdrop-blur-md">
+              <span className="h-2 w-2 rounded-full bg-indigo-400" />
+              <span className="text-[13px] font-semibold text-indigo-100">
+                {multiCtx.mulliganToastMessage}
+              </span>
             </div>
           </div>
         )}
@@ -457,12 +475,11 @@ export function MultiplayerPlaymat({
         {/* Turn indicator divider */}
         <div className="relative h-0 overflow-visible">
           <div className="pointer-events-none absolute left-1/2 top-0 z-30 -translate-x-1/2 -translate-y-1/2">
-            <div className="rounded-full border border-white/15 bg-black/60 px-4 py-1.5 backdrop-blur-sm">
-              <span className="font-mono text-[10px] uppercase tracking-[0.25em] text-white/70">
-                Turno {state.turnNumber}
-                {activePlayerName ? ` (${activePlayerName})` : ""}
-              </span>
-            </div>
+            <TurnIndicator
+              turnNumber={state.turnNumber}
+              activePlayerName={activePlayerName}
+              isMyTurn={state.activePlayerId === multiCtx.localPlayerId}
+            />
           </div>
         </div>
 
@@ -500,17 +517,23 @@ export function MultiplayerPlaymat({
       />
 
       {isWaitingForOpponentKeep && (
-        <div className="pointer-events-none fixed inset-x-0 top-6 z-[650] flex justify-center px-4">
-          <div className="rounded-xl border border-white/15 bg-black/70 px-5 py-3 text-sm font-semibold text-white shadow-2xl backdrop-blur-md">
-            Aguardando oponente ficar com a mao...
+        <div className="pointer-events-none fixed inset-x-0 top-5 z-[650] flex justify-center px-4">
+          <div className="flex items-center gap-3 rounded-2xl border border-amber-400/25 bg-amber-950/85 px-5 py-2.5 shadow-[0_8px_32px_rgba(251,191,36,0.18)] backdrop-blur-md">
+            <span className="h-2 w-2 animate-pulse rounded-full bg-amber-400" />
+            <span className="text-[13px] font-semibold text-amber-100">
+              Aguardando oponente ficar com a mao...
+            </span>
           </div>
         </div>
       )}
 
       {isRollingFirstPlayer && (
-        <div className="pointer-events-none fixed inset-x-0 top-6 z-[650] flex justify-center px-4">
-          <div className="rounded-xl border border-violet-300/35 bg-[#1a1227]/88 px-5 py-3 text-sm font-semibold text-violet-100 shadow-2xl backdrop-blur-md">
-            Sorteando quem joga primeiro...
+        <div className="pointer-events-none fixed inset-x-0 top-5 z-[650] flex justify-center px-4">
+          <div className="flex items-center gap-3 rounded-2xl border border-violet-400/35 bg-violet-950/88 px-5 py-2.5 shadow-[0_8px_32px_rgba(167,139,250,0.25)] backdrop-blur-md">
+            <span className="h-2 w-2 animate-ping rounded-full bg-violet-400" />
+            <span className="text-[13px] font-semibold text-violet-100">
+              Sorteando quem joga primeiro...
+            </span>
           </div>
         </div>
       )}
@@ -628,3 +651,67 @@ export function MultiplayerPlaymat({
     </GameContext.Provider>
   );
 }
+
+// ─── Turn / Phase indicator ───────────────────────────────────────────────────
+
+const PHASE_LABELS: Record<string, string> = {
+  untap: "Desentortar",
+  upkeep: "Manutenção",
+  draw: "Compra",
+  main1: "Principal 1",
+  beginCombat: "Início do Combate",
+  declareAttackers: "Declarar Atacantes",
+  declareBlockers: "Declarar Bloqueadores",
+  combatDamage: "Dano de Combate",
+  endCombat: "Fim do Combate",
+  main2: "Principal 2",
+  end: "Fim",
+  cleanup: "Limpeza",
+};
+
+function TurnIndicator({
+  turnNumber,
+  activePlayerName,
+  isMyTurn,
+}: {
+  turnNumber: number;
+  activePlayerName: string;
+  isMyTurn: boolean;
+}) {
+  const accentColor = isMyTurn ? "#7fb08f" : "#9aa8c4";
+  const borderColor = isMyTurn ? "rgba(127,176,143,0.35)" : "rgba(154,168,196,0.2)";
+  const glowColor = isMyTurn
+    ? "0 0 18px rgba(127,176,143,0.18)"
+    : "0 2px 12px rgba(0,0,0,0.4)";
+
+  return (
+    <div
+      className="flex items-center gap-2.5 rounded-full px-3.5 py-1.5 backdrop-blur-md"
+      style={{
+        border: `1px solid ${borderColor}`,
+        background: "rgba(10,13,20,0.82)",
+        boxShadow: glowColor,
+      }}
+    >
+      <span
+        className="font-mono text-[9px] font-bold uppercase leading-none tracking-[0.22em]"
+        style={{ color: accentColor }}
+      >
+        T{turnNumber}
+      </span>
+
+      {activePlayerName && (
+        <span className="text-[11px] font-semibold leading-none text-white/80">
+          {activePlayerName}
+        </span>
+      )}
+
+      {/* Arrow: up = opponent's turn, down = my turn */}
+      {isMyTurn
+        ? <ArrowDown size={14} style={{ color: accentColor }} />
+        : <ArrowUp size={14} style={{ color: accentColor }} />
+      }
+    </div>
+  );
+}
+

@@ -433,6 +433,195 @@ describe("gameReducer", () => {
     });
   });
 
+  describe("turn/advancePhase and turn/passTurn", () => {
+    it("advances through phases in order", () => {
+      const p = makePlayer();
+      let state = createInitialGameState([p]);
+
+      // Jump to untap so we can test the full advance sequence
+      state = gameReducer(state, { type: "turn/setPhase", phase: "untap" });
+      expect(state.phase).toBe("untap");
+      state = gameReducer(state, { type: "turn/advancePhase" });
+      expect(state.phase).toBe("upkeep");
+      state = gameReducer(state, { type: "turn/advancePhase" });
+      expect(state.phase).toBe("draw");
+    });
+
+    it("passTurn increments turn number and resets to untap", () => {
+      const p = makePlayer();
+      let state = createInitialGameState([p]);
+      const turnBefore = state.turnNumber;
+
+      state = gameReducer(state, { type: "turn/passTurn" });
+      expect(state.turnNumber).toBe(turnBefore + 1);
+      expect(state.phase).toBe("untap");
+    });
+
+    it("turn/setPhase jumps directly to the given phase", () => {
+      const p = makePlayer();
+      let state = createInitialGameState([p]);
+      state = gameReducer(state, { type: "turn/setPhase", phase: "main2" });
+      expect(state.phase).toBe("main2");
+    });
+  });
+
+  describe("player/changeCounter and player/changeMana", () => {
+    it("increments and decrements poison counter", () => {
+      const p = makePlayer();
+      let state = createInitialGameState([p]);
+
+      state = gameReducer(state, {
+        type: "player/changeCounter",
+        playerId: p.id,
+        counter: "poison",
+        delta: 3,
+      });
+      expect(state.players[p.id].counters.poison).toBe(3);
+
+      state = gameReducer(state, {
+        type: "player/changeCounter",
+        playerId: p.id,
+        counter: "poison",
+        delta: -1,
+      });
+      expect(state.players[p.id].counters.poison).toBe(2);
+    });
+
+    it("adds and clears mana", () => {
+      const p = makePlayer();
+      let state = createInitialGameState([p]);
+
+      state = gameReducer(state, {
+        type: "player/changeMana",
+        playerId: p.id,
+        color: "G",
+        delta: 2,
+      });
+      expect(state.players[p.id].manaPool.G).toBe(2);
+
+      state = gameReducer(state, {
+        type: "player/clearManaPool",
+        playerId: p.id,
+      });
+      expect(state.players[p.id].manaPool.G).toBe(0);
+    });
+  });
+
+  describe("card/addCounter, card/removeCounter, card/setCounter", () => {
+    function withCardOnBattlefield(playerId: string) {
+      const p = { id: playerId, name: "Alice" };
+      let state = createInitialGameState([p]);
+      state = loadDeck(state, p.id, 1);
+      const cardId = state.players[p.id].zones.library[0];
+      state = gameReducer(state, {
+        type: "card/move",
+        cardId,
+        from: "library",
+        to: "battlefield",
+        toPlayerId: p.id,
+      });
+      return { state, cardId };
+    }
+
+    it("adds a counter", () => {
+      const p = makePlayer();
+      const { state: s0, cardId } = withCardOnBattlefield(p.id);
+      const state = gameReducer(s0, {
+        type: "card/addCounter",
+        cardId,
+        counter: "+1/+1",
+        amount: 2,
+      });
+      expect(state.cardInstances[cardId].counters["+1/+1"]).toBe(2);
+    });
+
+    it("removes a counter without going below zero", () => {
+      const p = makePlayer();
+      const { state: s0, cardId } = withCardOnBattlefield(p.id);
+      let state = gameReducer(s0, {
+        type: "card/addCounter",
+        cardId,
+        counter: "+1/+1",
+        amount: 3,
+      });
+      state = gameReducer(state, {
+        type: "card/removeCounter",
+        cardId,
+        counter: "+1/+1",
+        amount: 5,
+      });
+      expect(state.cardInstances[cardId].counters["+1/+1"] ?? 0).toBeGreaterThanOrEqual(0);
+    });
+
+    it("setCounter overwrites the value", () => {
+      const p = makePlayer();
+      const { state: s0, cardId } = withCardOnBattlefield(p.id);
+      const state = gameReducer(s0, {
+        type: "card/setCounter",
+        cardId,
+        counter: "loyalty",
+        value: 5,
+      });
+      expect(state.cardInstances[cardId].counters.loyalty).toBe(5);
+    });
+  });
+
+  describe("card/surveil", () => {
+    it("keeps specified cards on top and puts others in graveyard", () => {
+      const p = makePlayer();
+      let state = createInitialGameState([p]);
+      state = loadDeck(state, p.id, 4);
+      const [a, b, c, d] = state.players[p.id].zones.library;
+
+      state = gameReducer(state, {
+        type: "card/surveil",
+        playerId: p.id,
+        keepOnTopIds: [a, b],
+        putInGraveyardIds: [c, d],
+      });
+
+      expect(state.players[p.id].zones.library).toContain(a);
+      expect(state.players[p.id].zones.library).toContain(b);
+      expect(state.players[p.id].zones.graveyard).toContain(c);
+      expect(state.players[p.id].zones.graveyard).toContain(d);
+    });
+  });
+
+  describe("card/tutor", () => {
+    it("moves a specific card from library to hand", () => {
+      const p = makePlayer();
+      let state = createInitialGameState([p]);
+      state = loadDeck(state, p.id, 5);
+      const target = state.players[p.id].zones.library[2];
+
+      state = gameReducer(state, {
+        type: "card/tutor",
+        playerId: p.id,
+        cardId: target,
+        from: "library",
+        to: "hand",
+      });
+
+      expect(state.players[p.id].zones.library).not.toContain(target);
+      expect(state.players[p.id].zones.hand).toContain(target);
+    });
+  });
+
+  describe("player/rollDie", () => {
+    it("records the roll result in the log", () => {
+      const p = makePlayer();
+      let state = createInitialGameState([p]);
+      state = gameReducer(state, {
+        type: "player/rollDie",
+        playerId: p.id,
+        sides: 20,
+        result: 17,
+      });
+      const entry = state.log.at(-1);
+      expect(entry?.description).toContain("17");
+    });
+  });
+
   describe("battlefield arrows", () => {
     it("creates and removes shared battlefield arrows", () => {
       const p = makePlayer();

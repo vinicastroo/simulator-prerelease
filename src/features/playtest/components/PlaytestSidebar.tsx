@@ -30,32 +30,37 @@ const MAIN_DECK_ZONES: ZoneName[] = [
 ];
 
 const MANA_ICON_SRC: Record<string, string> = {
-  "0": "/0.svg",
-  "1": "/1.svg",
-  "2": "/2.svg",
-  "3": "/3.svg",
-  "4": "/4.svg",
-  "5": "/5.svg",
-  "6": "/6.svg",
-  "7": "/7.svg",
-  "8": "/8.svg",
-  "9": "/9.svg",
-  "10": "/10.svg",
-  "11": "/11.svg",
-  "12": "/12.svg",
-  "13": "/13.svg",
-  "14": "/14.svg",
-  "15": "/15.svg",
-  "16": "/16.svg",
-  "17": "/17.svg",
-  "18": "/18.svg",
-  "19": "/19.svg",
-  "20": "/20.svg",
-  W: "/W.svg",
-  U: "/U.svg",
-  B: "/B.svg",
-  R: "/R.svg",
-  G: "/G.svg",
+  // Generic
+  "0": "/0.svg", "1": "/1.svg", "2": "/2.svg", "3": "/3.svg", "4": "/4.svg",
+  "5": "/5.svg", "6": "/6.svg", "7": "/7.svg", "8": "/8.svg", "9": "/9.svg",
+  "10": "/10.svg", "11": "/11.svg", "12": "/12.svg", "13": "/13.svg",
+  "14": "/14.svg", "15": "/15.svg", "16": "/16.svg", "17": "/17.svg",
+  "18": "/18.svg", "19": "/19.svg", "20": "/20.svg",
+  X: "/X.svg",
+  // Basic colors
+  W: "/W.svg", U: "/U.svg", B: "/B.svg", R: "/R.svg", G: "/G.svg",
+  C: "/C.svg",
+  // Hybrid
+  "W/U": "/WU.svg", "W/B": "/WB.svg",
+  "U/B": "/UB.svg", "U/R": "/UR.svg",
+  "B/R": "/BR.svg", "B/G": "/BG.svg",
+  "R/G": "/RG.svg", "R/W": "/RW.svg",
+  "G/W": "/GW.svg", "G/U": "/GU.svg",
+  // 2/color hybrid
+  "2/W": "/2W.svg", "2/U": "/2U.svg", "2/B": "/2B.svg",
+  "2/R": "/2R.svg", "2/G": "/2G.svg",
+  // Phyrexian
+  "W/P": "/WP.svg", "U/P": "/UP.svg", "B/P": "/BP.svg",
+  "R/P": "/RP.svg", "G/P": "/GP.svg",
+  // Hybrid phyrexian
+  "W/U/P": "/WUP.svg", "W/B/P": "/WBP.svg",
+  "U/B/P": "/UBP.svg", "U/R/P": "/URP.svg",
+  "B/R/P": "/BRP.svg", "B/G/P": "/BGP.svg",
+  "R/G/P": "/RGP.svg", "R/W/P": "/RWP.svg",
+  "G/W/P": "/GWP.svg", "G/U/P": "/GUP.svg",
+  // Colorless hybrid
+  "C/W": "/CW.svg", "C/U": "/CU.svg", "C/B": "/CB.svg",
+  "C/R": "/CR.svg", "C/G": "/CG.svg",
 };
 
 function parseManaCost(cost?: string | null): string[] {

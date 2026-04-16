@@ -27,6 +27,7 @@ export const ABILITY_MARKERS: AbilityMarker[] = [
 ];
 
 export const ABILITY_MARKER_IDS = new Set(ABILITY_MARKERS.map((m) => m.id));
+export const HAND_CARD_SPACING = 80;
 export const HAND_CARD_WIDTH = 121;
 export const HAND_CARD_HEIGHT = 185;
 export const BATTLEFIELD_CARD_WIDTH = 121;

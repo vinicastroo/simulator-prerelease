@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { HAND_CARD_HEIGHT, HAND_CARD_WIDTH } from "./constants";
+import { HAND_CARD_HEIGHT, HAND_CARD_SPACING, HAND_CARD_WIDTH } from "./constants";
 
 type OpponentHandZoneProps = {
   count: number;
@@ -7,7 +7,7 @@ type OpponentHandZoneProps = {
 
 export function OpponentHandZone({ count }: OpponentHandZoneProps) {
   const cards = Array.from({ length: count }, (_, i) => i);
-  const spacing = 45;
+  const spacing = HAND_CARD_SPACING;
 
   return (
     <div className="relative flex-1 h-full flex justify-center items-start overflow-visible">

@@ -378,7 +378,11 @@ export function DndCanvas() {
   // ── Background pointer handlers (pan or lasso) ──
   const onWorldPointerDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
-      const isHandMode = toolModeRef.current === "hand" || spaceHeld.current;
+      const isHandMode =
+        toolModeRef.current === "hand" ||
+        spaceHeld.current ||
+        e.ctrlKey ||
+        e.metaKey;
       e.currentTarget.setPointerCapture(e.pointerId);
 
       if (isHandMode) {
@@ -1102,7 +1106,10 @@ function ListView({
           >
             {label}
           </span>
-          <span className="ml-auto shrink-0 font-mono text-[10px] text-white/35">
+          <span
+            className="ml-auto shrink-0 font-mono text-[13px] font-black tabular-nums leading-none"
+            style={{ color: accent }}
+          >
             {items.length}
           </span>
         </div>
