@@ -945,8 +945,8 @@ export function Playmat({
     const definitionPower = selected?.definition.power ?? null;
     const definitionToughness = selected?.definition.toughness ?? null;
     const cardType = card.tokenData?.type ?? definitionType;
-    const power = definitionPower ?? card.tokenData?.power;
-    const toughness = definitionToughness ?? card.tokenData?.toughness;
+    const power = definitionPower ?? card.tokenData?.power ?? null;
+    const toughness = definitionToughness ?? card.tokenData?.toughness ?? null;
 
     return {
       card,
