@@ -27,7 +27,7 @@ import { generateCardDefId, generateCardInstanceId } from "@/lib/game/ids";
 import { selectCardWithDefinition } from "@/lib/game/selectors";
 import { shuffleCardIds } from "@/lib/game/shuffle";
 import type { CardInstance, TurnPhase } from "@/lib/game/types";
-import { useGameStore } from "../hooks/useGameStore";
+import { useGameStore } from "../store/useGameStore";
 import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
 import { CardBack } from "./CardBack";
 import { BattlefieldArea } from "./playmat/BattlefieldArea";

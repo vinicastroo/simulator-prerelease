@@ -16,7 +16,7 @@ Quando validado, o `/playtest-v2` substitui o `/playtest` e os arquivos antigos 
 | Fase 1 — Store Zustand | ✅ Concluído |
 | Fase 2 — Rota nova | ✅ Concluído (swap direto — sem rota /playtest-v2) |
 | Fase 3 — Validação | ⏳ Pendente (validação manual no browser) |
-| Fase 4 — Swap | ✅ Concluído (feito diretamente em /playtest) |
+| Fase 4 — Swap + limpeza | ✅ Concluído |
 | Fase 5 — Fix multiplayer bridge | ✅ Concluído |
 
 ---
@@ -109,17 +109,13 @@ src/app/playtest-v2/
 - [ ] Setas no battlefield
 - [ ] Zoom + pan do battlefield
 
-### ⏳ Fase 4 — Swap (só após Fase 3 verde)
-- [ ] Renomear `src/app/playtest` → `src/app/playtest-old` (backup temporário)
-- [ ] Renomear `src/app/playtest-v2` → `src/app/playtest`
-- [ ] Atualizar imports internos (se houver links cruzados)
-- [ ] Deletar `src/app/playtest-old`
-- [ ] Deletar `src/features/playtest/store/GameProvider.tsx`
-- [ ] Deletar `src/features/playtest/hooks/useGameStore.ts`
-- [ ] Mover `src/features/playtest-v2/store/useGameStore.tsx`
-      → `src/features/playtest/store/useGameStore.tsx`
-- [ ] Remover `LegacyContextBridge` do store (não será mais necessária)
-- [ ] `pnpm build` final sem erros
+### ✅ Fase 4 — Swap + limpeza (feito diretamente, sem rota /playtest-v2)
+- [x] Swap feito diretamente em `/playtest` (sem rota intermediária)
+- [x] Deletar `src/features/playtest/store/GameProvider.tsx`
+- [x] Deletar `src/features/playtest/hooks/useGameStore.ts` (shim removido)
+- [x] Todos os consumidores importam de `store/useGameStore` diretamente
+- [x] `LegacyContextBridge` substituída por fallback em `useGameStore()` via `GameContext`
+- [x] `pnpm build` final sem erros
 
 ---
 

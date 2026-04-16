@@ -14,7 +14,7 @@ para um store Zustand com `subscribeWithSelector`, mantendo a API pública (`use
 |---|---|
 | Fase 1 — Store Zustand | ✅ Concluído |
 | Fase 2 — Validação | ⏳ Pendente (validação manual no browser) |
-| Fase 3 — Subscriptions granulares | ⏳ Pendente (otimização futura) |
+| Fase 3 — Subscriptions granulares | ✅ Concluído (useMultiplayerGameStore + useMemo/useCallback) |
 
 ---
 

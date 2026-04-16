@@ -29,7 +29,7 @@ import {
 } from "@/lib/game/selectors";
 import { shuffleCardIds } from "@/lib/game/shuffle";
 import type { CardInstance } from "@/lib/game/types";
-import { useGameStore } from "../../hooks/useGameStore";
+import { useGameStore } from "../../store/useGameStore";
 import { DeckTopCard } from "./DeckTopCard";
 import { ModalDropZoneOverlay } from "./ModalDropZones";
 import { PreviewOverlay } from "./PreviewOverlay";

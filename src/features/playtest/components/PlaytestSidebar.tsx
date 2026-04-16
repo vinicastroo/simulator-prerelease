@@ -12,7 +12,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import type { CardDefinition, CardInstance, ZoneName } from "@/lib/game/types";
-import { useGameStore } from "../hooks/useGameStore";
+import { useGameStore } from "../store/useGameStore";
 
 type DeckGroup = {
   key: string;
