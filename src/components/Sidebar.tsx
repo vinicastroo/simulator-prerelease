@@ -175,6 +175,19 @@ export function Sidebar() {
   const [draggingSidebarCardId, setDraggingSidebarCardId] = useState<
     string | null
   >(null);
+  const [draggingFromDeck, setDraggingFromDeck] = useState(false);
+
+  // Called by CardRow when a deck-list card starts/ends dragging.
+  // Mirrors the state into the shared context so the sidebar switches to
+  // drop-zone mode and shows the "Remover do deck" target.
+  const handleDeckCardDragState = useCallback(
+    (id: string | null) => {
+      setDraggingSidebarCardId(id);
+      setDraggingFromDeck(id !== null);
+      setDraggingCard(id);
+    },
+    [setDraggingCard],
+  );
 
   // Prefetch the playtest route while the user is still on the simulator so
   // the navigation feels instant when they click the Playtest button.
@@ -350,6 +363,22 @@ export function Sidebar() {
             setDraggingCard(null);
           }}
         />
+
+        {draggingFromDeck && (
+          <>
+            <div className="h-px bg-gradient-to-r from-transparent via-[#31456f]/70 to-transparent flex-shrink-0" />
+            <DropZonePanel
+              dataZone="remove"
+              label="Remover do deck"
+              colorClass="data-[active=true]:bg-red-500/15 data-[active=true]:border-red-400/60"
+              icon="↩"
+              onDropCard={(ids) => {
+                setDeckZone(ids, null);
+                setDraggingCard(null);
+              }}
+            />
+          </>
+        )}
 
         <div className="relative px-4 py-3 text-[11px] text-white/25 text-center flex-shrink-0 border-t border-white/5">
           Solte sobre uma zona para adicionar
@@ -596,7 +625,7 @@ export function Sidebar() {
                       onHover={handleHover}
                       onHoverEnd={handleHoverEnd}
                       onOpen={handleOpen}
-                      onDragStateChange={setDraggingSidebarCardId}
+                      onDragStateChange={handleDeckCardDragState}
                       onRemove={(ids) => setDeckZone(ids, null)}
                     />
                   ))}
@@ -639,7 +668,7 @@ export function Sidebar() {
                       onHover={handleHover}
                       onHoverEnd={handleHoverEnd}
                       onOpen={handleOpen}
-                      onDragStateChange={setDraggingSidebarCardId}
+                      onDragStateChange={handleDeckCardDragState}
                       onRemove={(ids) => setDeckZone(ids, null)}
                     />
                   ))}
@@ -732,7 +761,7 @@ export function Sidebar() {
 interface DropZonePanelProps {
   dataZone: string;
   label: string;
-  count: number;
+  count?: number;
   colorClass: string;
   icon: string;
   onDropCard: (ids: string[]) => void;
@@ -773,9 +802,11 @@ const DropZonePanel = forwardRef<HTMLElement, DropZonePanelProps>(
           <p className="text-white/80 text-sm font-semibold tracking-wide">
             {label}
           </p>
-          <p className="text-white/30 text-xs mt-0.5">
-            {count} carta{count !== 1 ? "s" : ""}
-          </p>
+          {count !== undefined && (
+            <p className="text-white/30 text-xs mt-0.5">
+              {count} carta{count !== 1 ? "s" : ""}
+            </p>
+          )}
         </div>
       </section>
     );
