@@ -7,11 +7,11 @@ import { TopNav } from "@/components/TopNav";
 import { Button } from "@/components/ui/button";
 import {
   BASIC_COLORS,
+  type BasicColor,
   COLOR_ACCENT,
   COLOR_LABEL,
   COLOR_SVG,
   DUAL_PAIRS,
-  type BasicColor,
   type LandRecommendation,
 } from "@/lib/mtg/mana-base";
 
@@ -23,10 +23,25 @@ type Result = {
 
 type FormState = {
   pips: Record<BasicColor, number>;
+  hybridPips: Record<string, number>;
   duals: Record<string, number>;
   utility: number;
   budget: number;
 };
+
+function getEffectivePips(form: FormState): Record<BasicColor, number> {
+  const effectivePips: Record<BasicColor, number> = { ...form.pips };
+
+  for (const pair of DUAL_PAIRS) {
+    const hybridCount = form.hybridPips[pair.key] ?? 0;
+    if (hybridCount === 0) continue;
+    const [a, b] = pair.colors;
+    effectivePips[a] += hybridCount * 0.5;
+    effectivePips[b] += hybridCount * 0.5;
+  }
+
+  return effectivePips;
+}
 
 function Stepper({
   value,
@@ -40,7 +55,7 @@ function Stepper({
   max?: number;
 }) {
   return (
-    <div className="flex items-center gap-1.5">
+    <div className="flex shrink-0 items-center gap-1.5 self-end sm:self-center">
       <button
         type="button"
         onClick={() => onChange(Math.max(min, value - 1))}
@@ -79,7 +94,8 @@ function FormStep({
 }) {
   const totalDuals = Object.values(form.duals).reduce((s, n) => s + n, 0);
   const totalNonBasics = totalDuals + form.utility;
-  const totalPips = BASIC_COLORS.reduce((s, c) => s + form.pips[c], 0);
+  const effectivePips = getEffectivePips(form);
+  const totalPips = BASIC_COLORS.reduce((s, c) => s + effectivePips[c], 0);
 
   function setPip(color: BasicColor, value: number) {
     setForm((f) => ({ ...f, pips: { ...f.pips, [color]: value } }));
@@ -108,16 +124,82 @@ function FormStep({
         </div>
         <div className="divide-y divide-white/[0.05]">
           {BASIC_COLORS.map((color) => (
-            <div key={color} className="flex items-center justify-between gap-3 px-5 py-3">
-              <div className="flex items-center gap-2.5">
-                <Image src={COLOR_SVG[color]} alt={COLOR_LABEL[color]} width={20} height={20} className="h-5 w-5 shrink-0 object-contain" unoptimized />
-                <span className="text-sm font-medium" style={{ color: COLOR_ACCENT[color] }}>
+            <div
+              key={color}
+              className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-5"
+            >
+              <div className="min-w-0 flex-1 flex items-center gap-2.5">
+                <Image
+                  src={COLOR_SVG[color]}
+                  alt={COLOR_LABEL[color]}
+                  width={20}
+                  height={20}
+                  className="h-5 w-5 shrink-0 object-contain"
+                  unoptimized
+                />
+                <span
+                  className="text-sm font-medium"
+                  style={{ color: COLOR_ACCENT[color] }}
+                >
                   {COLOR_LABEL[color]}
                 </span>
               </div>
-              <Stepper value={form.pips[color]} onChange={(v) => setPip(color, v)} />
+              <Stepper
+                value={form.pips[color]}
+                onChange={(v) => setPip(color, v)}
+              />
             </div>
           ))}
+        </div>
+      </section>
+
+      <section className="overflow-hidden rounded-[1.5rem] border border-white/10 bg-black/20 backdrop-blur-xl">
+        <div className="border-b border-white/8 px-5 py-3">
+          <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/40">
+            Pips hibridos
+          </p>
+          <p className="mt-0.5 text-[11px] text-white/25">
+            Cada simbolo hibrido soma 0.5 para cada uma das duas cores
+          </p>
+        </div>
+        <div className="divide-y divide-white/[0.05]">
+          {DUAL_PAIRS.map((pair) => {
+            const count = form.hybridPips[pair.key] ?? 0;
+            return (
+              <div
+                key={pair.key}
+                className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-5"
+              >
+                <div className="min-w-0 flex-1 flex items-center gap-2">
+                  <Image
+                    src={pair.svgPath}
+                    alt={`Mana híbrida ${pair.label}`}
+                    width={20}
+                    height={20}
+                    className="h-5 w-5 shrink-0 object-contain"
+                    unoptimized
+                  />
+                  <span
+                    className={`text-sm ${count > 0 ? "text-white/80" : "text-white/40"}`}
+                  >
+                    {pair.label}
+                  </span>
+                </div>
+                <Stepper
+                  value={count}
+                  onChange={(v) =>
+                    setForm((f) => {
+                      const next = { ...f.hybridPips };
+                      if (v === 0) delete next[pair.key];
+                      else next[pair.key] = v;
+                      return { ...f, hybridPips: next };
+                    })
+                  }
+                  max={20}
+                />
+              </div>
+            );
+          })}
         </div>
       </section>
 
@@ -136,15 +218,38 @@ function FormStep({
             const [a, b] = pair.colors;
             const count = form.duals[pair.key] ?? 0;
             return (
-              <div key={pair.key} className="flex items-center justify-between gap-3 px-5 py-3">
-                <div className="flex items-center gap-2">
-                  <Image src={COLOR_SVG[a]} alt={COLOR_LABEL[a]} width={16} height={16} className="h-4 w-4 shrink-0 object-contain" unoptimized />
-                  <Image src={COLOR_SVG[b]} alt={COLOR_LABEL[b]} width={16} height={16} className="h-4 w-4 shrink-0 object-contain" unoptimized />
-                  <span className={`text-sm ${count > 0 ? "text-white/80" : "text-white/40"}`}>
+              <div
+                key={pair.key}
+                className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-5"
+              >
+                <div className="min-w-0 flex-1 flex items-center gap-2">
+                  <Image
+                    src={COLOR_SVG[a]}
+                    alt={COLOR_LABEL[a]}
+                    width={16}
+                    height={16}
+                    className="h-4 w-4 shrink-0 object-contain"
+                    unoptimized
+                  />
+                  <Image
+                    src={COLOR_SVG[b]}
+                    alt={COLOR_LABEL[b]}
+                    width={16}
+                    height={16}
+                    className="h-4 w-4 shrink-0 object-contain"
+                    unoptimized
+                  />
+                  <span
+                    className={`text-sm ${count > 0 ? "text-white/80" : "text-white/40"}`}
+                  >
                     {pair.label}
                   </span>
                 </div>
-                <Stepper value={count} onChange={(v) => setDual(pair.key, v)} max={10} />
+                <Stepper
+                  value={count}
+                  onChange={(v) => setDual(pair.key, v)}
+                  max={10}
+                />
               </div>
             );
           })}
@@ -160,18 +265,29 @@ function FormStep({
         </div>
         <div className="divide-y divide-white/[0.05]">
           <div className="flex items-center justify-between gap-3 px-5 py-3">
-            <div>
+            <div className="min-w-0 flex-1">
               <p className="text-sm text-white/70">Utility lands</p>
               <p className="text-[11px] text-white/30">Produzem mana incolor</p>
             </div>
-            <Stepper value={form.utility} onChange={(v) => setForm((f) => ({ ...f, utility: v }))} max={17} />
+            <Stepper
+              value={form.utility}
+              onChange={(v) => setForm((f) => ({ ...f, utility: v }))}
+              max={17}
+            />
           </div>
-          <div className="flex items-center justify-between gap-3 px-5 py-3">
-            <div>
+          <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-5">
+            <div className="min-w-0 flex-1">
               <p className="text-sm text-white/70">Total de lands no deck</p>
-              <p className="text-[11px] text-white/30">Padrão: 17 para limited</p>
+              <p className="text-[11px] text-white/30">
+                Padrão: 17 para limited
+              </p>
             </div>
-            <Stepper value={form.budget} onChange={(v) => setForm((f) => ({ ...f, budget: v }))} min={1} max={40} />
+            <Stepper
+              value={form.budget}
+              onChange={(v) => setForm((f) => ({ ...f, budget: v }))}
+              min={1}
+              max={40}
+            />
           </div>
         </div>
         {totalNonBasics > 0 && (
@@ -181,9 +297,12 @@ function FormStep({
               <span className="font-mono font-semibold text-white/60">
                 {Math.max(0, form.budget - totalNonBasics)}
               </span>{" "}
-              ({totalDuals > 0 && `${totalDuals} dual${totalDuals > 1 ? "s" : ""}`}
+              (
+              {totalDuals > 0 &&
+                `${totalDuals} dual${totalDuals > 1 ? "s" : ""}`}
               {totalDuals > 0 && form.utility > 0 && " + "}
-              {form.utility > 0 && `${form.utility} utility`} ocupam {totalNonBasics} slot{totalNonBasics > 1 ? "s" : ""})
+              {form.utility > 0 && `${form.utility} utility`} ocupam{" "}
+              {totalNonBasics} slot{totalNonBasics > 1 ? "s" : ""})
             </p>
           </div>
         )}
@@ -227,8 +346,12 @@ function ResultStep({
 }) {
   const totalDuals = Object.values(form.duals).reduce((s, n) => s + n, 0);
   const totalNonBasics = totalDuals + form.utility;
+  const effectivePips = getEffectivePips(form);
   const activeDuals = DUAL_PAIRS.filter((p) => (form.duals[p.key] ?? 0) > 0);
-  const activePips = BASIC_COLORS.filter((c) => form.pips[c] > 0);
+  const activeHybridPips = DUAL_PAIRS.filter(
+    (p) => (form.hybridPips[p.key] ?? 0) > 0,
+  );
+  const activePips = BASIC_COLORS.filter((c) => effectivePips[c] > 0);
 
   return (
     <div className="space-y-4">
@@ -239,34 +362,91 @@ function ResultStep({
             Deck analisado
           </p>
         </div>
-        <div className="flex flex-wrap gap-x-6 gap-y-3 px-5 py-4">
-          <div>
-            <p className="text-[10px] uppercase tracking-[0.2em] text-white/30">Pips</p>
-            <div className="mt-1.5 flex items-center gap-1.5">
+        <div className="grid gap-3 px-4 py-4 sm:px-5 sm:grid-cols-2">
+          <div className="min-w-0">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-white/30">
+              Pips
+            </p>
+            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
               {activePips.map((c) => (
                 <div key={c} className="flex items-center gap-1">
-                  <Image src={COLOR_SVG[c]} alt={COLOR_LABEL[c]} width={16} height={16} className="h-4 w-4 object-contain" unoptimized />
-                  <span className="font-mono text-xs font-semibold text-white/70">{form.pips[c]}</span>
+                  <Image
+                    src={COLOR_SVG[c]}
+                    alt={COLOR_LABEL[c]}
+                    width={16}
+                    height={16}
+                    className="h-4 w-4 object-contain"
+                    unoptimized
+                  />
+                  <span className="font-mono text-xs font-semibold text-white/70">
+                    {Number.isInteger(effectivePips[c])
+                      ? effectivePips[c]
+                      : effectivePips[c].toFixed(1)}
+                  </span>
                 </div>
               ))}
             </div>
           </div>
-          {activeDuals.length > 0 && (
+          {activeHybridPips.length > 0 && (
             <div>
-              <p className="text-[10px] uppercase tracking-[0.2em] text-white/30">Duals</p>
+              <p className="text-[10px] uppercase tracking-[0.2em] text-white/30">
+                Hibridos
+              </p>
               <div className="mt-1.5 flex flex-wrap items-center gap-2">
-                {activeDuals.map((pair) => (
+                {activeHybridPips.map((pair) => (
                   <div key={pair.key} className="flex items-center gap-1">
-                    <Image src={COLOR_SVG[pair.colors[0]]} alt="" width={14} height={14} className="h-3.5 w-3.5 object-contain" unoptimized />
-                    <Image src={COLOR_SVG[pair.colors[1]]} alt="" width={14} height={14} className="h-3.5 w-3.5 object-contain" unoptimized />
-                    <span className="font-mono text-xs font-semibold text-white/70">×{form.duals[pair.key]}</span>
+                    <Image
+                      src={pair.svgPath}
+                      alt=""
+                      width={16}
+                      height={16}
+                      className="h-4 w-4 object-contain"
+                      unoptimized
+                    />
+                    <span className="font-mono text-xs font-semibold text-white/70">
+                      ×{form.hybridPips[pair.key]}
+                    </span>
                   </div>
                 ))}
               </div>
             </div>
           )}
-          <div>
-            <p className="text-[10px] uppercase tracking-[0.2em] text-white/30">Orçamento</p>
+          {activeDuals.length > 0 && (
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.2em] text-white/30">
+                Duals
+              </p>
+              <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                {activeDuals.map((pair) => (
+                  <div key={pair.key} className="flex items-center gap-1">
+                    <Image
+                      src={COLOR_SVG[pair.colors[0]]}
+                      alt=""
+                      width={14}
+                      height={14}
+                      className="h-3.5 w-3.5 object-contain"
+                      unoptimized
+                    />
+                    <Image
+                      src={COLOR_SVG[pair.colors[1]]}
+                      alt=""
+                      width={14}
+                      height={14}
+                      className="h-3.5 w-3.5 object-contain"
+                      unoptimized
+                    />
+                    <span className="font-mono text-xs font-semibold text-white/70">
+                      ×{form.duals[pair.key]}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="min-w-0">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-white/30">
+              Orçamento
+            </p>
             <p className="mt-1 font-mono text-sm font-semibold text-white/70">
               {form.budget} lands
               {totalNonBasics > 0 && ` − ${totalNonBasics} especiais`}
@@ -283,8 +463,9 @@ function ResultStep({
           </p>
           <p className="mt-0.5 text-[11px] text-white/25">
             {result.total} básic{result.total === 1 ? "o" : "os"}
-            {totalNonBasics > 0 && ` + ${totalNonBasics} especiai${totalNonBasics > 1 ? "s" : "s"}`}
-            {" "}= {result.total + totalNonBasics} lands totais
+            {totalNonBasics > 0 &&
+              ` + ${totalNonBasics} especiai${totalNonBasics > 1 ? "s" : "s"}`}{" "}
+            = {result.total + totalNonBasics} lands totais
           </p>
         </div>
 
@@ -296,18 +477,32 @@ function ResultStep({
           <div className="divide-y divide-white/[0.05]">
             {result.lands.map(({ color, label, name, count }) => {
               const accent = COLOR_ACCENT[color as BasicColor];
-              const pct = result.total > 0 ? Math.round((count / result.total) * 100) : 0;
+              const pct =
+                result.total > 0 ? Math.round((count / result.total) * 100) : 0;
               return (
-                <div key={color} className="flex items-center gap-4 px-5 py-4">
-                  <Image src={COLOR_SVG[color as BasicColor]} alt={name} width={24} height={24} className="h-6 w-6 shrink-0 object-contain" unoptimized />
+                <div
+                  key={color}
+                  className="flex flex-wrap items-center gap-3 px-4 py-4 sm:flex-nowrap sm:gap-4 sm:px-5"
+                >
+                  <Image
+                    src={COLOR_SVG[color as BasicColor]}
+                    alt={name}
+                    width={24}
+                    height={24}
+                    className="h-6 w-6 shrink-0 object-contain"
+                    unoptimized
+                  />
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold" style={{ color: accent }}>
+                    <p
+                      className="text-sm font-semibold"
+                      style={{ color: accent }}
+                    >
                       {label}
                     </p>
                     <p className="text-[11px] text-white/30">{name}</p>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <div className="h-1.5 w-24 overflow-hidden rounded-full bg-white/8">
+                  <div className="flex w-full items-center gap-3 sm:w-auto">
+                    <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/8 sm:w-24 sm:flex-none">
                       <div
                         className="h-full rounded-full transition-all duration-700"
                         style={{ width: `${pct}%`, background: accent }}
@@ -341,6 +536,7 @@ function ResultStep({
 
 const EMPTY_FORM: FormState = {
   pips: { W: 0, U: 0, B: 0, R: 0, G: 0 },
+  hybridPips: {},
   duals: {},
   utility: 0,
   budget: 17,
@@ -356,10 +552,11 @@ export function ManaBaseClient() {
     setLoading(true);
     setError(null);
     try {
+      const effectivePips = getEffectivePips(form);
       const res = await fetch("/api/mana-base", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, pips: effectivePips }),
       });
       if (!res.ok) {
         const data = (await res.json()) as { error?: string };
@@ -383,20 +580,21 @@ export function ManaBaseClient() {
       <div className="pointer-events-none absolute right-[120px] top-[10%] h-[500px] w-[500px] rounded-full bg-[#4d6393] opacity-40 blur-[130px]" />
       <div className="pointer-events-none absolute bottom-[5%] right-[180px] h-[380px] w-[380px] rounded-full bg-[#7c3aed] opacity-25 blur-[110px]" />
 
-      <div className="relative mx-auto flex max-w-lg flex-col px-4 py-4 sm:px-6 sm:py-6">
+      <div className="relative mx-auto flex w-full flex-col px-3 py-4 sm:px-6 sm:py-6">
         <header className="shrink-0 px-1 pb-6">
           <TopNav activePage="mana" />
-          <div className="mt-6 flex items-end justify-between gap-4">
-            <div>
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
+            <div className="min-w-0">
               <p className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.38em] text-white/35">
                 {step === "form" ? "Ferramenta" : "Resultado"}
               </p>
-              <h1 className="text-3xl font-black tracking-[-0.05em] text-white sm:text-4xl">
+              <h1 className="text-2xl font-black tracking-[-0.05em] text-white sm:text-4xl">
                 Base de mana
               </h1>
               {step === "form" && (
-                <p className="mt-1.5 text-sm text-white/40">
-                  Informe os pips e as lands especiais para calcular os terrenos básicos.
+                <p className="mt-1.5 max-w-md text-sm text-white/40">
+                  Informe os pips e as lands especiais para calcular os terrenos
+                  básicos.
                 </p>
               )}
             </div>
