@@ -7,7 +7,9 @@ import {
   type PanInfo,
   useMotionValue,
 } from "framer-motion";
+import { Home } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -612,6 +614,21 @@ export function DndCanvas() {
 
   return (
     <div className="relative h-full w-full overflow-hidden bg-bg-void">
+      <Button
+        asChild
+        variant="ghost"
+        size="icon-lg"
+        className="fixed left-6 top-6 z-[150000000] rounded-xl border border-[#30476f]/55 bg-[#0d1015]/88 text-[#8ea4d6] shadow-2xl backdrop-blur-md hover:bg-[#233455]/45 hover:text-[#d8e4ff]"
+      >
+        <Link
+          href="/"
+          aria-label="Voltar para a home"
+          title="Voltar para a home"
+        >
+          <Home className="h-5 w-5" />
+        </Link>
+      </Button>
+
       {viewMode === "canvas" ? (
         <div
           ref={viewportRef}

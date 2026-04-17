@@ -57,8 +57,25 @@ export function CollegeGrid() {
         }}
       >
         <DialogContent
-          className="max-w-[min(96vw,460px)] overflow-hidden rounded-[1.75rem] border border-white/10 bg-[#0d1017] p-0 text-white sm:max-w-[min(96vw,460px)]"
+          className="max-w-[min(96vw,460px)] overflow-hidden rounded-[1.75rem] bg-[#0d1017] p-0 text-white sm:max-w-[min(96vw,460px)] ring-0"
+          overlayClassName="bg-black/70 supports-backdrop-filter:backdrop-blur-sm"
           showCloseButton={!isPending}
+          style={
+            selectedCollege
+              ? {
+                  boxShadow: `0 24px 80px rgba(0,0,0,0.55), 0 0 68px ${selectedCollege.theme.gradientFrom}16, 0 0 110px ${selectedCollege.theme.gradientTo}12`,
+                }
+              : undefined
+          }
+          onEscapeKeyDown={(event) => {
+            if (isPending) event.preventDefault();
+          }}
+          onPointerDownOutside={(event) => {
+            if (isPending) event.preventDefault();
+          }}
+          onInteractOutside={(event) => {
+            if (isPending) event.preventDefault();
+          }}
         >
           {selectedCollege ? (
             <>
@@ -148,55 +165,46 @@ export function CollegeGrid() {
                   6 boosters incluídos
                 </p>
                 <div className="flex justify-center gap-2">
-                  {(["b0","b1","b2","b3","b4","b5"] as const).map((slotKey, i) => (
-                    <div
-                      key={slotKey}
-                      className={cn(
-                        "w-[62px] shrink-0 booster-enter",
-                        isPending && "booster-opening",
-                      )}
-                      style={
-                        {
-                          animationDelay: isPending
-                            ? `${i * 55}ms`
-                            : `${i * 45}ms`,
-                          "--booster-rot": `${(i - 2.5) * 5}deg`,
-                        } as React.CSSProperties
-                      }
-                    >
-                      <div className="relative aspect-[0.72] overflow-hidden rounded-xl shadow-[0_4px_18px_rgba(0,0,0,0.55)]">
-                        <Image
-                          src="/booster-secrets-of-strixhaven.png"
-                          alt={`Booster ${i + 1} de Strixhaven`}
-                          fill
-                          className="object-contain"
-                          priority={i < 3}
-                          unoptimized
-                        />
+                  {(["b0", "b1", "b2", "b3", "b4", "b5"] as const).map(
+                    (slotKey, i) => (
+                      <div
+                        key={slotKey}
+                        className={cn(
+                          "w-[62px] shrink-0 booster-enter",
+                          isPending && "booster-opening",
+                        )}
+                        style={
+                          {
+                            animationDelay: isPending
+                              ? `${i * 55}ms`
+                              : `${i * 45}ms`,
+                            "--booster-rot": `${(i - 2.5) * 5}deg`,
+                          } as React.CSSProperties
+                        }
+                      >
+                        <div className="relative aspect-[0.72] overflow-hidden rounded-xl shadow-[0_4px_18px_rgba(0,0,0,0.55)]">
+                          <Image
+                            src="/booster-secrets-of-strixhaven.png"
+                            alt={`Booster ${i + 1} de Strixhaven`}
+                            fill
+                            className="object-contain"
+                            priority={i < 3}
+                            unoptimized
+                          />
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ),
+                  )}
                 </div>
               </div>
 
               {/* ── Footer ── */}
-              <div className="flex items-center justify-between gap-3 border-t border-white/8 bg-white/[0.025] px-6 py-4 sm:px-8">
-                <button
-                  type="button"
-                  onClick={() => setSelectedCollegeId(null)}
-                  disabled={isPending}
-                  className="text-sm text-white/45 transition-colors hover:text-white/70 disabled:opacity-40"
-                >
-                  Cancelar
-                </button>
+              <div className="flex items-center justify-end gap-3 border-t border-white/8 bg-white/[0.025] px-6 py-4 sm:px-8">
                 <button
                   type="button"
                   onClick={handleConfirmSelection}
                   disabled={isPending}
-                  className="flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-bold text-white shadow-lg transition-all active:scale-95 disabled:opacity-60"
-                  style={{
-                    background: `linear-gradient(135deg, ${selectedCollege.theme.gradientFrom}, ${selectedCollege.theme.gradientTo})`,
-                  }}
+                  className={`flex items-center gap-2 rounded-full border-0 px-6 py-2.5 text-sm font-bold text-white transition-all active:scale-95 disabled:opacity-60 text-[${selectedCollege.theme.glowColor}] hover:opacity-80`}
                 >
                   {isPending ? (
                     <>
@@ -204,7 +212,7 @@ export function CollegeGrid() {
                       Abrindo...
                     </>
                   ) : (
-                    "Abrir kit →"
+                    "Abrir kit"
                   )}
                 </button>
               </div>
@@ -233,16 +241,17 @@ function CollegeCard({
         type="button"
         disabled={isPending}
         onClick={() => onSelect(college.id)}
-        className={`flex w-full text-left transition-all duration-500 ${isPending ? "cursor-wait opacity-50 scale-[0.985]" : "hover:-translate-y-1"}`}
+        className={`flex w-full text-left transition-all duration-500 ${isPending ? "cursor-wait" : "hover:-translate-y-1"}`}
       >
         <div
           className={`
             group relative flex w-full flex-col overflow-hidden rounded-[28px]
-            bg-[#0f0f0f]/90 text-left shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-md
+            border border-white/10 bg-black/28 text-left backdrop-blur-xl
             transition-all duration-500
-            ${isPending ? "" : "hover:shadow-[0_24px_70px_rgba(0,0,0,0.42)]"}
+            ${isPending ? "" : "hover:border-white/14 hover:bg-black/34 "}
           `}
         >
+          <div className="absolute inset-0 z-0 bg-gradient-to-br from-white/[0.06] via-black/[0.08] to-black/[0.18]" />
           <div
             className="absolute inset-0 z-0 opacity-10 transition-opacity duration-500 group-hover:opacity-25"
             style={{
@@ -250,7 +259,7 @@ function CollegeCard({
             }}
           />
 
-          <div className="absolute inset-x-0 top-0 z-0 h-32 bg-gradient-to-b from-white/[0.045] to-transparent" />
+          <div className="absolute inset-x-0 top-0 z-0 h-32 bg-gradient-to-b from-white/[0.08] to-transparent" />
 
           <div className="absolute -right-6 top-10 z-10 flex items-center justify-center opacity-[0.04] transition-all duration-1000 group-hover:scale-110 group-hover:opacity-[0.08]">
             <Image
@@ -320,18 +329,6 @@ function CollegeCard({
             ))}
           </div>
         </div>
-
-        {isPending && (
-          <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/80 backdrop-blur-md">
-            <div
-              className="h-8 w-8 animate-spin rounded-full border-4 border-t-transparent"
-              style={{
-                borderColor: theme.gradientFrom,
-                borderTopColor: "transparent",
-              }}
-            />
-          </div>
-        )}
       </button>
     </li>
   );

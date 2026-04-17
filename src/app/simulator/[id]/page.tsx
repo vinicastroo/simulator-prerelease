@@ -18,7 +18,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!kit) return { title: "Kit not found" };
   const college = kit.college.charAt(0) + kit.college.slice(1).toLowerCase();
   return {
-    title: `${college} Kit — Strixhaven Drafter`,
+    title: `${college} Kit — Draft Zone`,
     description: `Prerelease kit for ${college} college. Open and build your sealed deck.`,
   };
 }

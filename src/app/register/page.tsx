@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { RegisterForm } from "@/components/RegisterForm";
@@ -19,9 +20,14 @@ export default async function RegisterPage() {
       <div className="relative mx-auto grid min-h-screen w-full max-w-7xl items-center gap-16 px-6 py-12 lg:grid-cols-[1fr_420px] lg:px-10">
         <section className="hidden lg:block">
           <div className="max-w-xl space-y-8">
-            <p className="text-[11px] font-bold uppercase tracking-[0.42em] text-white/30">
-              Draft Simulator
-            </p>
+            <Image
+              src="/logo.svg"
+              alt="Draft Zone"
+              width={160}
+              height={40}
+              className="h-8 w-auto"
+              priority
+            />
 
             <h1 className="text-6xl font-black uppercase leading-[0.92] tracking-[-0.04em] text-white">
               draft. construa. jogue.

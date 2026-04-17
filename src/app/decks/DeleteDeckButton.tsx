@@ -17,7 +17,8 @@ export function DeleteDeckButton({ deckId }: { deckId: string }) {
     },
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: DECKS_QUERY_KEY });
-      const previous = queryClient.getQueryData<DeckListItem[]>(DECKS_QUERY_KEY);
+      const previous =
+        queryClient.getQueryData<DeckListItem[]>(DECKS_QUERY_KEY);
       queryClient.setQueryData<DeckListItem[]>(DECKS_QUERY_KEY, (old = []) =>
         old.filter((kit) => kit.id !== deckId),
       );
@@ -61,7 +62,7 @@ export function DeleteDeckButton({ deckId }: { deckId: string }) {
     <button
       type="button"
       onClick={() => setConfirming(true)}
-      className="flex h-8 w-8 items-center justify-center rounded-full text-white/25 transition hover:bg-red-500/15 hover:text-red-400"
+      className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-black/20 text-white/28 backdrop-blur-md transition hover:border-red-400/30 hover:bg-red-500/12 hover:text-red-300"
       title="Excluir deck"
     >
       <Trash2 size={15} />

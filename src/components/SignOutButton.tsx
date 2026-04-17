@@ -16,7 +16,7 @@ export function SignOutButton() {
         await signOut({ callbackUrl: "/login" });
       }}
       disabled={isPending}
-      className="rounded-full border-white/10 bg-white/[0.04] px-4 text-[11px] font-bold uppercase tracking-[0.2em] text-white/80 hover:bg-white/[0.1]"
+      className="rounded-full  bg-transparent px-4 text-[11px] font-bold uppercase tracking-[0.2em] text-red-600 border-none hover:text-white"
     >
       {isPending ? "Saindo..." : "Sair"}
     </Button>

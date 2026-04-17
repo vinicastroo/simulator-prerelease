@@ -49,16 +49,14 @@ export function LoginForm() {
 
   return (
     <form onSubmit={handleSubmit} className="w-full max-w-sm">
-      <div className="relative overflow-hidden rounded-[2rem] border border-white/[0.12] bg-[#4d6393]/10 shadow-[0_24px_64px_rgba(0,0,0,0.5)] backdrop-blur-3xl">
-        <div className="pointer-events-none absolute inset-0 rounded-[2rem] bg-gradient-to-br from-white/[0.07] via-transparent to-transparent" />
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" />
-        <div className="px-8 pb-8 pt-8">
-          {/* Brand */}
+      <div className="relative overflow-hidden rounded-[2rem] border border-blue-500/20 bg-blue-950/20 shadow-[0_24px_80px_rgba(30,64,175,0.18)] backdrop-blur-3xl">
+        <div className="pointer-events-none absolute -top-24 left-1/2 h-48 w-48 -translate-x-1/2 rounded-full bg-blue-700/20 blur-3xl" />
+        <div className="pointer-events-none absolute inset-0 rounded-[2rem] bg-gradient-to-br from-blue-500/[0.07] via-transparent to-transparent" />
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-blue-400/60 to-transparent" />
+
+        <div className="relative px-8 pb-8 pt-8">
           <div className="mb-8">
-            <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-white/30">
-              Strixhaven Drafter
-            </p>
-            <h1 className="mt-3 text-4xl font-black tracking-[-0.05em] text-white">
+            <h1 className="text-4xl font-black tracking-[-0.05em] text-white">
               Entrar
             </h1>
             <p className="mt-2 text-sm leading-6 text-white/40">
@@ -66,7 +64,6 @@ export function LoginForm() {
             </p>
           </div>
 
-          {/* Fields */}
           <div className="space-y-5">
             <div className="space-y-2">
               <Label
@@ -81,7 +78,7 @@ export function LoginForm() {
                 type="email"
                 name="email"
                 autoComplete="email"
-                className="h-11 rounded-xl border-white/10 bg-white/[0.06] px-4 text-sm text-white placeholder:text-white/20 focus-visible:border-white/25 focus-visible:ring-0"
+                className="h-11 rounded-xl border-white/10 bg-white/[0.05] px-4 text-sm text-white placeholder:text-white/20 transition focus-visible:border-blue-500/60 focus-visible:bg-blue-950/30 focus-visible:ring-0"
               />
             </div>
 
@@ -98,12 +95,11 @@ export function LoginForm() {
                 type="password"
                 name="password"
                 autoComplete="current-password"
-                className="h-11 rounded-xl border-white/10 bg-white/[0.06] px-4 text-sm text-white placeholder:text-white/20 focus-visible:border-white/25 focus-visible:ring-0"
+                className="h-11 rounded-xl border-white/10 bg-white/[0.05] px-4 text-sm text-white placeholder:text-white/20 transition focus-visible:border-blue-500/60 focus-visible:bg-blue-950/30 focus-visible:ring-0"
               />
             </div>
           </div>
 
-          {/* Feedback */}
           {successMessage && (
             <div className="mt-5 rounded-xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-300">
               {successMessage}
@@ -115,7 +111,6 @@ export function LoginForm() {
             </div>
           )}
 
-          {/* Submit */}
           <button
             type="submit"
             disabled={isPending}
@@ -124,12 +119,11 @@ export function LoginForm() {
             {isPending ? "Entrando..." : "Entrar"}
           </button>
 
-          {/* Footer */}
           <p className="mt-6 text-center text-sm text-white/30">
             Ainda não tem conta?{" "}
             <Link
               href="/register"
-              className="font-semibold text-white/70 transition hover:text-white"
+              className="font-semibold text-blue-400 transition hover:text-blue-300"
             >
               Criar conta
             </Link>

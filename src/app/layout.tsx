@@ -14,8 +14,8 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Strixhaven Drafter",
-  description: "Prerelease kit simulator for Strixhaven",
+  title: "Draft Zone",
+  description: "Prerelease kit simulator — open boosters and build your sealed deck.",
 };
 
 export default function RootLayout({
