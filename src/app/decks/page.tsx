@@ -1,4 +1,8 @@
-import { dehydrate, HydrationBoundary, QueryClient } from "@tanstack/react-query";
+import {
+  dehydrate,
+  HydrationBoundary,
+  QueryClient,
+} from "@tanstack/react-query";
 import { requireSessionUser } from "@/lib/auth-session";
 import { DecksClient, DECKS_QUERY_KEY } from "./DecksClient";
 import { getDecksForUser } from "./queries";

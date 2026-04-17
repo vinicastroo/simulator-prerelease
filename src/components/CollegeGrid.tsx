@@ -247,7 +247,9 @@ function CollegeCard({
       >
         <div
           className={`group relative flex w-full flex-col overflow-hidden rounded-[28px] border bg-black/28 text-left backdrop-blur-xl transition-all duration-300 ${
-            isPending ? "border-white/10" : "border-white/10 hover:border-white/20"
+            isPending
+              ? "border-white/10"
+              : "border-white/10 hover:border-white/20"
           }`}
         >
           {/* Base gradient */}

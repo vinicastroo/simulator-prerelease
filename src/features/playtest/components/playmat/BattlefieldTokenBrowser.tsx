@@ -32,12 +32,60 @@ type BattlefieldTokenBrowserProps = {
 };
 
 const COLOR_OPTIONS = [
-  { code: "W", label: "W", bg: "bg-yellow-50", text: "text-yellow-900", border: "border-yellow-200/60", activeBg: "bg-yellow-100", activeBorder: "border-yellow-400" },
-  { code: "U", label: "U", bg: "bg-blue-900/40", text: "text-blue-300", border: "border-blue-500/40", activeBg: "bg-blue-700/60", activeBorder: "border-blue-400" },
-  { code: "B", label: "B", bg: "bg-purple-900/40", text: "text-purple-300", border: "border-purple-500/40", activeBg: "bg-purple-700/60", activeBorder: "border-purple-400" },
-  { code: "R", label: "R", bg: "bg-red-900/40", text: "text-red-300", border: "border-red-500/40", activeBg: "bg-red-700/60", activeBorder: "border-red-400" },
-  { code: "G", label: "G", bg: "bg-green-900/40", text: "text-green-300", border: "border-green-500/40", activeBg: "bg-green-700/60", activeBorder: "border-green-400" },
-  { code: "C", label: "∅", bg: "bg-white/5", text: "text-white/50", border: "border-white/15", activeBg: "bg-white/15", activeBorder: "border-white/50" },
+  {
+    code: "W",
+    label: "W",
+    bg: "bg-yellow-50",
+    text: "text-yellow-900",
+    border: "border-yellow-200/60",
+    activeBg: "bg-yellow-100",
+    activeBorder: "border-yellow-400",
+  },
+  {
+    code: "U",
+    label: "U",
+    bg: "bg-blue-900/40",
+    text: "text-blue-300",
+    border: "border-blue-500/40",
+    activeBg: "bg-blue-700/60",
+    activeBorder: "border-blue-400",
+  },
+  {
+    code: "B",
+    label: "B",
+    bg: "bg-purple-900/40",
+    text: "text-purple-300",
+    border: "border-purple-500/40",
+    activeBg: "bg-purple-700/60",
+    activeBorder: "border-purple-400",
+  },
+  {
+    code: "R",
+    label: "R",
+    bg: "bg-red-900/40",
+    text: "text-red-300",
+    border: "border-red-500/40",
+    activeBg: "bg-red-700/60",
+    activeBorder: "border-red-400",
+  },
+  {
+    code: "G",
+    label: "G",
+    bg: "bg-green-900/40",
+    text: "text-green-300",
+    border: "border-green-500/40",
+    activeBg: "bg-green-700/60",
+    activeBorder: "border-green-400",
+  },
+  {
+    code: "C",
+    label: "∅",
+    bg: "bg-white/5",
+    text: "text-white/50",
+    border: "border-white/15",
+    activeBg: "bg-white/15",
+    activeBorder: "border-white/50",
+  },
 ] as const;
 
 const SUBTYPE_OPTIONS = [
@@ -107,7 +155,9 @@ export function BattlefieldTokenBrowser({
   const overlayRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Fetch related token scryfallIds from the active decks
   useEffect(() => {
@@ -142,7 +192,8 @@ export function BattlefieldTokenBrowser({
     };
   }, [rawSearch]);
 
-  // Reset page when filters change
+  // Reset page when filters change — deps are triggers, not values used inside.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional trigger deps
   useEffect(() => {
     setCurrentPage(1);
   }, [activeColors, subtype, deckOnly]);
@@ -155,7 +206,9 @@ export function BattlefieldTokenBrowser({
 
       const ids = deckOnly ? relatedScryfallIds : undefined;
       try {
-        const res = await fetch(buildUrl(search, activeColors, subtype, page, ids));
+        const res = await fetch(
+          buildUrl(search, activeColors, subtype, page, ids),
+        );
         const data: TokensResponse = await res.json();
         setTokens((prev) => (append ? [...prev, ...data.tokens] : data.tokens));
         setTotal(data.total);
@@ -213,7 +266,9 @@ export function BattlefieldTokenBrowser({
               Tokens
             </p>
             <p className="mt-0.5 text-xs text-white/50">
-              {loading ? "Carregando..." : `${total} token${total !== 1 ? "s" : ""} encontrado${total !== 1 ? "s" : ""}`}
+              {loading
+                ? "Carregando..."
+                : `${total} token${total !== 1 ? "s" : ""} encontrado${total !== 1 ? "s" : ""}`}
             </p>
           </div>
           <button
@@ -268,23 +323,25 @@ export function BattlefieldTokenBrowser({
           {/* Color chips + subtype */}
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-1.5">
-              {COLOR_OPTIONS.map(({ code, label, bg, text, border, activeBg, activeBorder }) => {
-                const active = activeColors.includes(code);
-                return (
-                  <button
-                    key={code}
-                    type="button"
-                    onClick={() => toggleColor(code)}
-                    className={`flex h-7 w-7 items-center justify-center rounded-full border text-[11px] font-bold transition ${
-                      active
-                        ? `${activeBg} ${activeBorder} ${text}`
-                        : `${bg} ${border} ${text} opacity-60 hover:opacity-100`
-                    }`}
-                  >
-                    {label}
-                  </button>
-                );
-              })}
+              {COLOR_OPTIONS.map(
+                ({ code, label, bg, text, border, activeBg, activeBorder }) => {
+                  const active = activeColors.includes(code);
+                  return (
+                    <button
+                      key={code}
+                      type="button"
+                      onClick={() => toggleColor(code)}
+                      className={`flex h-7 w-7 items-center justify-center rounded-full border text-[11px] font-bold transition ${
+                        active
+                          ? `${activeBg} ${activeBorder} ${text}`
+                          : `${bg} ${border} ${text} opacity-60 hover:opacity-100`
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  );
+                },
+              )}
               {activeColors.length > 0 && (
                 <button
                   type="button"
@@ -429,7 +486,8 @@ export function BattlefieldTokenBrowser({
         {/* Footer */}
         <div className="border-t border-white/8 px-5 py-2.5 text-[10px] text-white/30">
           Clique em um token para criar{" "}
-          {quantity === 1 ? "1 cópia" : `${quantity} cópias`} no campo de batalha
+          {quantity === 1 ? "1 cópia" : `${quantity} cópias`} no campo de
+          batalha
         </div>
       </div>
     </div>,

@@ -12,15 +12,15 @@ export async function GET(req: NextRequest) {
   const subtype = searchParams.get("subtype") ?? "all";
   const page = Math.max(1, parseInt(searchParams.get("page") ?? "1", 10));
   const scryfallIdsParam = searchParams.get("scryfallIds") ?? "";
-  const scryfallIds = scryfallIdsParam ? scryfallIdsParam.split(",").filter(Boolean) : [];
+  const scryfallIds = scryfallIdsParam
+    ? scryfallIdsParam.split(",").filter(Boolean)
+    : [];
 
   const selectedColors = colorsParam
     ? colorsParam.split(",").filter(Boolean)
     : [];
 
-  const andClauses: Prisma.CardWhereInput[] = [
-    { isToken: true },
-  ];
+  const andClauses: Prisma.CardWhereInput[] = [{ isToken: true }];
 
   // When filtering to deck-related tokens only
   if (scryfallIds.length > 0) {
@@ -45,9 +45,13 @@ export async function GET(req: NextRequest) {
 
   if (subtype !== "all") {
     if (subtype === "emblem") {
-      andClauses.push({ typeLine: { contains: "Emblem", mode: "insensitive" } });
+      andClauses.push({
+        typeLine: { contains: "Emblem", mode: "insensitive" },
+      });
     } else if (subtype === "creature") {
-      andClauses.push({ typeLine: { contains: "Creature", mode: "insensitive" } });
+      andClauses.push({
+        typeLine: { contains: "Creature", mode: "insensitive" },
+      });
     } else if (subtype === "artifact") {
       andClauses.push({
         AND: [
@@ -56,7 +60,9 @@ export async function GET(req: NextRequest) {
         ],
       });
     } else if (subtype === "enchantment") {
-      andClauses.push({ typeLine: { contains: "Enchantment", mode: "insensitive" } });
+      andClauses.push({
+        typeLine: { contains: "Enchantment", mode: "insensitive" },
+      });
     }
   }
 

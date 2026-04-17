@@ -11,10 +11,8 @@ type ScryfallRelatedCard = {
 };
 
 export async function GET(req: NextRequest) {
-  const cardIds = req.nextUrl.searchParams
-    .get("cardIds")
-    ?.split(",")
-    .filter(Boolean) ?? [];
+  const cardIds =
+    req.nextUrl.searchParams.get("cardIds")?.split(",").filter(Boolean) ?? [];
 
   if (cardIds.length === 0) {
     return NextResponse.json([], { headers: { "Cache-Control": "no-store" } });
@@ -40,7 +38,8 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json(Array.from(tokenScryfallIds), {
     headers: {
-      "Cache-Control": "public, max-age=60, s-maxage=300, stale-while-revalidate=3600",
+      "Cache-Control":
+        "public, max-age=60, s-maxage=300, stale-while-revalidate=3600",
     },
   });
 }
