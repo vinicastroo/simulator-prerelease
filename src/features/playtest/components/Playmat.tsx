@@ -289,6 +289,7 @@ export function Playmat({
 
     if (latestEntry.actionType === "turn/passTurn") {
       const audio = nextTurnAudioRef.current ?? new Audio("/next-turn.mp3");
+      audio.volume = 0.3;
       audio.currentTime = 0;
       nextTurnAudioRef.current = audio;
       void audio.play().catch(() => {});
