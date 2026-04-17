@@ -20,7 +20,7 @@ export type DeckListItem = {
 export const DECKS_QUERY_KEY = ["decks"] as const;
 
 async function fetchDecks(): Promise<DeckListItem[]> {
-  const res = await fetch("/api/decks");
+  const res = await fetch("/api/decks", { cache: "no-store" });
   if (!res.ok) throw new Error("Falha ao carregar decks");
   return res.json();
 }

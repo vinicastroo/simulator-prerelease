@@ -21,5 +21,7 @@ export async function GET() {
     },
   });
 
-  return NextResponse.json(kits);
+  return NextResponse.json(kits, {
+    headers: { "Cache-Control": "no-store" },
+  });
 }

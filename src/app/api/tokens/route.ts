@@ -20,5 +20,7 @@ export async function GET() {
     orderBy: { name: "asc" },
   });
 
-  return NextResponse.json(tokens);
+  return NextResponse.json(tokens, {
+    headers: { "Cache-Control": "no-store" },
+  });
 }

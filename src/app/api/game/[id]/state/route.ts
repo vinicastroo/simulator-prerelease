@@ -27,16 +27,19 @@ export async function GET(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  return NextResponse.json({
-    gameState: room.gameState,
-    stateVersion: room.stateVersion,
-    status: room.status,
-    hostPlayerId: room.hostPlayerId,
-    guestPlayerId: room.guestPlayerId,
-    hostReady: room.hostReady,
-    guestReady: room.guestReady,
-    myRole: isHost ? "host" : "guest",
-  });
+  return NextResponse.json(
+    {
+      gameState: room.gameState,
+      stateVersion: room.stateVersion,
+      status: room.status,
+      hostPlayerId: room.hostPlayerId,
+      guestPlayerId: room.guestPlayerId,
+      hostReady: room.hostReady,
+      guestReady: room.guestReady,
+      myRole: isHost ? "host" : "guest",
+    },
+    { headers: { "Cache-Control": "no-store" } },
+  );
 }
 
 export async function PUT(
