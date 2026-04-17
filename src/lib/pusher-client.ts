@@ -27,6 +27,10 @@ export function getPusherClient(): PusherInstance {
     default?: typeof PusherType;
   };
   const PusherJs = mod.default ?? mod;
-  globalForPusher.pusherClient = new PusherJs(key, { cluster });
+  globalForPusher.pusherClient = new PusherJs(key, {
+    cluster,
+    // Skip transport negotiation — go straight to WebSocket.
+    enabledTransports: ["ws", "wss"],
+  });
   return globalForPusher.pusherClient;
 }

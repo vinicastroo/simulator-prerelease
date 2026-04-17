@@ -146,13 +146,18 @@ export async function POST(
     return NextResponse.json({ error: result.error }, { status });
   }
 
-  await pusherServer.trigger(`game-${roomId}`, "state-updated", {
-    stateVersion: result.nextVersion,
-  });
-  await pusherServer.trigger(`game-${roomId}`, "player-mulliganed", {
-    playerName: result.playerName,
-    count: result.mulliganCount,
-  });
+  await pusherServer.triggerBatch([
+    {
+      channel: `game-${roomId}`,
+      name: "state-updated",
+      data: JSON.stringify({ stateVersion: result.nextVersion }),
+    },
+    {
+      channel: `game-${roomId}`,
+      name: "player-mulliganed",
+      data: JSON.stringify({ playerName: result.playerName, count: result.mulliganCount }),
+    },
+  ]);
 
   return NextResponse.json({ ok: true });
 }

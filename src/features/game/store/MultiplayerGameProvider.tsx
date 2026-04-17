@@ -117,6 +117,8 @@ function createMultiplayerGameStore({
   let pendingFlush = false;
   // Incremented on every resync. Lets in-flight flushes detect they're stale.
   let syncGeneration = 0;
+  // Debounce gate for resyncState — collapses event bursts into one GET.
+  let resyncTimer: ReturnType<typeof setTimeout> | null = null;
 
   const scheduleFlusher = (
     get: () => MultiplayerGameStoreSlice,
@@ -223,6 +225,11 @@ function createMultiplayerGameStore({
         },
 
         resyncState: async () => {
+          // Collapse rapid bursts (e.g. two Pusher events from the same
+          // triggerBatch) into a single GET instead of two back-to-back requests.
+          if (resyncTimer !== null) return;
+          resyncTimer = setTimeout(() => { resyncTimer = null; }, 0);
+
           syncGeneration++;
           pendingFlush = false;
           if (debounceTimer !== null) {

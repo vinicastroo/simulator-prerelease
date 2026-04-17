@@ -175,14 +175,17 @@ export async function POST(
     },
   });
 
-  await Promise.all([
-    pusherServer.trigger(channel, "state-updated", {
-      stateVersion: result.nextVersion,
-    }),
-    pusherServer.trigger(channel, "reset-vote-updated", {
-      hostReady: false,
-      guestReady: false,
-    }),
+  await pusherServer.triggerBatch([
+    {
+      channel,
+      name: "state-updated",
+      data: JSON.stringify({ stateVersion: result.nextVersion }),
+    },
+    {
+      channel,
+      name: "reset-vote-updated",
+      data: JSON.stringify({ hostReady: false, guestReady: false }),
+    },
   ]);
 
   return NextResponse.json({ ok: true, reset: true });

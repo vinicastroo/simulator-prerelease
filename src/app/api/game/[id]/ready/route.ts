@@ -122,9 +122,9 @@ export async function POST(
       },
     });
 
-    await Promise.all([
-      pusherServer.trigger(channel, "game-started", {}),
-      pusherServer.trigger("lobby", "room-closed", { id: roomId }),
+    await pusherServer.triggerBatch([
+      { channel, name: "game-started", data: JSON.stringify({}) },
+      { channel: "lobby", name: "room-closed", data: JSON.stringify({ id: roomId }) },
     ]);
   } else {
     const role = isHost ? "host" : "guest";

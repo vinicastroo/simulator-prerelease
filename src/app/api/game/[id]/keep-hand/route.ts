@@ -144,16 +144,21 @@ export async function POST(
     return NextResponse.json({ error: result.error }, { status });
   }
 
-  await pusherServer.trigger(`game-${roomId}`, "state-updated", {
-    stateVersion: result.nextVersion,
-  });
-
+  const batchEvents: Parameters<typeof pusherServer.triggerBatch>[0] = [
+    {
+      channel: `game-${roomId}`,
+      name: "state-updated",
+      data: JSON.stringify({ stateVersion: result.nextVersion }),
+    },
+  ];
   if (result.winnerId) {
-    await pusherServer.trigger(`game-${roomId}`, "first-player-roll-started", {
-      winnerId: result.winnerId,
-      durationMs: result.rollDurationMs,
+    batchEvents.push({
+      channel: `game-${roomId}`,
+      name: "first-player-roll-started",
+      data: JSON.stringify({ winnerId: result.winnerId, durationMs: result.rollDurationMs }),
     });
   }
+  await pusherServer.triggerBatch(batchEvents);
 
   return NextResponse.json({ ok: true });
 }
