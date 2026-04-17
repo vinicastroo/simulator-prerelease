@@ -57,6 +57,10 @@ type MultiplayerGameStoreSlice = {
   isFirstPlayerRollActive: boolean;
   firstPlayerRollWinnerId: string | null;
   pendingActionCount: number;
+  // Actions dispatched locally but not yet committed to the server.
+  // Rebased on top of fresh server state whenever a resync happens so
+  // concurrent actions from both players are never lost.
+  pendingActions: GameAction[];
   mulliganToastMessage: string | null;
   opponentShuffleCount: number;
   localPlayerId: string;
@@ -148,7 +152,7 @@ function createMultiplayerGameStore({
       if (generation !== syncGeneration) return;
       if (res.ok) {
         const data = (await res.json()) as { seq: number };
-        setStoreState({ stateVersion: data.seq, pendingActionCount: 0 });
+        setStoreState({ stateVersion: data.seq, pendingActionCount: 0, pendingActions: [] });
       } else if (res.status === 409) {
         await get().resyncState();
       } else {
@@ -187,6 +191,7 @@ function createMultiplayerGameStore({
         isFirstPlayerRollActive: false,
         firstPlayerRollWinnerId: null,
         pendingActionCount: 0,
+        pendingActions: [],
         mulliganToastMessage: null,
         opponentShuffleCount: 0,
         localPlayerId,
@@ -209,7 +214,11 @@ function createMultiplayerGameStore({
           }
 
           const nextState = gameReducer(get().gameState, action);
-          set({ gameState: nextState, pendingActionCount: 1 });
+          set({
+            gameState: nextState,
+            pendingActionCount: 1,
+            pendingActions: [...get().pendingActions, action],
+          });
           scheduleFlusher(get, setStoreState);
         },
 
@@ -230,13 +239,25 @@ function createMultiplayerGameStore({
             hostReady: boolean;
             guestReady: boolean;
           };
+          // Re-apply any locally-pending actions on top of the authoritative
+          // server state so concurrent changes from both players are preserved.
+          const { pendingActions } = get();
+          const rebasedState = pendingActions.reduce(
+            (s, a) => gameReducer(s, a),
+            data.gameState as GameState,
+          );
           set({
-            gameState: data.gameState,
+            gameState: rebasedState,
             stateVersion: data.stateVersion,
             hostResetAccepted: Boolean(data.hostReady),
             guestResetAccepted: Boolean(data.guestReady),
             pendingActionCount: 0,
           });
+          // If there are still pending local actions, schedule a flush so they
+          // reach the server even though the debounce was just cancelled.
+          if (pendingActions.length > 0) {
+            scheduleFlusher(get, setStoreState);
+          }
         },
 
         requestReset: async () => {
