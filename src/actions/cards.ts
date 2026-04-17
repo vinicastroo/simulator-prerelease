@@ -143,7 +143,7 @@ export async function addBasicLandsToKit(
   const landCard = await prisma.card.findFirst({
     where: {
       name: landName,
-      typeLine: { contains: "Basic Land" },
+      isToken: false,
     },
     orderBy: [{ set: "asc" }, { collectorNumber: "asc" }],
   });

@@ -477,7 +477,11 @@ export async function generateFullKit(
   college: College,
   userId: string,
 ): Promise<string> {
-  const allCards: Card[] = await prisma.card.findMany();
+  // rawData is not used by any booster logic — omit it to reduce payload
+  const allCards = (await prisma.card.findMany({
+    where: { isToken: false, set: { in: ["SOS", "SOA", "SPG"] } },
+    omit: { rawData: true },
+  })) as Card[];
 
   if (allCards.length === 0) {
     throw new Error(

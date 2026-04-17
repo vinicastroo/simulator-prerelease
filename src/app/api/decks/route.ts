@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { prisma } from "@/lib/prisma";
+import { getDecksForUser } from "@/app/decks/queries";
 
 export async function GET() {
   const session = await auth();
@@ -8,19 +8,7 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const kits = await prisma.prereleaseKit.findMany({
-    where: { userId: session.user.id },
-    orderBy: { createdAt: "desc" },
-    select: {
-      id: true,
-      college: true,
-      createdAt: true,
-      placedCards: {
-        select: { isMainDeck: true },
-      },
-    },
-  });
-
+  const kits = await getDecksForUser(session.user.id);
   return NextResponse.json(kits, {
     headers: { "Cache-Control": "no-store" },
   });

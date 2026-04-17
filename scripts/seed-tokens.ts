@@ -14,9 +14,9 @@ const adapter = new PrismaPg(pool);
 
 const prisma = new PrismaClient({ adapter });
 
-// tsos = Strixhaven Tokens / token set — adjust set code if needed
+// All unique tokens across every MTG set, sorted by name for stable pagination
 const QUERIES = [
-  "https://api.scryfall.com/cards/search?q=set:tsos&unique=prints",
+  "https://api.scryfall.com/cards/search?q=type%3Atoken&unique=cards&order=name",
 ];
 
 const awsRegion = process.env.AWS_REGION;
@@ -124,18 +124,23 @@ async function storeImage(
 }
 
 async function fetchAndSeedTokens(): Promise<void> {
-  console.log("🪙 Iniciando importação de tokens (tsos)...");
+  console.log("🪙 Iniciando importação de todos os tokens do MTG...");
   console.log(
     useS3
       ? "☁️ Upload configurado para S3/CloudFront"
       : "💾 Upload local em public/cards",
   );
 
+  let total = 0;
+  let skipped = 0;
+
   for (const query of QUERIES) {
     let nextUrl: string | null = query;
+    let page = 1;
 
     while (nextUrl) {
       try {
+        console.log(`\n📄 Página ${page}...`);
         const { data }: { data: ScryfallSearchResponse } =
           await axios.get(nextUrl);
 
@@ -143,10 +148,13 @@ async function fetchAndSeedTokens(): Promise<void> {
           const preferredImage = getPreferredImageUri(card);
           if (!preferredImage) {
             console.log(`⚠️ Sem imagem para ${card.name}, pulando...`);
+            skipped++;
             continue;
           }
 
-          console.log(`📥 [TSOS] ${card.name}`);
+          const setCode = card.set.toUpperCase();
+          console.log(`📥 [${setCode}] ${card.name}`);
+
           const existingCard = await prisma.card.findUnique({
             where: { scryfallId: card.id },
             select: { imagePath: true },
@@ -155,9 +163,7 @@ async function fetchAndSeedTokens(): Promise<void> {
           let imagePath: string;
           if (existingCard?.imagePath) {
             imagePath = existingCard.imagePath;
-            console.log(`♻️ Reutilizando imagem existente para ${card.name}`);
           } else {
-            console.log(`☁️ Armazenando nova imagem para ${card.name}`);
             imagePath = await storeImage(
               preferredImage.url,
               card.id,
@@ -165,58 +171,48 @@ async function fetchAndSeedTokens(): Promise<void> {
             );
           }
 
+          const cardData = {
+            name: card.name,
+            rarity: Rarity.COMMON,
+            set: setCode,
+            setName: card.set_name || null,
+            colors: card.colors || card.color_identity || [],
+            manaCost: card.mana_cost || null,
+            cmc: 0,
+            typeLine: card.type_line,
+            oracleText: card.oracle_text || null,
+            flavorText: card.flavor_text || null,
+            power: card.power || null,
+            toughness: card.toughness || null,
+            loyalty: card.loyalty || null,
+            artist: card.artist || null,
+            releasedAt: card.released_at || null,
+            imagePath,
+            collectorNumber: card.collector_number,
+            rawData: card as unknown as Prisma.InputJsonValue,
+            isToken: true,
+          };
+
           await prisma.card.upsert({
             where: { scryfallId: card.id },
-            update: {
-              name: card.name,
-              rarity: Rarity.COMMON,
-              set: "TSOS",
-              setName: card.set_name || null,
-              colors: card.colors || card.color_identity || [],
-              manaCost: card.mana_cost || null,
-              cmc: 0,
-              typeLine: card.type_line,
-              oracleText: card.oracle_text || null,
-              flavorText: card.flavor_text || null,
-              power: card.power || null,
-              toughness: card.toughness || null,
-              loyalty: card.loyalty || null,
-              artist: card.artist || null,
-              releasedAt: card.released_at || null,
-              imagePath,
-              collectorNumber: card.collector_number,
-              rawData: card as unknown as Prisma.InputJsonValue,
-            },
-            create: {
-              scryfallId: card.id,
-              name: card.name,
-              rarity: Rarity.COMMON,
-              set: "TSOS",
-              setName: card.set_name || null,
-              colors: card.colors || card.color_identity || [],
-              manaCost: card.mana_cost || null,
-              cmc: 0,
-              typeLine: card.type_line,
-              oracleText: card.oracle_text || null,
-              flavorText: card.flavor_text || null,
-              power: card.power || null,
-              toughness: card.toughness || null,
-              loyalty: card.loyalty || null,
-              artist: card.artist || null,
-              releasedAt: card.released_at || null,
-              imagePath,
-              collectorNumber: card.collector_number,
-              rawData: card as unknown as Prisma.InputJsonValue,
-            },
+            update: cardData,
+            create: { scryfallId: card.id, ...cardData },
           });
 
-          await new Promise((r) => setTimeout(r, 100)); // Rate limit
+          total++;
+          await new Promise((r) => setTimeout(r, 80));
         }
 
         nextUrl = data.has_more && data.next_page ? data.next_page : null;
+        page++;
       } catch (error) {
         if (axios.isAxiosError(error)) {
           console.error("❌ Erro na API Scryfall:", error.message);
+          if (error.response?.status === 429) {
+            console.log("⏳ Rate limit atingido, aguardando 10s...");
+            await new Promise((r) => setTimeout(r, 10_000));
+            continue;
+          }
         } else {
           console.error("❌ Erro inesperado:", error);
         }
@@ -225,7 +221,9 @@ async function fetchAndSeedTokens(): Promise<void> {
     }
   }
 
-  console.log("✅ Importação de tokens concluída.");
+  console.log(
+    `\n✅ Importação concluída. ${total} tokens importados, ${skipped} pulados.`,
+  );
 }
 
 fetchAndSeedTokens()

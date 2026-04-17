@@ -11,6 +11,29 @@
   }
 }
 
+/* ── Global scrollbar ─────────────────────────────────────────────────────── */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #1e2d45 transparent;
+}
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background-color: #1e2d45;
+  border-radius: 99px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background-color: #2d4266;
+}
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
 /* ── Sidebar scrollbar ─────────────────────────────────────────────────────── */
 .sidebar-scroll {
   scrollbar-width: thin;

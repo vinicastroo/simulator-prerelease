@@ -4,7 +4,7 @@ import { useDndMonitor, useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import Image from "next/image";
 import type { ReactNode } from "react";
-import { memo, useMemo, useState } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   ContextMenu,
@@ -191,6 +191,120 @@ type LibraryViewCard = {
   name: string;
   imageUrl: string | null;
 };
+
+const ScryCardItem = memo(function ScryCardItem({
+  card,
+  onToggle,
+  onMouseEnter,
+  onMouseLeave,
+}: {
+  card: ScryCard;
+  onToggle: (id: string) => void;
+  onMouseEnter: (card: ScryCard, target: HTMLElement) => void;
+  onMouseLeave: () => void;
+}) {
+  return (
+    <button
+      key={card.id}
+      type="button"
+      onClick={() => onToggle(card.id)}
+      className="flex flex-col items-center gap-1.5 cursor-pointer"
+      onMouseEnter={(event) => onMouseEnter(card, event.currentTarget)}
+      onMouseLeave={onMouseLeave}
+    >
+      {card.imageUrl ? (
+        <Image
+          src={card.imageUrl}
+          alt={card.name}
+          width={100}
+          height={139}
+          className={`rounded-[6px] border-2 transition-all ${
+            card.dest === "top"
+              ? "border-white/50"
+              : "border-red-500/60 opacity-50"
+          }`}
+          unoptimized
+        />
+      ) : (
+        <div
+          className={`flex h-[139px] w-[100px] items-center justify-center rounded-[6px] border-2 p-1 text-center text-[10px] ${
+            card.dest === "top"
+              ? "border-white/50 bg-white/5"
+              : "border-red-500/60 bg-red-500/5 opacity-50"
+          }`}
+        >
+          {card.name}
+        </div>
+      )}
+      <span
+        className={`rounded px-2 py-0.5 font-mono text-[10px] ${
+          card.dest === "top"
+            ? "bg-white/10 text-white"
+            : "bg-red-500/20 text-red-300"
+        }`}
+      >
+        {card.dest === "top" ? "Topo" : "Fundo"}
+      </span>
+    </button>
+  );
+});
+
+const SurveilCardItem = memo(function SurveilCardItem({
+  card,
+  onToggle,
+  onMouseEnter,
+  onMouseLeave,
+}: {
+  card: SurveilCard;
+  onToggle: (id: string) => void;
+  onMouseEnter: (card: SurveilCard, target: HTMLElement) => void;
+  onMouseLeave: () => void;
+}) {
+  return (
+    <button
+      key={card.id}
+      type="button"
+      onClick={() => onToggle(card.id)}
+      className="flex cursor-pointer flex-col items-center gap-1.5"
+      onMouseEnter={(event) => onMouseEnter(card, event.currentTarget)}
+      onMouseLeave={onMouseLeave}
+    >
+      {card.imageUrl ? (
+        <Image
+          src={card.imageUrl}
+          alt={card.name}
+          width={100}
+          height={139}
+          className={`rounded-[6px] border-2 transition-all ${
+            card.dest === "top"
+              ? "border-white/50"
+              : "border-emerald-500/60 opacity-50"
+          }`}
+          unoptimized
+        />
+      ) : (
+        <div
+          className={`flex h-[139px] w-[100px] items-center justify-center rounded-[6px] border-2 p-1 text-center text-[10px] ${
+            card.dest === "top"
+              ? "border-white/50 bg-white/5"
+              : "border-emerald-500/60 bg-emerald-500/5 opacity-50"
+          }`}
+        >
+          {card.name}
+        </div>
+      )}
+      <span
+        className={`rounded px-2 py-0.5 font-mono text-[10px] ${
+          card.dest === "top"
+            ? "bg-white/10 text-white"
+            : "bg-emerald-500/20 text-emerald-300"
+        }`}
+      >
+        {card.dest === "top" ? "Topo" : "Cemitério"}
+      </span>
+    </button>
+  );
+});
 
 const LibraryViewCardButton = memo(function LibraryViewCardButton({
   card,
@@ -449,41 +563,56 @@ const LibraryZone = memo(function LibraryZone({
     setSurveilCount("1");
   };
 
-  const clearScryPreview = () => {
+  const clearScryPreview = useCallback(() => {
     setScryPreviewCard(null);
     setScryPreviewAnchor(null);
-  };
+  }, []);
 
-  const clearSurveilPreview = () => {
+  const clearSurveilPreview = useCallback(() => {
     setSurveilPreviewCard(null);
     setSurveilPreviewAnchor(null);
-  };
+  }, []);
 
   const _clearLibraryPreview = () => {
     setLibraryPreviewCard(null);
     setLibraryPreviewAnchor(null);
   };
 
-  const toggleScryDest = (id: string) => {
+  const toggleScryDest = useCallback((id: string) => {
     setScryCards((prev) =>
       prev.map((c) =>
         c.id === id ? { ...c, dest: c.dest === "top" ? "bottom" : "top" } : c,
       ),
     );
-  };
+  }, []);
 
-  const toggleSurveilDest = (id: string) => {
+  const toggleSurveilDest = useCallback((id: string) => {
     setSurveilCards((prev) =>
       prev.map((c) =>
         c.id === id
-          ? {
-              ...c,
-              dest: c.dest === "top" ? "graveyard" : "top",
-            }
+          ? { ...c, dest: c.dest === "top" ? "graveyard" : "top" }
           : c,
       ),
     );
-  };
+  }, []);
+
+  const handleScryMouseEnter = useCallback(
+    (card: ScryCard, target: HTMLElement) => {
+      setScryPreviewCard({ name: card.name, imageUrl: card.imageUrl });
+      const rect = target.getBoundingClientRect();
+      setScryPreviewAnchor({ x: rect.left + rect.width / 2, y: rect.top });
+    },
+    [],
+  );
+
+  const handleSurveilMouseEnter = useCallback(
+    (card: SurveilCard, target: HTMLElement) => {
+      setSurveilPreviewCard({ name: card.name, imageUrl: card.imageUrl });
+      const rect = target.getBoundingClientRect();
+      setSurveilPreviewAnchor({ x: rect.left + rect.width / 2, y: rect.top });
+    },
+    [],
+  );
 
   const handleShuffle = () => {
     const library = shuffleCardIds(libraryIds);
@@ -770,58 +899,13 @@ const LibraryZone = memo(function LibraryZone({
           </DialogHeader>
           <div className="flex flex-wrap justify-center gap-3 py-2">
             {scryCards.map((card) => (
-              <button
+              <ScryCardItem
                 key={card.id}
-                type="button"
-                onClick={() => toggleScryDest(card.id)}
-                className="flex flex-col items-center gap-1.5 cursor-pointer"
-                onMouseEnter={(event) => {
-                  setScryPreviewCard({
-                    name: card.name,
-                    imageUrl: card.imageUrl,
-                  });
-                  const rect = event.currentTarget.getBoundingClientRect();
-                  setScryPreviewAnchor({
-                    x: rect.left + rect.width / 2,
-                    y: rect.top,
-                  });
-                }}
+                card={card}
+                onToggle={toggleScryDest}
+                onMouseEnter={handleScryMouseEnter}
                 onMouseLeave={clearScryPreview}
-              >
-                {card.imageUrl ? (
-                  <Image
-                    src={card.imageUrl}
-                    alt={card.name}
-                    width={100}
-                    height={139}
-                    className={`rounded-[6px] border-2 transition-all ${
-                      card.dest === "top"
-                        ? "border-white/50"
-                        : "border-red-500/60 opacity-50"
-                    }`}
-                    unoptimized
-                  />
-                ) : (
-                  <div
-                    className={`flex h-[139px] w-[100px] items-center justify-center rounded-[6px] border-2 p-1 text-center text-[10px] ${
-                      card.dest === "top"
-                        ? "border-white/50 bg-white/5"
-                        : "border-red-500/60 bg-red-500/5 opacity-50"
-                    }`}
-                  >
-                    {card.name}
-                  </div>
-                )}
-                <span
-                  className={`rounded px-2 py-0.5 font-mono text-[10px] ${
-                    card.dest === "top"
-                      ? "bg-white/10 text-white"
-                      : "bg-red-500/20 text-red-300"
-                  }`}
-                >
-                  {card.dest === "top" ? "Topo" : "Fundo"}
-                </span>
-              </button>
+              />
             ))}
           </div>
           <DialogFooter>
@@ -873,58 +957,13 @@ const LibraryZone = memo(function LibraryZone({
           </DialogHeader>
           <div className="flex flex-wrap justify-center gap-3 py-2">
             {surveilCards.map((card) => (
-              <button
+              <SurveilCardItem
                 key={card.id}
-                type="button"
-                onClick={() => toggleSurveilDest(card.id)}
-                className="flex cursor-pointer flex-col items-center gap-1.5"
-                onMouseEnter={(event) => {
-                  setSurveilPreviewCard({
-                    name: card.name,
-                    imageUrl: card.imageUrl,
-                  });
-                  const rect = event.currentTarget.getBoundingClientRect();
-                  setSurveilPreviewAnchor({
-                    x: rect.left + rect.width / 2,
-                    y: rect.top,
-                  });
-                }}
+                card={card}
+                onToggle={toggleSurveilDest}
+                onMouseEnter={handleSurveilMouseEnter}
                 onMouseLeave={clearSurveilPreview}
-              >
-                {card.imageUrl ? (
-                  <Image
-                    src={card.imageUrl}
-                    alt={card.name}
-                    width={100}
-                    height={139}
-                    className={`rounded-[6px] border-2 transition-all ${
-                      card.dest === "top"
-                        ? "border-white/50"
-                        : "border-emerald-500/60 opacity-50"
-                    }`}
-                    unoptimized
-                  />
-                ) : (
-                  <div
-                    className={`flex h-[139px] w-[100px] items-center justify-center rounded-[6px] border-2 p-1 text-center text-[10px] ${
-                      card.dest === "top"
-                        ? "border-white/50 bg-white/5"
-                        : "border-emerald-500/60 bg-emerald-500/5 opacity-50"
-                    }`}
-                  >
-                    {card.name}
-                  </div>
-                )}
-                <span
-                  className={`rounded px-2 py-0.5 font-mono text-[10px] ${
-                    card.dest === "top"
-                      ? "bg-white/10 text-white"
-                      : "bg-emerald-500/20 text-emerald-300"
-                  }`}
-                >
-                  {card.dest === "top" ? "Topo" : "Cemiterio"}
-                </span>
-              </button>
+              />
             ))}
           </div>
           <DialogFooter>

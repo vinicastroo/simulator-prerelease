@@ -234,6 +234,20 @@ export function Sidebar() {
     if (!stillInDeck) setViewing(null);
   }, [cards, viewing]);
 
+  // Clear drag state when the dragged card is no longer in the deck.
+  // This handles the case where the <li> is unmounted mid-drag (dropped on
+  // the canvas), which prevents onDragEnd from firing on the element.
+  useEffect(() => {
+    if (!draggingSidebarCardId) return;
+    const stillInDeck = cards.some(
+      (c) => c.id === draggingSidebarCardId && c.isMainDeck !== null,
+    );
+    if (!stillInDeck) {
+      setDraggingSidebarCardId(null);
+      setActiveSidebarDropZone(null);
+    }
+  }, [cards, draggingSidebarCardId]);
+
   // ── Zone highlight during drag ──
   // pointer events are captured by the dragged card, so CSS :hover doesn't work.
   // We use a global pointermove listener to manually set data-active on zones.
@@ -920,13 +934,11 @@ function CardRow({
       onMouseLeave={() => onHoverEnd?.()}
       onDoubleClick={() => onOpen?.(card)}
       onDragStart={(e) => {
-        e.dataTransfer.setData(
-          "application/x-placed-card-id",
-          dragIds[0] ?? card.id,
-        );
+        const singleId = dragIds[0] ?? card.id;
+        e.dataTransfer.setData("application/x-placed-card-id", singleId);
         e.dataTransfer.setData(
           "application/x-placed-card-ids",
-          JSON.stringify(dragIds),
+          JSON.stringify([singleId]),
         );
         e.dataTransfer.effectAllowed = "move";
         const dragPreview = createDragPreview(card, count);
@@ -935,7 +947,7 @@ function CardRow({
         requestAnimationFrame(() => {
           dragPreview.remove();
         });
-        onDragStateChange?.(dragIds[0] ?? card.id);
+        onDragStateChange?.(singleId);
       }}
       onDragEnd={() => onDragStateChange?.(null)}
     >

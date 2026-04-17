@@ -1172,6 +1172,15 @@ function ListView({
                   );
                   e.dataTransfer.effectAllowed = "move";
                   setDraggingCard(placed.id);
+
+                  // Use a full-size ghost image so the drag preview isn't
+                  // clipped by the stack element's overflow:hidden + partial height.
+                  const ghost = document.createElement("img");
+                  ghost.src = placed.card.imagePath;
+                  ghost.style.cssText = `position:fixed;top:-9999px;left:-9999px;width:${CARD_W}px;height:${CARD_H}px;border-radius:10px;pointer-events:none`;
+                  document.body.appendChild(ghost);
+                  e.dataTransfer.setDragImage(ghost, CARD_W / 2, CARD_H / 2);
+                  requestAnimationFrame(() => ghost.remove());
                 }}
                 onDragEnd={() => setDraggingCard(null)}
                 className="group absolute left-0 cursor-pointer p-0 transition-transform duration-150 hover:-translate-y-1.5"

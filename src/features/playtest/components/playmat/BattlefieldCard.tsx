@@ -149,13 +149,6 @@ export const BattlefieldCard = memo(function BattlefieldCard({
           event.currentTarget,
         )
       }
-      onMouseMove={(event) =>
-        onHover(
-          card.id,
-          { name, imageUrl, power, toughness, cardType },
-          event.currentTarget,
-        )
-      }
       onMouseLeave={() => onHover(card.id, null, null)}
       onPointerDownCapture={handlePointerDownCapture}
       onClick={(event) => {

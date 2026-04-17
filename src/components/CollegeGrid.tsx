@@ -241,93 +241,130 @@ function CollegeCard({
         type="button"
         disabled={isPending}
         onClick={() => onSelect(college.id)}
-        className={`flex w-full text-left transition-all duration-500 ${isPending ? "cursor-wait" : "hover:-translate-y-1"}`}
+        className={`flex w-full text-left transition-all duration-300 ${
+          isPending ? "cursor-wait" : "hover:-translate-y-1.5"
+        }`}
       >
         <div
-          className={`
-            group relative flex w-full flex-col overflow-hidden rounded-[28px]
-            border border-white/10 bg-black/28 text-left backdrop-blur-xl
-            transition-all duration-500
-            ${isPending ? "" : "hover:border-white/14 hover:bg-black/34 "}
-          `}
+          className={`group relative flex w-full flex-col overflow-hidden rounded-[28px] border bg-black/28 text-left backdrop-blur-xl transition-all duration-300 ${
+            isPending ? "border-white/10" : "border-white/10 hover:border-white/20"
+          }`}
         >
-          <div className="absolute inset-0 z-0 bg-gradient-to-br from-white/[0.06] via-black/[0.08] to-black/[0.18]" />
+          {/* Base gradient */}
+          <div className="absolute inset-0 z-0 bg-gradient-to-br from-white/[0.06] via-black/[0.08] to-black/[0.20]" />
+
+          {/* College color tint */}
           <div
-            className="absolute inset-0 z-0 opacity-10 transition-opacity duration-500 group-hover:opacity-25"
+            className="absolute inset-0 z-0 opacity-[0.18] transition-opacity duration-500 group-hover:opacity-[0.32]"
             style={{
-              background: `linear-gradient(135deg, ${theme.gradientFrom} 0%, transparent 44%, rgba(0,0,0,0.18) 100%)`,
+              background: `linear-gradient(135deg, ${theme.gradientFrom} 0%, transparent 48%, rgba(0,0,0,0.18) 100%)`,
             }}
           />
 
-          <div className="absolute inset-x-0 top-0 z-0 h-32 bg-gradient-to-b from-white/[0.08] to-transparent" />
+          {/* Top radial glow */}
+          <div
+            className="absolute inset-x-0 top-0 z-0 h-44 opacity-25 transition-opacity duration-500 group-hover:opacity-50"
+            style={{
+              background: `radial-gradient(ellipse 75% 100% at 30% 0%, ${theme.gradientFrom}55 0%, transparent 70%)`,
+            }}
+          />
 
-          <div className="absolute -right-6 top-10 z-10 flex items-center justify-center opacity-[0.04] transition-all duration-1000 group-hover:scale-110 group-hover:opacity-[0.08]">
+          {/* Top white shimmer */}
+          <div className="absolute inset-x-0 top-0 z-0 h-32 bg-gradient-to-b from-white/[0.06] to-transparent" />
+
+          {/* Watermark logo */}
+          <div className="absolute -right-4 top-6 z-10 opacity-[0.055] transition-all duration-700 group-hover:scale-105 group-hover:opacity-[0.10]">
             <Image
               src={college.logoPath}
               alt=""
-              width={260}
-              height={260}
+              width={240}
+              height={240}
               className="grayscale brightness-200 object-contain"
             />
           </div>
 
-          {/* Header */}
-          <div className="relative z-20 flex items-center gap-4 px-6 pt-6 md:px-8 md:pt-8">
-            <div className="relative h-20 w-20 shrink-0 drop-shadow-[0_5px_15px_rgba(0,0,0,0.5)] transition-transform duration-700 group-hover:scale-110">
-              <Image
-                src={college.logoPath}
-                alt={`${college.name} Logo`}
-                fill
-                className="object-contain"
-                priority
-              />
-            </div>
-            <div>
-              <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.35em] text-white/25">
-                {college.school}
-              </p>
-              <div className="flex items-center gap-3">
-                <p
-                  className={`text-3xl font-black tracking-tighter uppercase drop-shadow-sm md:text-4xl ${theme.accentClass}`}
-                >
-                  {college.name}
-                </p>
-                <div className="flex gap-1">
-                  {college.colors.map((color) => (
-                    <div
-                      key={color.code}
-                      className="relative h-5 w-5 drop-shadow-md md:h-6 md:w-6"
-                    >
-                      <Image
-                        src={color.svgPath}
-                        alt={color.label}
-                        fill
-                        className="object-contain"
-                      />
-                    </div>
-                  ))}
-                </div>
+          {/* Inset colored border — appears on hover */}
+          <div
+            className="pointer-events-none absolute inset-0 z-30 rounded-[28px] opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+            style={{ boxShadow: `inset 0 0 0 1px ${theme.gradientFrom}40` }}
+          />
+
+          {/* Content */}
+          <div className="relative z-20 flex flex-1 flex-col px-6 pb-5 pt-6 md:px-8 md:pb-6 md:pt-8">
+            {/* Header: logo + school + name + pips */}
+            <div className="flex items-start gap-4">
+              <div
+                className="relative h-20 w-20 shrink-0 transition-transform duration-500 group-hover:scale-[1.08]"
+                style={{
+                  filter: `drop-shadow(0 6px 20px ${theme.gradientFrom}60)`,
+                }}
+              >
+                <Image
+                  src={college.logoPath}
+                  alt={`${college.name} Logo`}
+                  fill
+                  className="object-contain"
+                  priority
+                />
               </div>
+              <div className="pt-1">
+                <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.35em] text-white/30">
+                  {college.school}
+                </p>
+                <div className="flex items-center gap-2.5">
+                  <p
+                    className={`text-3xl font-black tracking-tighter uppercase md:text-4xl ${theme.accentClass}`}
+                  >
+                    {college.name}
+                  </p>
+                  <div className="flex gap-1">
+                    {college.colors.map((color) => (
+                      <div
+                        key={color.code}
+                        className="relative h-5 w-5 drop-shadow-md md:h-6 md:w-6"
+                      >
+                        <Image
+                          src={color.svgPath}
+                          alt={color.label}
+                          fill
+                          className="object-contain"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <p className="mt-2 text-xs italic leading-relaxed text-white/38">
+                  &ldquo;{college.tagline}&rdquo;
+                </p>
+              </div>
+            </div>
+
+            {/* Badges — pushed to bottom */}
+            <div className="mt-auto flex flex-wrap gap-1.5 pt-5">
+              {college.keywords.map((kw) => (
+                <Badge
+                  key={kw}
+                  variant="outline"
+                  className="border px-3 py-1 text-[10px] font-bold uppercase tracking-[0.22em]"
+                  style={{
+                    borderColor: `${theme.gradientFrom}50`,
+                    backgroundColor: `${theme.gradientFrom}14`,
+                    color: theme.gradientFrom,
+                  }}
+                >
+                  {kw}
+                </Badge>
+              ))}
             </div>
           </div>
 
-          {/* Badges */}
-          <div className="relative z-20 flex flex-row gap-2 px-6 pb-6 pt-4 md:px-8 md:pb-8">
-            {college.keywords.map((kw) => (
-              <Badge
-                key={kw}
-                variant="outline"
-                className="border px-3 py-1 text-[10px] font-bold uppercase tracking-[0.22em]"
-                style={{
-                  borderColor: `${theme.gradientFrom}50`,
-                  backgroundColor: `${theme.gradientFrom}18`,
-                  color: theme.gradientFrom,
-                }}
-              >
-                {kw}
-              </Badge>
-            ))}
-          </div>
+          {/* Bottom color strip */}
+          <div
+            className="h-[3px] w-full shrink-0 opacity-50 transition-opacity duration-300 group-hover:opacity-100"
+            style={{
+              background: `linear-gradient(90deg, ${theme.gradientFrom}, ${theme.gradientTo})`,
+            }}
+          />
         </div>
       </button>
     </li>

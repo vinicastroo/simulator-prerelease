@@ -36,7 +36,18 @@ export async function POST(
 
   const result = await (async () => {
     for (let attempt = 0; attempt < 5; attempt += 1) {
-      const room = await prisma.gameRoom.findUnique({ where: { id: roomId } });
+      const room = await prisma.gameRoom.findUnique({
+        where: { id: roomId },
+        select: {
+          status: true,
+          hostUserId: true,
+          guestUserId: true,
+          hostPlayerId: true,
+          guestPlayerId: true,
+          gameState: true,
+          stateVersion: true,
+        },
+      });
       if (!room) return { error: "NOT_FOUND" };
       if (room.status !== "ACTIVE") return { error: "GAME_NOT_ACTIVE" };
 

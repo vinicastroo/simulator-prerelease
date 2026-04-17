@@ -5,7 +5,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { TopNav } from "@/components/TopNav";
 import { Button } from "@/components/ui/button";
+import { Plus } from "lucide-react";
 import { COLLEGES, type CollegeDef } from "@/lib/mtg/colleges";
+import { DeckRowSkeleton } from "./DeckRowSkeleton";
 import { DeleteDeckButton } from "./DeleteDeckButton";
 
 type CollegeId = CollegeDef["id"];
@@ -64,14 +66,15 @@ export function DecksClient() {
               </h1>
             </div>
 
-            <div className="flex items-center gap-2.5">
-              <Button
-                asChild
-                className="rounded-full bg-white px-5 font-bold text-[#06070a]  hover:bg-white/90 hover:shadow-[0_0_28px_rgba(255,255,255,0.25)]"
-              >
-                <Link href="/">Novo deck</Link>
-              </Button>
-            </div>
+            <Button
+              asChild
+              className="h-9 rounded-full border border-white/12 bg-white/[0.07] px-5 font-bold text-white/80 backdrop-blur-sm transition-all duration-200 hover:border-white/20 hover:bg-white/[0.12] hover:text-white active:scale-95"
+            >
+              <Link href="/" className="flex items-center gap-2">
+                <Plus className="h-3.5 w-3.5 shrink-0" strokeWidth={2.5} />
+                Novo deck
+              </Link>
+            </Button>
           </div>
         </header>
 
@@ -85,11 +88,8 @@ export function DecksClient() {
               </div>
             ) : isLoading ? (
               <div className="space-y-3">
-                {(["sk0", "sk1", "sk2"] as const).map((skKey) => (
-                  <div
-                    key={skKey}
-                    className="h-[148px] animate-pulse rounded-[1.5rem] border border-white/10 bg-black/28 backdrop-blur-xl"
-                  />
+                {(["sk0", "sk1", "sk2"] as const).map((skKey, i) => (
+                  <DeckRowSkeleton key={skKey} delay={i * 80} />
                 ))}
               </div>
             ) : kits.length === 0 ? (

@@ -75,30 +75,32 @@ export function TokenModal({
   }
 
   return (
-    <div className="absolute left-1/2 top-[56px] z-50 w-[380px] -translate-x-1/2 rounded-2xl border border-white/8 bg-black/90 p-4 shadow-[0_24px_48px_rgba(0,0,0,0.4)] backdrop-blur-xl">
-      <div className="flex items-center justify-between border-b border-white/8 pb-3">
+    <div className="absolute left-1/2 top-[56px] z-50 w-[560px] -translate-x-1/2 rounded-2xl border border-white/10 bg-[#0d1117]/95 p-6 shadow-[0_32px_64px_rgba(0,0,0,0.5)] backdrop-blur-xl">
+      {/* Header */}
+      <div className="flex items-start justify-between border-b border-white/8 pb-5">
         <div>
-          <h3 className="font-mono text-xs uppercase tracking-widest text-white/90">
+          <h3 className="font-mono text-xs font-semibold uppercase tracking-widest text-white/90">
             Criar Token
           </h3>
-          <p className="mt-1 text-[10px] text-white/40">
+          <p className="mt-1.5 text-[11px] leading-relaxed text-white/40">
             Define as propriedades da nova ficha
           </p>
         </div>
         <button
           type="button"
           onClick={onClose}
-          className="text-white/40 hover:text-white transition-colors"
+          className="ml-4 mt-0.5 flex h-6 w-6 items-center justify-center rounded-md text-white/30 transition-colors hover:bg-white/8 hover:text-white/70"
         >
           ✕
         </button>
       </div>
 
-      <div className="mt-4 space-y-3">
-        <div className="space-y-1">
+      {/* Fields */}
+      <div className="mt-5 space-y-4">
+        <div className="space-y-1.5">
           <label
             htmlFor="token-name"
-            className="text-[10px] uppercase tracking-wider text-white/30"
+            className="block text-[11px] font-semibold uppercase tracking-wider text-white/40"
           >
             Nome
           </label>
@@ -106,48 +108,48 @@ export function TokenModal({
             id="token-name"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full h-9 rounded-lg border border-white/10 bg-white/5 px-3 text-sm text-white outline-none focus:border-blue-500/50 transition-colors"
+            className="h-10 w-full rounded-xl border border-white/10 bg-white/[0.05] px-3.5 text-sm text-white outline-none transition-colors placeholder:text-white/20 focus:border-blue-500/50 focus:bg-blue-950/20"
             placeholder="Ex: Soldier"
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1">
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-1.5">
             <label
               htmlFor="token-power"
-              className="text-[10px] uppercase tracking-wider text-white/30"
+              className="block text-[11px] font-semibold uppercase tracking-wider text-white/40"
             >
-              Poder (P)
+              Poder
             </label>
             <input
               id="token-power"
               value={power}
               onChange={(e) => setPower(e.target.value)}
-              className="w-full h-9 rounded-lg border border-white/10 bg-white/5 px-3 text-sm text-white outline-none"
+              className="h-10 w-full rounded-xl border border-white/10 bg-white/[0.05] px-3.5 text-sm text-white outline-none transition-colors placeholder:text-white/20 focus:border-blue-500/50 focus:bg-blue-950/20"
               placeholder="1"
             />
           </div>
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             <label
               htmlFor="token-toughness"
-              className="text-[10px] uppercase tracking-wider text-white/30"
+              className="block text-[11px] font-semibold uppercase tracking-wider text-white/40"
             >
-              Resistência (T)
+              Resistência
             </label>
             <input
               id="token-toughness"
               value={toughness}
               onChange={(e) => setToughness(e.target.value)}
-              className="w-full h-9 rounded-lg border border-white/10 bg-white/5 px-3 text-sm text-white outline-none"
+              className="h-10 w-full rounded-xl border border-white/10 bg-white/[0.05] px-3.5 text-sm text-white outline-none transition-colors placeholder:text-white/20 focus:border-blue-500/50 focus:bg-blue-950/20"
               placeholder="1"
             />
           </div>
         </div>
 
-        <div className="space-y-1">
+        <div className="space-y-1.5">
           <label
             htmlFor="token-type"
-            className="text-[10px] uppercase tracking-wider text-white/30"
+            className="block text-[11px] font-semibold uppercase tracking-wider text-white/40"
           >
             Tipo
           </label>
@@ -155,40 +157,44 @@ export function TokenModal({
             id="token-type"
             value={type}
             onChange={(e) => setType(e.target.value)}
-            className="w-full h-9 rounded-lg border border-white/10 bg-white/5 px-3 text-sm text-white outline-none"
+            className="h-10 w-full rounded-xl border border-white/10 bg-white/[0.05] px-3.5 text-sm text-white outline-none transition-colors placeholder:text-white/20 focus:border-blue-500/50 focus:bg-blue-950/20"
             placeholder="Ex: Creature — Elf Warrior"
           />
         </div>
 
-        <div className="space-y-1">
+        <div className="space-y-1.5">
           <label
             htmlFor="token-image"
-            className="text-[10px] uppercase tracking-wider text-white/30"
+            className="block text-[11px] font-semibold uppercase tracking-wider text-white/40"
           >
-            URL da Imagem (opcional)
+            URL da Imagem{" "}
+            <span className="normal-case tracking-normal text-white/25">
+              (opcional)
+            </span>
           </label>
           <input
             id="token-image"
             value={imageUrl}
             onChange={(e) => setImageUrl(e.target.value)}
-            className="w-full h-9 rounded-lg border border-white/10 bg-white/5 px-3 text-sm text-white outline-none"
+            className="h-10 w-full rounded-xl border border-white/10 bg-white/[0.05] px-3.5 text-sm text-white outline-none transition-colors placeholder:text-white/20 focus:border-blue-500/50 focus:bg-blue-950/20"
             placeholder="https://..."
           />
         </div>
       </div>
 
-      <div className="mt-6 flex gap-2">
+      {/* Actions */}
+      <div className="mt-6 flex gap-3">
         <button
           type="button"
           onClick={onClose}
-          className="flex-1 rounded-lg border border-white/10 bg-white/5 py-2 text-xs font-medium text-white/70 hover:bg-white/10 transition-colors"
+          className="flex-1 rounded-xl border border-white/10 bg-white/5 py-2.5 text-sm font-medium text-white/60 transition-colors hover:bg-white/10 hover:text-white/80"
         >
           Cancelar
         </button>
         <button
           type="button"
           onClick={handleCreate}
-          className="flex-1 rounded-lg bg-blue-600 py-2 text-xs font-medium text-white hover:bg-blue-500 transition-colors shadow-lg shadow-blue-900/20"
+          className="flex-1 rounded-xl bg-blue-600/80 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-900/20 transition-colors hover:bg-blue-600"
         >
           Criar Token
         </button>

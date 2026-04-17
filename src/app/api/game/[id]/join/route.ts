@@ -15,7 +15,10 @@ export async function POST(
   const { id: roomId } = await params;
   const userId = session.user.id;
 
-  const room = await prisma.gameRoom.findUnique({ where: { id: roomId } });
+  const room = await prisma.gameRoom.findUnique({
+    where: { id: roomId },
+    select: { guestUserId: true },
+  });
   if (!room || room.guestUserId !== userId) {
     return NextResponse.json({ ok: true }); // silently ignore
   }

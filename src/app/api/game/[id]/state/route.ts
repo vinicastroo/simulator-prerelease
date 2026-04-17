@@ -16,7 +16,20 @@ export async function GET(
   const { id: roomId } = await params;
   const userId = session.user.id;
 
-  const room = await prisma.gameRoom.findUnique({ where: { id: roomId } });
+  const room = await prisma.gameRoom.findUnique({
+    where: { id: roomId },
+    select: {
+      hostUserId: true,
+      guestUserId: true,
+      gameState: true,
+      stateVersion: true,
+      status: true,
+      hostPlayerId: true,
+      guestPlayerId: true,
+      hostReady: true,
+      guestReady: true,
+    },
+  });
   if (!room) {
     return NextResponse.json({ error: "Room not found" }, { status: 404 });
   }
@@ -60,7 +73,10 @@ export async function PUT(
     stateVersion: number;
   };
 
-  const room = await prisma.gameRoom.findUnique({ where: { id: roomId } });
+  const room = await prisma.gameRoom.findUnique({
+    where: { id: roomId },
+    select: { hostUserId: true, guestUserId: true, status: true },
+  });
   if (!room) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }

@@ -39,8 +39,13 @@ model Card {
   artist          String?
   releasedAt      String?
   rawData         Json?
+  isToken         Boolean         @default(false)
   placedCards     PlacedCard[]
   promoInKits     PrereleaseKit[] @relation("PromoCard")
+
+  @@index([isToken, name])
+  @@index([set])
+  @@index([name])
 }
 
 model PrereleaseKit {
@@ -49,11 +54,15 @@ model PrereleaseKit {
   createdAt   DateTime     @default(now())
   promoCardId String?
   userId      String?
+
   guestRooms  GameRoom[]   @relation("GuestKit")
   hostedRooms GameRoom[]   @relation("HostKit")
   placedCards PlacedCard[]
   promoCard   Card?        @relation("PromoCard", fields: [promoCardId], references: [id])
   user        User?        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, createdAt])
 }
 
 model GameRoom {
@@ -75,6 +84,12 @@ model GameRoom {
   guestUser     User?          @relation("GuestRooms", fields: [guestUserId], references: [id])
   hostKit       PrereleaseKit? @relation("HostKit", fields: [hostKitId], references: [id])
   hostUser      User           @relation("HostRooms", fields: [hostUserId], references: [id])
+
+  @@index([hostUserId])
+  @@index([guestUserId])
+  @@index([hostKitId])
+  @@index([guestKitId])
+  @@index([status])
 }
 
 model PlacedCard {
@@ -88,6 +103,8 @@ model PlacedCard {
   isFoil     Boolean       @default(false)
   card       Card          @relation(fields: [cardId], references: [id])
   kit        PrereleaseKit @relation(fields: [kitId], references: [id])
+
+  @@index([kitId])
 }
 
 enum Rarity {

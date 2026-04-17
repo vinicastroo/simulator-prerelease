@@ -95,26 +95,28 @@ export default function SimulatorLoading() {
         />
 
         {/* ── Central overlay ─────────────────────────────────────────────── */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-bg-void/65 gap-5">
-          <PackIcon className="w-12 h-12 text-gold-accent/70 animate-bounce" />
-          <div className="flex flex-col items-center gap-2">
-            <p className="text-gold-accent text-sm font-semibold tracking-[0.25em] uppercase animate-pulse">
-              Opening Packs…
-            </p>
-            <p className="text-white/30 text-xs tracking-wide">
-              Shuffling 85 cards into your prerelease kit
-            </p>
-          </div>
+        <div className="absolute inset-0 flex items-center justify-center bg-bg-void/65">
+          <div className="flex flex-col items-center gap-5 rounded-2xl border border-white/8 bg-white/[0.03] px-10 py-8 shadow-[0_24px_64px_rgba(0,0,0,0.45)] backdrop-blur-sm">
+            <PackIcon className="w-12 h-12 text-gold-accent/70 animate-bounce" />
+            <div className="flex flex-col items-center gap-2">
+              <p className="text-gold-accent text-sm font-semibold tracking-[0.25em] uppercase animate-pulse">
+                Opening Packs…
+              </p>
+              <p className="text-white/30 text-xs tracking-wide">
+                Shuffling 85 cards into your prerelease kit
+              </p>
+            </div>
 
-          {/* Progress dots */}
-          <div className="flex gap-1.5 mt-1">
-            {PROGRESS_DOTS.map((dotId, i) => (
-              <span
-                key={dotId}
-                className="w-1.5 h-1.5 rounded-full bg-gold-accent/50 animate-pulse"
-                style={{ animationDelay: `${i * 150}ms` }}
-              />
-            ))}
+            {/* Progress dots */}
+            <div className="flex gap-1.5">
+              {PROGRESS_DOTS.map((dotId, i) => (
+                <span
+                  key={dotId}
+                  className="w-1.5 h-1.5 rounded-full bg-gold-accent/50 animate-pulse"
+                  style={{ animationDelay: `${i * 150}ms` }}
+                />
+              ))}
+            </div>
           </div>
         </div>
       </div>

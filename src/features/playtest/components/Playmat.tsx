@@ -972,6 +972,18 @@ export function Playmat({
   const life = player?.life ?? 20;
   const turnLabel = `Turno ${turnNumber}`;
 
+  const deckCardIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const inst of Object.values(state.cardInstances)) {
+      if (inst.isToken) continue;
+      const def = state.cardDefinitions[inst.definitionId];
+      if (def?.sourceId && def.sourceId !== "custom-token") {
+        ids.add(def.sourceId);
+      }
+    }
+    return Array.from(ids);
+  }, [state.cardInstances, state.cardDefinitions]);
+
   const handCards = useMemo(
     () =>
       allZones.hand.map((card) => {
@@ -1119,14 +1131,21 @@ export function Playmat({
   const [battlefieldContainerEl, setBattlefieldContainerEl] =
     useState<HTMLDivElement | null>(null);
 
+  // Keep a ref to battlefieldDrop so the callback below never needs to
+  // re-create itself when dnd-kit recreates the drop object. A changing
+  // callback reference causes React to detach → reattach the ref, which calls
+  // setBattlefieldContainerEl on every cycle → infinite update loop.
+  const battlefieldDropRef = useRef(battlefieldDrop);
+  battlefieldDropRef.current = battlefieldDrop;
+
   const setBattlefieldRefs = useCallback(
     (node: HTMLDivElement | null) => {
       battlefieldRef.current = node;
       battlefieldContainerElRef.current = node;
-      battlefieldDrop.setNodeRef(node);
+      battlefieldDropRef.current.setNodeRef(node);
       setBattlefieldContainerEl(node);
     },
-    [battlefieldDrop],
+    [], // stable — accesses battlefieldDrop via ref
   );
 
   const setHandRefs = useCallback(
@@ -1691,6 +1710,7 @@ export function Playmat({
         <BattlefieldTokenBrowser
           onClose={closeTokenBrowser}
           onCreateToken={handleCreateTokenFromBrowser}
+          deckCardIds={deckCardIds}
         />
       )}
 
