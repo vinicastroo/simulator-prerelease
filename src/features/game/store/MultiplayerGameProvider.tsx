@@ -111,6 +111,8 @@ function createMultiplayerGameStore({
   let debounceTimer: ReturnType<typeof setTimeout> | null = null;
   let isFlushing = false;
   let pendingFlush = false;
+  // Incremented on every resync. Lets in-flight flushes detect they're stale.
+  let syncGeneration = 0;
 
   const scheduleFlusher = (
     get: () => MultiplayerGameStoreSlice,
@@ -134,6 +136,7 @@ function createMultiplayerGameStore({
     setStoreState: (partial: Partial<MultiplayerGameStoreSlice>) => void,
   ) => {
     isFlushing = true;
+    const generation = syncGeneration;
     const { gameState, stateVersion } = get();
     try {
       const res = await fetch(`/api/game/${roomId}/state`, {
@@ -141,6 +144,8 @@ function createMultiplayerGameStore({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ gameState, stateVersion }),
       });
+      // Discard result if a resync happened while this request was in-flight.
+      if (generation !== syncGeneration) return;
       if (res.ok) {
         const data = (await res.json()) as { seq: number };
         setStoreState({ stateVersion: data.seq, pendingActionCount: 0 });
@@ -150,12 +155,16 @@ function createMultiplayerGameStore({
         setStoreState({ pendingActionCount: 0 });
       }
     } catch {
-      setStoreState({ pendingActionCount: 0 });
+      if (generation === syncGeneration) {
+        setStoreState({ pendingActionCount: 0 });
+      }
     } finally {
       isFlushing = false;
-      if (pendingFlush) {
+      if (pendingFlush && generation === syncGeneration) {
         pendingFlush = false;
         void flushState(get, setStoreState);
+      } else {
+        pendingFlush = false;
       }
     }
   };
@@ -205,11 +214,15 @@ function createMultiplayerGameStore({
         },
 
         resyncState: async () => {
+          syncGeneration++;
+          pendingFlush = false;
           if (debounceTimer !== null) {
             clearTimeout(debounceTimer);
             debounceTimer = null;
           }
-          const res = await fetch(`/api/game/${roomId}/state`);
+          const res = await fetch(`/api/game/${roomId}/state`, {
+            cache: "no-store",
+          });
           if (!res.ok) return;
           const data = (await res.json()) as {
             gameState: GameState;
