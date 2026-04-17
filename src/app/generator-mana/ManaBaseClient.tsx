@@ -580,7 +580,7 @@ export function ManaBaseClient() {
       <div className="pointer-events-none absolute right-[120px] top-[10%] h-[500px] w-[500px] rounded-full bg-[#4d6393] opacity-40 blur-[130px]" />
       <div className="pointer-events-none absolute bottom-[5%] right-[180px] h-[380px] w-[380px] rounded-full bg-[#7c3aed] opacity-25 blur-[110px]" />
 
-      <div className="relative mx-auto flex w-full flex-col px-3 py-4 sm:px-6 sm:py-6">
+      <div className="relative mx-auto flex w-full flex-col px-3 pt-4 pb-14 sm:px-6 sm:pt-6 sm:pb-16">
         <header className="shrink-0 px-1 pb-6">
           <TopNav activePage="mana" />
           <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
