@@ -1,5 +1,5 @@
 import type { WheelEvent } from "react";
-import { memo, useCallback, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { CardInstance } from "@/lib/game/types";
 import { BattlefieldCard } from "./BattlefieldCard";
@@ -126,6 +126,27 @@ export const BattlefieldArea = memo(function BattlefieldArea({
     orientation === "top"
       ? "absolute left-3 bottom-3 z-20"
       : "absolute left-3 top-3 z-20";
+
+  // ── Life delta overlay ─────────────────────────────────────────────────────
+  const [lifeDelta, setLifeDelta] = useState(0);
+  const [deltaVisible, setDeltaVisible] = useState(false);
+  const prevLifeRef = useRef(life);
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    const delta = life - prevLifeRef.current;
+    prevLifeRef.current = life;
+    if (delta === 0) return;
+
+    setLifeDelta((prev) => prev + delta);
+    setDeltaVisible(true);
+
+    if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    hideTimerRef.current = setTimeout(() => {
+      setDeltaVisible(false);
+      setTimeout(() => setLifeDelta(0), 300);
+    }, 2000);
+  }, [life]);
 
   // Grid background computed in screen-space so it tiles infinitely across the
   // whole container regardless of pan position or canvas bounds.
@@ -391,9 +412,20 @@ export const BattlefieldArea = memo(function BattlefieldArea({
               >
                 -
               </Button>
-              <span className="min-w-8 text-center text-2xl font-black tabular-nums text-white">
-                {life}
-              </span>
+              <div className="relative min-w-8">
+                <span
+                  className={`pointer-events-none absolute -top-6 left-1/2 -translate-x-1/2 text-sm font-black tabular-nums transition-all duration-300 ${
+                    deltaVisible
+                      ? "translate-y-0 opacity-100"
+                      : "-translate-y-1 opacity-0"
+                  } ${lifeDelta > 0 ? "text-emerald-400" : "text-red-400"}`}
+                >
+                  {lifeDelta > 0 ? `+${lifeDelta}` : lifeDelta}
+                </span>
+                <span className="block text-center text-2xl font-black tabular-nums text-white">
+                  {life}
+                </span>
+              </div>
               <Button
                 type="button"
                 variant="ghost"
