@@ -109,11 +109,19 @@ function createMultiplayerGameStore({
 }: MultiplayerGameStoreInit) {
   // Closure-based non-reactive bookkeeping — never trigger re-renders.
   let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+  let isFlushing = false;
+  let pendingFlush = false;
 
   const scheduleFlusher = (
     get: () => MultiplayerGameStoreSlice,
     setStoreState: (partial: Partial<MultiplayerGameStoreSlice>) => void,
   ) => {
+    // If a flush is already in-flight, mark that we need another flush after it
+    // completes instead of scheduling a concurrent one with a stale stateVersion.
+    if (isFlushing) {
+      pendingFlush = true;
+      return;
+    }
     if (debounceTimer !== null) clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => {
       debounceTimer = null;
@@ -125,6 +133,7 @@ function createMultiplayerGameStore({
     get: () => MultiplayerGameStoreSlice,
     setStoreState: (partial: Partial<MultiplayerGameStoreSlice>) => void,
   ) => {
+    isFlushing = true;
     const { gameState, stateVersion } = get();
     try {
       const res = await fetch(`/api/game/${roomId}/state`, {
@@ -142,6 +151,12 @@ function createMultiplayerGameStore({
       }
     } catch {
       setStoreState({ pendingActionCount: 0 });
+    } finally {
+      isFlushing = false;
+      if (pendingFlush) {
+        pendingFlush = false;
+        void flushState(get, setStoreState);
+      }
     }
   };
 
