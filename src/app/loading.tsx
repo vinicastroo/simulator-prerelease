@@ -3,18 +3,10 @@ function TopNavSkeleton() {
     <div className="flex items-center justify-between gap-4 border-b border-white/8 pb-5">
       <div className="h-6 w-28 rounded-full animate-pulse bg-white/[0.06] sm:h-8" />
       <div className="flex items-center gap-3">
-        <div
-          className="h-8 w-24 rounded-full animate-pulse bg-white/[0.04]"
-          style={{ animationDelay: "60ms" }}
-        />
-        <div
-          className="h-8 w-36 rounded-full animate-pulse bg-white/[0.04]"
-          style={{ animationDelay: "120ms" }}
-        />
-        <div
-          className="h-8 w-8 rounded-full animate-pulse bg-white/[0.04]"
-          style={{ animationDelay: "180ms" }}
-        />
+        <div className="h-8 w-24 rounded-full animate-pulse bg-white/[0.04]" style={{ animationDelay: "60ms" }} />
+        <div className="h-8 w-28 rounded-full animate-pulse bg-white/[0.04]" style={{ animationDelay: "100ms" }} />
+        <div className="h-8 w-36 rounded-full animate-pulse bg-white/[0.04]" style={{ animationDelay: "140ms" }} />
+        <div className="h-8 w-8 rounded-full animate-pulse bg-white/[0.04]" style={{ animationDelay: "180ms" }} />
       </div>
     </div>
   );

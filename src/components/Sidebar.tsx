@@ -27,6 +27,11 @@ import {
   type PlacedCardState,
   usePrerelease,
 } from "@/context/PrereleaseContext";
+import {
+  BASIC_COLORS,
+  BASIC_LAND_NAME_EN as BASIC_LAND_NAME,
+  recommendBasicLands as calcRecommendedLands,
+} from "@/lib/mtg/mana-base";
 
 // ─── Rarity helpers ───────────────────────────────────────────────────────────
 
@@ -1678,14 +1683,6 @@ function parseManaCost(cost?: string | null): string[] {
 
 // ─── Basic land recommendation ─────────────────────────────────────────────────
 
-const BASIC_COLORS = ["W", "U", "B", "R", "G"] as const;
-const BASIC_LAND_NAME: Record<string, string> = {
-  W: "Plains",
-  U: "Island",
-  B: "Swamp",
-  R: "Mountain",
-  G: "Forest",
-};
 
 /**
  * Count colored mana pips per color in non-land cards.
@@ -1709,44 +1706,19 @@ function countManaPips(cards: PlacedCardState[]): Record<string, number> {
   return counts;
 }
 
-/**
- * Recommend how many basic lands of each color for a limited deck.
- * Uses pip-proportional distribution with largest-remainder rounding.
- * landBudget = total lands the deck should have (default 17 for limited).
- */
 function recommendBasicLands(
   cards: PlacedCardState[],
   landBudget = 17,
 ): Record<string, number> {
   const pips = countManaPips(cards);
-  const totalPips = Object.values(pips).reduce((a, b) => a + b, 0);
-  const result: Record<string, number> = { W: 0, U: 0, B: 0, R: 0, G: 0 };
-  if (totalPips === 0) return result;
-
-  // Count non-basic lands already in deck (they don't need to be basic)
-  const nonBasicLandCount = cards.filter(
+  // Non-basic lands reduce the basic budget but we don't know their specific
+  // dual combinations here, so they're treated as generic utility slots.
+  const nonBasics = cards.filter(
     (c) =>
       c.card.typeLine.includes("Land") &&
       !BASIC_COLORS.some((col) => c.card.name === BASIC_LAND_NAME[col]),
   ).length;
-  const budget = Math.max(0, landBudget - nonBasicLandCount);
-
-  // Proportional share per color (only colors with pips)
-  const usedColors = BASIC_COLORS.filter((col) => pips[col] > 0);
-  const raw: Record<string, number> = {};
-  for (const col of usedColors) {
-    raw[col] = (pips[col] / totalPips) * budget;
-  }
-
-  // Floor all, then add 1 to colors with largest fractional remainder
-  for (const col of usedColors) result[col] = Math.floor(raw[col]);
-  const remaining = budget - usedColors.reduce((s, col) => s + result[col], 0);
-  const byFrac = [...usedColors].sort((a, b) => (raw[b] % 1) - (raw[a] % 1));
-  for (let i = 0; i < remaining && i < byFrac.length; i++) {
-    result[byFrac[i]]++;
-  }
-
-  return result;
+  return calcRecommendedLands(pips, {}, nonBasics, landBudget);
 }
 
 /**

@@ -4,7 +4,7 @@ import { SignOutButton } from "@/components/SignOutButton";
 import { Button } from "@/components/ui/button";
 
 interface TopNavProps {
-  activePage?: "home" | "decks" | "game";
+  activePage?: "home" | "decks" | "game" | "mana";
 }
 
 export function TopNav({ activePage }: TopNavProps) {
@@ -36,6 +36,15 @@ export function TopNav({ activePage }: TopNavProps) {
           }`}
         >
           <Link href="/decks">Meus decks</Link>
+        </Button>
+        <Button
+          asChild
+          variant="outline"
+          className={`rounded-full border-white/10 bg-transparent px-4 text-[11px] font-bold uppercase tracking-[0.2em] hover:bg-white/[0.06] ${
+            activePage === "mana" ? "text-white border-white" : "text-white/70"
+          }`}
+        >
+          <Link href="/generator-mana">Base de mana</Link>
         </Button>
         <Button
           asChild
